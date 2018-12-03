@@ -186,6 +186,7 @@ GameObject:
   - component: {fileID: 1127217410}
   - component: {fileID: 1127217409}
   - component: {fileID: 1127217408}
+  - component: {fileID: 1127217412}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -268,6 +269,17 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!225 &1127217412
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1127217407}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1701853070
 GameObject:
   m_ObjectHideFlags: 0
@@ -361,8 +373,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: de4a59f9ddb2743d6b5f1e850af15d72, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  textPrefab: {fileID: 114215664947354984, guid: 0afe88112946d48b0862a725483136ae,
+  textPrefab: {fileID: 114635825734036720, guid: 78cbc035b86cb4146ab19c14517df426,
     type: 2}
   imagePrefab: {fileID: 114580875023860048, guid: 8590ec5bc81f4437ebde0513ab3263f9,
     type: 2}
   canvas: {fileID: 1127217410}
+  setAll: 0
+  setText: 0
+  setColor: 0
+  setPosition: 0
+  setRotation: 0
+  setScale: 0
+  setSizeDelta: 0
+  useRichText: 0
+  insertImage: 1
+  graphicCount: 100
