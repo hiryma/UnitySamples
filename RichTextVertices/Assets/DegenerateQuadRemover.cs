@@ -10,8 +10,8 @@ namespace Kayac
 		private static List<UIVertex> _verticesCache; // 使い回し
 
 #if UNITY_EDITOR
-		private int _originalVertexCount;
-		private int _processedVertexCount;
+		private int _inVertexCount;
+		private int _outVertexCount;
 #endif
 		static DegenerateQuadRemover()
 		{
@@ -47,15 +47,18 @@ namespace Kayac
 		{
 			if (!enabled)
 			{
+#if UNITY_EDITOR
+				_inVertexCount = _outVertexCount = 0;
+#endif
 				return;
 			}
 			vh.GetUIVertexStream(_verticesCache);
 #if UNITY_EDITOR
-			_originalVertexCount = _verticesCache.Count;
+			_inVertexCount = _verticesCache.Count;
 #endif
 			Process(_verticesCache);
 #if UNITY_EDITOR
-			_processedVertexCount = _verticesCache.Count;
+			_outVertexCount = _verticesCache.Count;
 #endif
 			vh.Clear();
 			vh.AddUIVertexTriangleStream(_verticesCache);
@@ -69,7 +72,7 @@ namespace Kayac
 			{
 				base.OnInspectorGUI();
 				var self = (DegenerateQuadRemover)target;
-				var text = string.Format("頂点数: {0} -> {1}", self._originalVertexCount, self._processedVertexCount);
+				var text = string.Format("頂点数: {0} -> {1}", self._inVertexCount, self._outVertexCount);
 				UnityEditor.EditorGUILayout.LabelField(text);
 			}
 		}
