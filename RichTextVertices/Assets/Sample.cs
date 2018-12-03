@@ -10,6 +10,7 @@ public class Sample : MonoBehaviour
 	public Canvas canvas;
 	public bool setAll;
 	public bool setText;
+	public bool setColor;
 	public bool setPosition;
 	public bool setRotation;
 	public bool setScale;
@@ -89,6 +90,7 @@ public class Sample : MonoBehaviour
 				str = _frame.ToString("D5");
 			}
 		}
+		Color color = new Color(1f, 1f, 1f, UnityEngine.Random.Range(0f, 1f));
 
 		int count = setAll ? _graphics.Length : 1;
 
@@ -104,6 +106,11 @@ public class Sample : MonoBehaviour
 				{
 					text.text = str;
 				}
+			}
+
+			if (setColor)
+			{
+				graphic.color = color;
 			}
 
 			if (setPosition)
