@@ -1,0 +1,39 @@
+{
+	// IntelliSense を使用して利用可能な属性を学べます。
+	// 既存の属性の説明をホバーして表示します。
+	// 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Unity Editor",
+			"type": "unity",
+			"path": "/Users/hirayama-takashi/kayac/RandomComparisonSample/Library/EditorInstance.json",
+			"request": "launch"
+		},
+		{
+			"name": "Windows Player",
+			"type": "unity",
+			"request": "launch"
+		},
+		{
+			"name": "OSX Player",
+			"type": "unity",
+			"request": "launch"
+		},
+		{
+			"name": "Linux Player",
+			"type": "unity",
+			"request": "launch"
+		},
+		{
+			"name": "iOS Player",
+			"type": "unity",
+			"request": "launch"
+		},
+		{
+			"name": "Android Player",
+			"type": "unity",
+			"request": "launch"
+		}
+	]
+}
