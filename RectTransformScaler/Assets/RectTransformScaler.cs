@@ -2,26 +2,29 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Kayac
 {
 	public class RectTransformScaler : MonoBehaviour
 	{
-		// staticなデフォルト変数群
+		// staticなデフォルト変数群を設定(起動/解像度設定直後に呼ぶ)
 		public static void SetDefaults(
 			float logicalWidth,
 			float logicalHeight,
-			float safeAreaLeftNormalized,
-			float safeAreaTopNormalized,
-			float safeAreaWidthNormalized,
-			float safeAreaHeightNormalized)
+			float marginLeftNormalized,
+			float marginRightNormalized,
+			float marginTopNormalized,
+			float marginBottomNormalized)
 		{
 			_defaultLogicalWidth = logicalWidth;
 			_defaultLogicalHeight = logicalHeight;
-			_defaultMarginLeft = safeAreaLeftNormalized;
-			_defaultMarginTop = safeAreaTopNormalized;
-			_defaultMarginRight = 1f - safeAreaWidthNormalized - safeAreaLeftNormalized;
-			_defaultMarginBottom = 1f - safeAreaHeightNormalized- safeAreaTopNormalized;
+			_defaultMarginLeft = marginLeftNormalized;
+			_defaultMarginRight = marginRightNormalized;
+			_defaultMarginTop = marginTopNormalized;
+			_defaultMarginBottom = marginBottomNormalized;
 		}
 		private static float _defaultLogicalWidth = 1280f;
 		private static float _defaultLogicalHeight = 720f;
@@ -29,16 +32,6 @@ namespace Kayac
 		private static float _defaultMarginRight = 0f;
 		private static float _defaultMarginTop = 0f;
 		private static float _defaultMarginBottom = 0f;
-
-		public struct ScreenDimensions
-		{
-			public float width;
-			public float height;
-			public float marginLeft;
-			public float marginRight;
-			public float marginTop;
-			public float marginBottom;
-		}
 
 		public enum ScaleMode
 		{
@@ -130,7 +123,7 @@ namespace Kayac
 				marginLeft = _defaultMarginLeft;
 				marginRight = _defaultMarginRight;
 				marginTop = _defaultMarginTop;
-				marginBottom = _defaultMarginRight;
+				marginBottom = _defaultMarginBottom;
 			}
 
 			// 親を取ってくる
@@ -141,48 +134,80 @@ namespace Kayac
 			}
 			Debug.Assert(parentTransform != null);
 
-			// safeAreaを削った仮想のの親サイズを計算
+			// safeAreaを削った仮想の親サイズを計算
 			var parentRect = parentTransform.rect;
 			var parentWidth = parentRect.width * (1f - marginLeft - marginRight);
 			var parentHeight = parentRect.height * (1f - marginTop - marginBottom);
 			transform.anchorMax = new Vector2(0.5f, 0.5f);
 			transform.anchorMin = new Vector2(0.5f, 0.5f);
+			transform.pivot = new Vector2(0.5f, 0.5f);
 			transform.sizeDelta = new Vector2(_logicalWidth, _logicalHeight);
-
-			var centerX = (marginLeft + (1f - marginRight)) * 0.5f;
-			var centerY = (marginBottom + (1f - marginTop)) * 0.5f;
-			transform.pivot = new Vector2(1f - centerX, 1f - centerY); // pivotは反転するために1から引いて設定する(自分の中でまだ腑に落ちてない)
 
 			// スケール計算
 			float scale = CalcScale(_scaleMode, parentWidth, parentHeight, _logicalWidth, _logicalHeight);
 			transform.localScale = new Vector3(scale, scale, 1f);
 
-			// アンカー考慮した位置計算
+			// 位置計算
 			var position = Vector2.zero;
-			var anchorOffsetY = (parentHeight - (_logicalHeight * scale)) * 0.5f;
-			if (_verticalAnchor == VerticalAnchor.Top)
+			if (_verticalAnchor == VerticalAnchor.Center)
 			{
-				position.y = anchorOffsetY;
+				var centerY = (marginBottom + (1f - marginTop)) * 0.5f;
+				position.y = parentRect.height * (centerY - 0.5f);
+			}
+			else if (_verticalAnchor == VerticalAnchor.Top)
+			{
+				position.y += (parentRect.height * 0.5f); // 上端へ移動
+				position.y -= _logicalHeight * scale * 0.5f; // 自分の大きさの半分を移動
+				position.y -= marginTop * parentRect.height; // マージン分ずらし
 			}
 			else if (_verticalAnchor == VerticalAnchor.Bottom)
 			{
-				position.y = -anchorOffsetY;
+				position.y -= (parentRect.height * 0.5f); // 下端へ移動
+				position.y += _logicalHeight * scale * 0.5f; // 自分の大きさの半分を移動
+				position.y += marginBottom * parentRect.height; // マージン分ずらし
 			}
-			var anchorOffsetX = (parentWidth - (_logicalWidth * scale)) * 0.5f;
-			if (_horizontalAnchor == HorizontalAnchor.Left)
+
+			if (_horizontalAnchor == HorizontalAnchor.Center)
 			{
-				position.x = -anchorOffsetX;
+				var centerX = (marginLeft + (1f - marginRight)) * 0.5f;
+				position.x = parentRect.height * (centerX - 0.5f);
+			}
+			else if (_horizontalAnchor == HorizontalAnchor.Left)
+			{
+				position.x -= (parentRect.width * 0.5f); // 左端へ移動
+				position.x += _logicalWidth * scale * 0.5f; // 自分の大きさの半分を移動
+				position.x += marginLeft * parentRect.width; // マージン分ずらし
 			}
 			else if (_horizontalAnchor == HorizontalAnchor.Right)
 			{
-				position.x = anchorOffsetX;
+				position.x += (parentRect.width * 0.5f); // 右端へ移動
+				position.x -= _logicalWidth * scale * 0.5f; // 自分の大きさの半分を移動
+				position.x -= marginRight * parentRect.width; // マージン分ずらし
 			}
 			transform.anchoredPosition = position;
 		}
+
 #if UNITY_EDITOR
-		private void OnValidate()
+		// すごく遅くなりうることに注意。実行中に呼ぶな
+		public static void ApplyRecursive(Transform transform)
 		{
-			Apply();
+			var scaler = transform.gameObject.GetComponent<RectTransformScaler>();
+			if (scaler != null)
+			{
+				scaler.Apply();
+			}
+			for (int i = 0; i < transform.childCount; i++)
+			{
+				var child = transform.GetChild(i);
+				ApplyRecursive(child);
+			}
+		}
+
+		[MenuItem("GameObject/RectTransformScaler", false, 20)]
+		public static void ApplyRecursive()
+		{
+			var rootObject = Selection.activeGameObject;
+			ApplyRecursive(rootObject.transform);
 		}
 #endif
 	}
