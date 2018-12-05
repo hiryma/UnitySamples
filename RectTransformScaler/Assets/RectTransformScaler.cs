@@ -140,42 +140,29 @@ namespace Kayac
 			transform.localScale = new Vector3(scale, scale, 1f);
 
 			// 位置計算
-			var position = Vector2.zero;
-			if (_verticalAnchor == VerticalAnchor.Center)
+			var halfX = (size.x * scale * 0.5f);
+			var halfY = (size.y * scale * 0.5f);
+			var left = (parentRect.width * (marginLeft - 0.5f)) + halfX;
+			var right = (parentRect.width * (0.5f - marginRight)) - halfX;
+			var top = (parentRect.height * (0.5f - marginTop)) - halfY;
+			var bottom = (parentRect.height * (marginBottom - 0.5f)) + halfY;
+			var blendX = 0.5f;
+			var blendY = 0.5f;
+			switch (_horizontalAnchor)
 			{
-				var centerY = (marginBottom + (1f - marginTop)) * 0.5f;
-				position.y = parentRect.height * (centerY - 0.5f);
+				case HorizontalAnchor.Center: blendX = 0.5f; break;
+				case HorizontalAnchor.Left: blendX = 0f; break;
+				case HorizontalAnchor.Right: blendX = 1f; break;
 			}
-			else if (_verticalAnchor == VerticalAnchor.Top)
+			switch (_verticalAnchor)
 			{
-				position.y += (parentRect.height * 0.5f); // 上端へ移動
-				position.y -= size.y * scale * 0.5f; // 自分の大きさの半分を移動
-				position.y -= marginTop * parentRect.height; // マージン分ずらし
+				case VerticalAnchor.Center: blendY = 0.5f; break;
+				case VerticalAnchor.Top: blendY = 0f; break;
+				case VerticalAnchor.Bottom: blendY = 1f; break;
 			}
-			else if (_verticalAnchor == VerticalAnchor.Bottom)
-			{
-				position.y -= (parentRect.height * 0.5f); // 下端へ移動
-				position.y += size.y * scale * 0.5f; // 自分の大きさの半分を移動
-				position.y += marginBottom * parentRect.height; // マージン分ずらし
-			}
-
-			if (_horizontalAnchor == HorizontalAnchor.Center)
-			{
-				var centerX = (marginLeft + (1f - marginRight)) * 0.5f;
-				position.x = parentRect.height * (centerX - 0.5f);
-			}
-			else if (_horizontalAnchor == HorizontalAnchor.Left)
-			{
-				position.x -= (parentRect.width * 0.5f); // 左端へ移動
-				position.x += size.x * scale * 0.5f; // 自分の大きさの半分を移動
-				position.x += marginLeft * parentRect.width; // マージン分ずらし
-			}
-			else if (_horizontalAnchor == HorizontalAnchor.Right)
-			{
-				position.x += (parentRect.width * 0.5f); // 右端へ移動
-				position.x -= size.x * scale * 0.5f; // 自分の大きさの半分を移動
-				position.x -= marginRight * parentRect.width; // マージン分ずらし
-			}
+			Vector2 position;
+			position.x = Mathf.Lerp(left, right, blendX);
+			position.y = Mathf.Lerp(top, bottom, blendY);
 			transform.anchoredPosition = position;
 		}
 
@@ -210,9 +197,13 @@ namespace Kayac
 				base.OnInspectorGUI();
 
 				var self = (RectTransformScaler)target;
-				if (GUILayout.Button("Apply"))
+				if (GUILayout.Button("ここだけApply"))
 				{
 					self.Apply();
+				}
+				if (GUILayout.Button("再帰的Apply"))
+				{
+					RectTransformScaler.ApplyRecursive(self.transform);
 				}
 			}
 		}
