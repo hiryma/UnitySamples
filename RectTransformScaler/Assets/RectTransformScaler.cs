@@ -148,6 +148,7 @@ namespace Kayac
 			var bottom = (parentRect.height * (marginBottom - 0.5f)) + halfY;
 			var blendX = 0.5f;
 			var blendY = 0.5f;
+			// もしUIをスライダーにして、「左10%の場所」みたいなのを可能にした場合は下をちょちょいと書き換えればいい
 			switch (_horizontalAnchor)
 			{
 				case HorizontalAnchor.Center: blendX = 0.5f; break;
