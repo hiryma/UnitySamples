@@ -10,35 +10,31 @@ namespace Kayac
 {
 	public class RectTransformScaler : MonoBehaviour
 	{
-		// staticなデフォルト変数群を設定(起動/解像度設定直後に呼ぶ)
-		public static void SetDefaults(
-			float logicalWidth,
-			float logicalHeight,
-			float marginLeftNormalized,
-			float marginRightNormalized,
-			float marginTopNormalized,
-			float marginBottomNormalized)
+		// 画面のマージンを設定する左右は画面幅を1とする大きさ、上下は画面高さを1とする大きさで指定。
+		public static void SetNormalizedMargin(
+			float left,
+			float right,
+			float top,
+			float bottom)
 		{
-			_defaultLogicalWidth = logicalWidth;
-			_defaultLogicalHeight = logicalHeight;
-			_defaultMarginLeft = marginLeftNormalized;
-			_defaultMarginRight = marginRightNormalized;
-			_defaultMarginTop = marginTopNormalized;
-			_defaultMarginBottom = marginBottomNormalized;
+			Debug.Assert((left + right) < 1f, "左右マージンの和が1を越えている。ピクセルで指定してない?画面幅で割ってね!");
+			Debug.Assert((top + bottom) < 1f, "上下マージンの和が1を越えている。ピクセルで指定してない?画面高さで割ってね!");
+			_marginLeft = left;
+			_marginRight = right;
+			_marginTop = top;
+			_marginBottom = bottom;
 		}
-		private static float _defaultLogicalWidth = 1280f;
-		private static float _defaultLogicalHeight = 720f;
-		private static float _defaultMarginLeft = 0f;
-		private static float _defaultMarginRight = 0f;
-		private static float _defaultMarginTop = 0f;
-		private static float _defaultMarginBottom = 0f;
+		private static float _marginLeft;
+		private static float _marginRight;
+		private static float _marginTop;
+		private static float _marginBottom;
 
 		public enum ScaleMode
 		{
 			Horizontal,
 			Vertical,
-			ToMin, // 指定の矩形(_logicalWidth x _logicalHeight)が完全に収まることを保証する→切れてはいけないもの向け
-			ToMax, // 指定の矩形(_logicalWidth x _logicalHeight)に完全に含まれることを保証する→隙間が見えてはいけない物向け。背景等。
+			Min, // RectTransform矩形が画面の中に完全に収まることを保証する→切れてはいけないもの向け
+			Max, // 画面がRectTransform矩形の中に完全に含まれることを保証する→隙間が見えてはいけない物向け。背景等。
 		}
 
 		public enum HorizontalAnchor
@@ -61,11 +57,7 @@ namespace Kayac
 		[SerializeField]
 		private VerticalAnchor _verticalAnchor;
 		[SerializeField]
-		private float _logicalWidth = _defaultLogicalWidth;
-		[SerializeField]
-		private float _logicalHeight = _defaultLogicalHeight;
-		[SerializeField]
-		private bool _useSafeArea;
+		private bool _useMargin;
 
 		public void Start()
 		{
@@ -76,29 +68,29 @@ namespace Kayac
 			ScaleMode mode,
 			float parentWidth,
 			float parentHeight,
-			float logicalWidth,
-			float logicalHeight)
+			float width,
+			float height)
 		{
 			// スケール計算
 			float scale = 1f;
 			if (mode == ScaleMode.Horizontal)
 			{
-				scale = parentWidth / logicalWidth;
+				scale = parentWidth / width;
 			}
 			else if (mode == ScaleMode.Vertical)
 			{
-				scale = parentHeight / logicalHeight;
+				scale = parentHeight / height;
 			}
-			else if (mode == ScaleMode.ToMin)
+			else if (mode == ScaleMode.Min)
 			{
-				var scaleV = parentHeight / logicalHeight;
-				var scaleH = parentWidth / logicalWidth;
+				var scaleV = parentHeight / height;
+				var scaleH = parentWidth / width;
 				scale = Mathf.Min(scaleV, scaleH);
 			}
-			else if (mode == ScaleMode.ToMax)
+			else if (mode == ScaleMode.Max)
 			{
-				var scaleV = parentHeight / logicalHeight;
-				var scaleH = parentWidth / logicalWidth;
+				var scaleV = parentHeight / height;
+				var scaleH = parentWidth / width;
 				scale = Mathf.Max(scaleV, scaleH);
 			}
 			return scale;
@@ -118,12 +110,12 @@ namespace Kayac
 			float marginRight = 0f;
 			float marginTop = 0f;
 			float marginBottom = 0f;
-			if (_useSafeArea)
+			if (_useMargin)
 			{
-				marginLeft = _defaultMarginLeft;
-				marginRight = _defaultMarginRight;
-				marginTop = _defaultMarginTop;
-				marginBottom = _defaultMarginBottom;
+				marginLeft = _marginLeft;
+				marginRight = _marginRight;
+				marginTop = _marginTop;
+				marginBottom = _marginBottom;
 			}
 
 			// 親を取ってくる
@@ -141,10 +133,10 @@ namespace Kayac
 			transform.anchorMax = new Vector2(0.5f, 0.5f);
 			transform.anchorMin = new Vector2(0.5f, 0.5f);
 			transform.pivot = new Vector2(0.5f, 0.5f);
-			transform.sizeDelta = new Vector2(_logicalWidth, _logicalHeight);
+			var size = transform.sizeDelta;
 
 			// スケール計算
-			float scale = CalcScale(_scaleMode, parentWidth, parentHeight, _logicalWidth, _logicalHeight);
+			float scale = CalcScale(_scaleMode, parentWidth, parentHeight, size.x, size.y);
 			transform.localScale = new Vector3(scale, scale, 1f);
 
 			// 位置計算
@@ -157,13 +149,13 @@ namespace Kayac
 			else if (_verticalAnchor == VerticalAnchor.Top)
 			{
 				position.y += (parentRect.height * 0.5f); // 上端へ移動
-				position.y -= _logicalHeight * scale * 0.5f; // 自分の大きさの半分を移動
+				position.y -= size.y * scale * 0.5f; // 自分の大きさの半分を移動
 				position.y -= marginTop * parentRect.height; // マージン分ずらし
 			}
 			else if (_verticalAnchor == VerticalAnchor.Bottom)
 			{
 				position.y -= (parentRect.height * 0.5f); // 下端へ移動
-				position.y += _logicalHeight * scale * 0.5f; // 自分の大きさの半分を移動
+				position.y += size.y * scale * 0.5f; // 自分の大きさの半分を移動
 				position.y += marginBottom * parentRect.height; // マージン分ずらし
 			}
 
@@ -175,13 +167,13 @@ namespace Kayac
 			else if (_horizontalAnchor == HorizontalAnchor.Left)
 			{
 				position.x -= (parentRect.width * 0.5f); // 左端へ移動
-				position.x += _logicalWidth * scale * 0.5f; // 自分の大きさの半分を移動
+				position.x += size.x * scale * 0.5f; // 自分の大きさの半分を移動
 				position.x += marginLeft * parentRect.width; // マージン分ずらし
 			}
 			else if (_horizontalAnchor == HorizontalAnchor.Right)
 			{
 				position.x += (parentRect.width * 0.5f); // 右端へ移動
-				position.x -= _logicalWidth * scale * 0.5f; // 自分の大きさの半分を移動
+				position.x -= size.x * scale * 0.5f; // 自分の大きさの半分を移動
 				position.x -= marginRight * parentRect.width; // マージン分ずらし
 			}
 			transform.anchoredPosition = position;
@@ -208,6 +200,21 @@ namespace Kayac
 		{
 			var rootObject = Selection.activeGameObject;
 			ApplyRecursive(rootObject.transform);
+		}
+
+		[CustomEditor (typeof(RectTransformScaler))]
+		public class RectTransformScalerInspector : Editor
+		{
+			public override void OnInspectorGUI()
+			{
+				base.OnInspectorGUI();
+
+				var self = (RectTransformScaler)target;
+				if (GUILayout.Button("Apply"))
+				{
+					self.Apply();
+				}
+			}
 		}
 #endif
 	}
