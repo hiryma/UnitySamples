@@ -5,15 +5,15 @@
 // [object hierarchy]
 // root
 // 	layer1_人_png
+// 		layer3_ヒット_png
 // 	layer2_鳥_png
-// 	layer5_背景ルート
-// 		layer3_背景_png
+// 	layer6_背景ルート
 // 		layer4_背景_png
+// 		layer5_背景_png
 
 using UnityEngine;
 using UnityEngine.UI;
-using AfterEffectsToUnity;
-
+using AfterEffectsToUnity; // 手動で足した
 namespace Ae2UnitySample
 {
 	public class Sample : AfterEffectsAnimation
@@ -24,9 +24,11 @@ namespace Ae2UnitySample
 		[SerializeField]
 		private Sprite _layer2_鳥_png_sprite;
 		[SerializeField]
-		private Sprite _layer3_背景_png_sprite;
+		private Sprite _layer3_ヒット_png_sprite;
 		[SerializeField]
 		private Sprite _layer4_背景_png_sprite;
+		[SerializeField]
+		private Sprite _layer5_背景_png_sprite;
 
 		[Header("以下はBuildHierarchyで自動で入る")]
 		[SerializeField]
@@ -34,11 +36,13 @@ namespace Ae2UnitySample
 		[SerializeField]
 		private Graphic _layer2_鳥_png;
 		[SerializeField]
-		private Graphic _layer3_背景_png;
+		private Graphic _layer3_ヒット_png;
 		[SerializeField]
 		private Graphic _layer4_背景_png;
 		[SerializeField]
-		private RectTransform _layer5_背景ルート;
+		private Graphic _layer5_背景_png;
+		[SerializeField]
+		private RectTransform _layer6_背景ルート;
 
 		protected override void SetFirstFrame()
 		{
@@ -63,7 +67,17 @@ namespace Ae2UnitySample
 				-18f,
 				100f);
 			AfterEffectsUtil.Set(
-				_layer3_背景_png,
+				_layer3_ヒット_png,
+				64f,
+				64f,
+				49.9988246169966f,
+				23.7397882755465f,
+				100f,
+				100f,
+				26.8260869565217f,
+				100f);
+			AfterEffectsUtil.Set(
+				_layer4_背景_png,
 				320f,
 				200f,
 				320f,
@@ -73,7 +87,7 @@ namespace Ae2UnitySample
 				0f,
 				100f);
 			AfterEffectsUtil.Set(
-				_layer4_背景_png,
+				_layer5_背景_png,
 				320f,
 				200f,
 				960f,
@@ -83,7 +97,7 @@ namespace Ae2UnitySample
 				0f,
 				100f);
 			AfterEffectsUtil.Set(
-				_layer5_背景ルート,
+				_layer6_背景ルート,
 				320f,
 				200f,
 				320f,
@@ -121,9 +135,22 @@ namespace Ae2UnitySample
 					"layer2_鳥_png_rotation",
 					new int[] { 120, 299 },
 					new float[] { -18f, 3600f })
-				// layer5_背景ルート
+				// layer3_ヒット_png
+				.AddScale(
+					"layer3_ヒット_png_scale",
+					new int[] { 120, 121, 125, 132 },
+					new float[] { 100f, 200f, 100f, 40f })
+				.AddRotation(
+					"layer3_ヒット_png_rotation",
+					new int[] { 120, 132 },
+					new float[] { 26.8260869565217f, 101.8261f })
+				.AddOpacity(
+					"layer3_ヒット_png_opacity",
+					new int[] { 0, 119, 120, 131 },
+					new float[] { 0f, 0f, 100f, 0f })
+				// layer6_背景ルート
 				.AddPosition(
-					"layer5_背景ルート_position",
+					"layer6_背景ルート_position",
 					new int[] { 0, 299 },
 					new float[] { 320f, -320f },
 					new float[] { 200f, 200f })
@@ -134,6 +161,7 @@ namespace Ae2UnitySample
 		{
 			var layer1_人_png_transform = _layer1_人_png.gameObject.GetComponent<RectTransform>();
 			var layer2_鳥_png_transform = _layer2_鳥_png.gameObject.GetComponent<RectTransform>();
+			var layer3_ヒット_png_transform = _layer3_ヒット_png.gameObject.GetComponent<RectTransform>();
 
 			instance
 				// layer1_人_png
@@ -143,8 +171,12 @@ namespace Ae2UnitySample
 				.BindPosition(layer2_鳥_png_transform, "layer2_鳥_png_position")
 				.BindScale(layer2_鳥_png_transform, "layer2_鳥_png_scale")
 				.BindRotation(layer2_鳥_png_transform, "layer2_鳥_png_rotation")
-				// layer5_背景ルート
-				.BindPosition(_layer5_背景ルート, "layer5_背景ルート_position")
+				// layer3_ヒット_png
+				.BindScale(layer3_ヒット_png_transform, "layer3_ヒット_png_scale")
+				.BindRotation(layer3_ヒット_png_transform, "layer3_ヒット_png_rotation")
+				.BindOpacity(_layer3_ヒット_png, "layer3_ヒット_png_opacity")
+				// layer6_背景ルート
+				.BindPosition(_layer6_背景ルート, "layer6_背景ルート_position")
 			;
 		}
 
@@ -171,9 +203,17 @@ namespace Ae2UnitySample
 			GameObject layerObj;
 			Image image;
 
-			layerObj = new GameObject("layer5_背景ルート", typeof(RectTransform));
-			_layer5_背景ルート = layerObj.GetComponent<RectTransform>();
+			layerObj = new GameObject("layer6_背景ルート", typeof(RectTransform));
+			_layer6_背景ルート = layerObj.GetComponent<RectTransform>();
 			layerObj.transform.SetParent(gameObject.transform, false);
+			layerObj.GetComponent<RectTransform>().sizeDelta = new Vector2(640, 400);
+
+			layerObj = new GameObject("layer5_背景_png", typeof(Image));
+			image = layerObj.GetComponent<Image>();
+			image.sprite = _layer5_背景_png_sprite;
+			image.raycastTarget = false;
+			_layer5_背景_png = image;
+			layerObj.transform.SetParent(_layer6_背景ルート.transform, false);
 			layerObj.GetComponent<RectTransform>().sizeDelta = new Vector2(640, 400);
 
 			layerObj = new GameObject("layer4_背景_png", typeof(Image));
@@ -181,15 +221,7 @@ namespace Ae2UnitySample
 			image.sprite = _layer4_背景_png_sprite;
 			image.raycastTarget = false;
 			_layer4_背景_png = image;
-			layerObj.transform.SetParent(_layer5_背景ルート.transform, false);
-			layerObj.GetComponent<RectTransform>().sizeDelta = new Vector2(640, 400);
-
-			layerObj = new GameObject("layer3_背景_png", typeof(Image));
-			image = layerObj.GetComponent<Image>();
-			image.sprite = _layer3_背景_png_sprite;
-			image.raycastTarget = false;
-			_layer3_背景_png = image;
-			layerObj.transform.SetParent(_layer5_背景ルート.transform, false);
+			layerObj.transform.SetParent(_layer6_背景ルート.transform, false);
 			layerObj.GetComponent<RectTransform>().sizeDelta = new Vector2(640, 400);
 
 			layerObj = new GameObject("layer2_鳥_png", typeof(Image));
@@ -207,6 +239,14 @@ namespace Ae2UnitySample
 			_layer1_人_png = image;
 			layerObj.transform.SetParent(gameObject.transform, false);
 			layerObj.GetComponent<RectTransform>().sizeDelta = new Vector2(64, 100);
+
+			layerObj = new GameObject("layer3_ヒット_png", typeof(Image));
+			image = layerObj.GetComponent<Image>();
+			image.sprite = _layer3_ヒット_png_sprite;
+			image.raycastTarget = false;
+			_layer3_ヒット_png = image;
+			layerObj.transform.SetParent(_layer1_人_png.transform, false);
+			layerObj.GetComponent<RectTransform>().sizeDelta = new Vector2(128, 128);
 
 		}
 #endif

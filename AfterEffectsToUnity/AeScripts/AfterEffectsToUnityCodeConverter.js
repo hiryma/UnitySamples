@@ -643,7 +643,7 @@ AfterEffectsToUnity.OutputNamespace = "Ae2UnitySample";
 			if (child.layer.isImage){
 				out += '\t\t\tlayerObj = new GameObject("' + layerObjName + '", typeof(Image));\n';
 				out += '\t\t\timage = layerObj.GetComponent<Image>();\n'
-				out += '\t\t\timage.sprite = ' + layerObjName + '_sprite;\n';
+				out += '\t\t\timage.sprite = _' + layerObjName + '_sprite;\n';
 				out += '\t\t\timage.raycastTarget = false;\n'; // レイキャストはするものに明示的につける方が楽だろう
 				out += '\t\t\t_' + layerObjName + ' = image;\n';
 			}else{

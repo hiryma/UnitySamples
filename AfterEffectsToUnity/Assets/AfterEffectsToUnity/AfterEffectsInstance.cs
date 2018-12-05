@@ -108,6 +108,17 @@ namespace AfterEffectsToUnity
 			public int index;
 		}
 
+		private struct CanvasRendererCurve
+		{
+			public CanvasRendererCurve(Graphic graphic, int index) // 暫定版。本当はcanvasRendererを受け取るべき。Graphic.colorをいじるように実装してしまってC#生成側もそうなっているので、いじるのが面倒くさい。
+			{
+				this.index = index;
+				this.renderer = graphic.gameObject.GetComponent<CanvasRenderer>();
+			}
+			public CanvasRenderer renderer;
+			public int index;
+		}
+
 		private struct CanvasGroupCurve
 		{
 			public CanvasGroupCurve(CanvasGroup canvasGroup, int index)
@@ -146,7 +157,7 @@ namespace AfterEffectsToUnity
 		private List<RectTransformCurve> _graphicPositionCurves;
 		private List<RectTransformCurve> _graphicSizeCurves;
 		private List<TransformCurve> _spriteRendererPositionCurves;
-		private List<GraphicCurve> _graphicOpacityCurves;
+		private List<CanvasRendererCurve> _canvasRendererOpacityCurves;
 		private List<CanvasGroupCurve> _canvasGroupOpacityCurves;
 		private List<SpriteRendererCurve> _spriteRendererOpacityCurves;
 		private List<GraphicCurve> _graphicVisibilityCurves;
@@ -173,7 +184,7 @@ namespace AfterEffectsToUnity
 			_graphicPositionCurves = null;
 			_graphicSizeCurves = null;
 			_spriteRendererPositionCurves = null;
-			_graphicOpacityCurves = null;
+			_canvasRendererOpacityCurves = null;
 			_canvasGroupOpacityCurves = null;
 			_spriteRendererOpacityCurves = null;
 			_graphicVisibilityCurves = null;
@@ -342,12 +353,12 @@ namespace AfterEffectsToUnity
 			int index = _resource.FindIndex(AfterEffectsCurveSet.ValueType.Float, name);
 			if (index >= 0)
 			{
-				if (_graphicOpacityCurves == null)
+				if (_canvasRendererOpacityCurves == null)
 				{
-					_graphicOpacityCurves = new List<GraphicCurve>(8);
+					_canvasRendererOpacityCurves = new List<CanvasRendererCurve>(8);
 				}
-				var curve = new GraphicCurve(graphic, index);
-				_graphicOpacityCurves.Add(curve);
+				var curve = new CanvasRendererCurve(graphic, index);
+				_canvasRendererOpacityCurves.Add(curve);
 			}
 			else
 			{
@@ -523,14 +534,12 @@ namespace AfterEffectsToUnity
 					}
 				}
 
-				if (_graphicOpacityCurves != null)
+				if (_canvasRendererOpacityCurves != null)
 				{
-					foreach (var curve in _graphicOpacityCurves)
+					foreach (var curve in _canvasRendererOpacityCurves)
 					{
 						float v = _resource.GetFloat(curve.index, _frame);
-						var c = curve.graphic.color;
-						c.a = v;
-						curve.graphic.color = c;
+						curve.renderer.SetAlpha(v);
 					}
 				}
 

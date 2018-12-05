@@ -380,7 +380,9 @@ MonoBehaviour:
   canvas: {fileID: 1127217410}
   setAll: 0
   setText: 0
-  setColor: 0
+  setGraphicColor: 0
+  setCanvasRendererColor: 0
+  setCanvasRendererAlpha: 0
   setPosition: 0
   setRotation: 0
   setScale: 0
