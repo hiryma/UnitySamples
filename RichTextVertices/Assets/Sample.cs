@@ -10,7 +10,9 @@ public class Sample : MonoBehaviour
 	public Canvas canvas;
 	public bool setAll;
 	public bool setText;
-	public bool setColor;
+	public bool setGraphicColor;
+	public bool setCanvasRendererColor;
+	public bool setCanvasRendererAlpha;
 	public bool setPosition;
 	public bool setRotation;
 	public bool setScale;
@@ -90,7 +92,8 @@ public class Sample : MonoBehaviour
 				str = _frame.ToString("D5");
 			}
 		}
-		Color color = new Color(1f, 1f, 1f, UnityEngine.Random.Range(0f, 1f));
+		float alpha = UnityEngine.Random.Range(0f, 1f);
+		Color color = new Color(1f, 1f, 1f, alpha);
 
 		int count = setAll ? _graphics.Length : 1;
 
@@ -108,9 +111,27 @@ public class Sample : MonoBehaviour
 				}
 			}
 
-			if (setColor)
+			if (setGraphicColor)
 			{
 				graphic.color = color;
+			}
+
+			if (setCanvasRendererColor)
+			{
+				var renderer = graphic.gameObject.GetComponent<CanvasRenderer>();
+				if (renderer != null)
+				{
+					renderer.SetColor(color);
+				}
+			}
+
+			if (setCanvasRendererAlpha)
+			{
+				var renderer = graphic.gameObject.GetComponent<CanvasRenderer>();
+				if (renderer != null)
+				{
+					renderer.SetAlpha(alpha);
+				}
 			}
 
 			if (setPosition)
