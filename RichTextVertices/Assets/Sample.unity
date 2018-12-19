@@ -377,16 +377,37 @@ MonoBehaviour:
     type: 2}
   imagePrefab: {fileID: 114580875023860048, guid: 8590ec5bc81f4437ebde0513ab3263f9,
     type: 2}
+  sprites:
+  - {fileID: 21300000, guid: 7b12e4d97c02743eeaacaa5b4128ef39, type: 3}
+  - {fileID: 21300000, guid: 3914fc3c3baef47ce98ddb5b39576617, type: 3}
+  - {fileID: 21300000, guid: e025babe936964425bab1ce967026fe9, type: 3}
+  - {fileID: 21300000, guid: fd4e49f5d7ad44ddc9db5ef6c5e4ce72, type: 3}
+  - {fileID: 21300000, guid: 153cd0d05bdbc4b26a7bcda408038de0, type: 3}
+  - {fileID: 21300000, guid: 98701f6c03a824a1faa876768b2945eb, type: 3}
+  - {fileID: 21300000, guid: 03ab2c68ebbdf47eb988287e5d3f53f0, type: 3}
+  - {fileID: 21300000, guid: 96b9992104c764ae79097fd2ad7e2941, type: 3}
+  - {fileID: 21300000, guid: 82302f444b9354d4fa3f8aad6ade1064, type: 3}
+  - {fileID: 21300000, guid: 3e53acd16952f41d7aa05386a71d46dc, type: 3}
+  - {fileID: 21300000, guid: 285619b095e5242f6bab56b47df29800, type: 3}
+  - {fileID: 21300000, guid: 5d216cea55b6c4f01bf655b0a9c8e344, type: 3}
+  - {fileID: 21300000, guid: e0c503d27a0df4e51aff401798ec46eb, type: 3}
+  - {fileID: 21300000, guid: 1d4e2d14b99d8451d88b50d30eeb96da, type: 3}
+  - {fileID: 21300000, guid: 5f1032d6221b04cb4a44c1761168a86d, type: 3}
+  - {fileID: 21300000, guid: 955ccf89d50c24986aceeb02dfab426f, type: 3}
+  - {fileID: 21300000, guid: b1914facb606442b2a4523851b5603e7, type: 3}
+  - {fileID: 21300000, guid: cf008d38a95054287a75faa66101aec6, type: 3}
+  - {fileID: 21300000, guid: 843804830225d424eaec4bfa2bc8d386, type: 3}
   canvas: {fileID: 1127217410}
-  setAll: 0
+  setAll: 1
   setText: 0
   setGraphicColor: 0
   setCanvasRendererColor: 0
   setCanvasRendererAlpha: 0
-  setPosition: 0
+  setPosition: 1
   setRotation: 0
   setScale: 0
   setSizeDelta: 0
   useRichText: 0
   insertImage: 1
   graphicCount: 100
+  spriteCount: 2147483647
