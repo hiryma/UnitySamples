@@ -32,8 +32,11 @@ namespace Kayac
 				vertices[dstVertexIndex + 3] = vertices[srcVertexIndex + 3];
 				vertices[dstVertexIndex + 4] = vertices[srcVertexIndex + 4];
 				vertices[dstVertexIndex + 5] = vertices[srcVertexIndex + 5];
-				var d01 = vertices[dstVertexIndex + 0].position - vertices[dstVertexIndex + 1].position;
-				if (d01.sqrMagnitude > 0f)
+				var p0 = vertices[dstVertexIndex + 0].position;
+				var p1 = vertices[dstVertexIndex + 1].position;
+				var dx = p1.x - p0.x;
+				var dy = p1.y - p0.y;
+				if (((dx * dx) + (dy * dy)) > 0f)
 				{
 					dstVertexIndex += 6;
 				}
