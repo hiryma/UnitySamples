@@ -24,7 +24,7 @@ SpriteAtlas:
       padding: 4
       blockOffset: 1
       allowAlphaSplitting: 0
-      enableRotation: 0
+      enableRotation: 1
       enableTightPacking: 1
     variantMultiplier: 1
     packables:
@@ -40,6 +40,6 @@ SpriteAtlas:
   m_PackedSpriteNamesToIndex:
   - character0
   - character1
-  - character1s
+  - character2
   m_Tag: New Sprite Atlas
   m_IsVariant: 0

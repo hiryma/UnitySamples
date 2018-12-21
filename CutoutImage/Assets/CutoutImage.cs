@@ -8,35 +8,31 @@ using UnityEditor;
 
 namespace Kayac
 {
-	// 上流のコンポーネントのscaleのzに0が入ってると動作がおかしくなる(原因不明)
 	public class CutoutImage : MaskableGraphic
 	{
 		[SerializeField]
 		Sprite _sprite;
+		[SerializeField]
+		Vector2[] _overrideVertices;
+
+		static List<Vector2> _tmpLocalVertices; // ローカル座標に射影した頂点位置の計算用配列
+		static Vector2[] _tmpTexcoords; // テンポラリUV計算配列
+		Matrix23 _positionToTexcoordTransform; // 手動頂点UV決定用行列
+
 		public Sprite sprite
 		{
 			get
 			{
 				return _sprite;
 			}
-		}
-
-		[SerializeField]
-		Vector2[] _overrideVertices;
-
-		public Vector2[] overrideVertices
-		{
-			get { return _overrideVertices; }
-		}
-
-		public override Texture mainTexture
-		{
-			get
+			set
 			{
-				return (_sprite != null) ? _sprite.texture : null;
+				_sprite = value;
+				OnSpriteChange();
 			}
 		}
-
+		public Vector2[] overrideVertices { get { return _overrideVertices; } }
+		public override Texture mainTexture { get { return (_sprite != null) ? _sprite.texture : null; } }
 		public override void SetNativeSize()
 		{
 			if (_sprite == null)
@@ -50,35 +46,37 @@ namespace Kayac
 				rect.height);
 		}
 
-		static void MeasureRect(out Vector2 min, out Vector2 max, Sprite sprite)
+		protected override void Awake()
 		{
-			min = new Vector2(float.MaxValue, float.MaxValue);
-			max = -min;
-			for (int i = 0; i < sprite.vertices.Length;i++)
-			{
-				var v = sprite.vertices[i];
-				min.x = Mathf.Min(min.x, v.x);
-				max.x = Mathf.Max(max.x, v.x);
-				min.y = Mathf.Min(min.y, v.y);
-				max.y = Mathf.Max(max.y, v.y);
-			}
+			base.Awake();
+			OnSpriteChange();
 		}
 
+		// 同一直線上の3点を取ってしまうことを避けるためのもの。
 		static void SelectIndependentVertices(out int i0, out int i1, out int i2, Vector2[] vertices)
 		{
-			// 0,1番は固定で使う。2番は外積が最大になるものを選ぶ
+			// 0番は必ず使う
 			i0 = 0;
-			i1 = 1;
-			i2 = 2;
-			float maxAbsCross = 0f;
 			var v0 = vertices[i0];
-			var v1 = vertices[i1];
-			for (int i = 2; i < vertices.Length;i++)
+			// 1番は0番と異なれば何でも良い
+			i1 = 1;
+			for (int i = i1; i < vertices.Length; i++)
 			{
-				var v = vertices[i];
-				var d0 = v0 - v;
-				var d1 = v1 - v;
-				float absCross = Mathf.Abs((d0.x * d1.y) - (d0.y * d0.x));
+				if ((v0 - vertices[i]).sqrMagnitude > 0f)
+				{
+					i1 = i;
+					break;
+				}
+			}
+			// 2番は0,1となす外積の絶対値が最大になるものを選ぶ
+			var v1 = vertices[i1];
+			i2 = i1 + 1;
+			float maxAbsCross = 0f;
+			for (int i = i2; i < vertices.Length; i++)
+			{
+				var d0 = v0 - vertices[i];
+				var d1 = v1 - vertices[i];
+				float absCross = Mathf.Abs((d0.x * d1.y) - (d0.y * d1.x));
 				if (absCross > maxAbsCross)
 				{
 					maxAbsCross = absCross;
@@ -87,152 +85,87 @@ namespace Kayac
 			}
 		}
 
-		static void MeasureTextureRect(out Vector2 min, out Vector2 max, Sprite sprite)
+		void CreatePositionToTexcoordTransform()
 		{
-			min = new Vector2(float.MaxValue, float.MaxValue);
-			max = -min;
-			for (int i = 0; i < sprite.vertices.Length;i++)
+			if (_sprite == null)
 			{
-				var v = sprite.uv[i];
-				min.x = Mathf.Min(min.x, v.x);
-				max.x = Mathf.Max(max.x, v.x);
-				min.y = Mathf.Min(min.y, v.y);
-				max.y = Mathf.Max(max.y, v.y);
+				return;
 			}
+			/*
+			UVと位置の関係を求めるために、位置にある行列を乗ずるとアトラス内のUVになる、
+			というような「ある行列」を求める。
+			3頂点の位置p0,p1,p2及びUVt0,t1,t2を列ベクタとして並べ、行列P及びTを作る。
+			「ある行列」をXとする。すると、T=XP
+			要素ごとに書けば以下のようになる
+			|t0x t1x t2x|   |m00 m01 m02| |p0x p1x p2x|
+			|t0y t1y t2y| = |m10 m11 m12| |p0y p1y p2y|
+			|1     1   1|   |  0   0   1| |  1   1   1|
+
+			ここで、右からPの逆行列P^を乗ずれば、TP^=XPP^=Xとなり、Xが求まる
+			*/
+			int i0, i1, i2;
+			SelectIndependentVertices(out i0, out i1, out i2, _sprite.vertices);
+			var matT = new Matrix23(ref _sprite.uv[i0], ref _sprite.uv[i1], ref _sprite.uv[i2]); // T
+			var matP = new Matrix33(ref _sprite.vertices[i0], ref _sprite.vertices[i1], ref _sprite.vertices[i2]); // P
+			if (!matP.Invert()) // 三角形が縮退していて逆行列を作れない
+			{
+				return;
+			}
+			var spriteRect = _sprite.rect;
+			var spriteWidth = spriteRect.width;
+			var spriteHeight = spriteRect.height;
+			matT.Multiply(ref matP); // matTにTP^=Xが入った
+			matT.Scale( // さらにスプライトの頂点座標をワールドからスプライト内座標に変換する
+				spriteWidth / _sprite.pixelsPerUnit,
+				spriteHeight / _sprite.pixelsPerUnit);
+			matT.Translate( // ピボット分ずらし
+				-_sprite.pivot.x / spriteWidth,
+				-_sprite.pivot.y / spriteHeight);
+			_positionToTexcoordTransform = matT;
 		}
 
 		protected override void OnPopulateMesh(VertexHelper vh)
 		{
 			vh.Clear();
-			Color32 color32 = this.color;
-			var rectSizeDelta = rectTransform.sizeDelta;
-			var rectPivot = rectTransform.pivot;
-			Vector2 uvMin, uvMax;
-			float atlasWidth, atlasHeight;
-			Vector2 spritePivot;
-			float spriteWidth, spriteHeight;
-			Vector2[] positions;
-			Vector2[] uvs;
+			if (_tmpLocalVertices == null)
+			{
+				_tmpLocalVertices = new List<Vector2>();
+			}
+			CalcLocalVertices(_tmpLocalVertices, _sprite, rectTransform, _overrideVertices);
+
+			Vector2[] texcoords;
 			ushort[] indices;
-			float pixelsPerUnitX, pixelsPerUnitY;
 			if (_sprite != null)
 			{
-				MeasureTextureRect(out uvMin, out uvMax, _sprite);
-				atlasWidth = _sprite.texture.width;
-				atlasHeight = _sprite.texture.height;
-				var spriteRect = _sprite.rect;
-				spriteWidth = spriteRect.width;
-				spriteHeight = spriteRect.height;
 				if ((_overrideVertices != null) && (_overrideVertices.Length >= 3))
 				{
-					positions = _overrideVertices;
-					uvs = new Vector2[_overrideVertices.Length];
-					var uSize = spriteWidth / atlasWidth;
-					var vSize = spriteHeight / atlasHeight;
-#if true
-					// UVと位置の関係を求めるために、位置にある行列を乗ずるとアトラス内のUVになる、
-					// というような「ある行列」を求める。
-					// 3頂点の位置p0,p1,p2及びUVt0,t1,t2を横に並べ、行列P及びTを作る。
-					// 「ある行列」をXとする。すると、T=XP
-					// 右からPの逆行列P^を乗ずれば、TP^=XPP^=X
-					// 要素ごとに書けば以下のようになる
-					// |t0x t1x t2x|   |a00 a01 a02| |p0x p1x p2x|
-					// |t0y t1y t2y| = |a10 a11 a12| |p0y p1y p2y|
-					// |1     1   1|   |0     0   1| |  1   1   1|
-					Matrix33 t;
-					t.m00 = _sprite.uv[0].x;
-					t.m10 = _sprite.uv[0].y;
-					t.m01 = _sprite.uv[1].x;
-					t.m11 = _sprite.uv[1].y;
-					t.m02 = _sprite.uv[2].x;
-					t.m12 = _sprite.uv[2].y;
-					t.m20 = t.m21 = t.m22 = 1f;
-					Matrix33 p;
-					p.m00 = _sprite.vertices[0].x;
-					p.m10 = _sprite.vertices[0].y;
-					p.m01 = _sprite.vertices[1].x;
-					p.m11 = _sprite.vertices[1].y;
-					p.m02 = _sprite.vertices[2].x;
-					p.m12 = _sprite.vertices[2].y;
-					p.m20 = p.m21 = p.m22 = 1f;
-					Matrix33 positionToUv = new Matrix33();
-					if (!positionToUv.SetInverse(ref p))
+					if ((_tmpTexcoords == null) || (_tmpTexcoords.Length < _tmpLocalVertices.Count))
 					{
-						return;
+						_tmpTexcoords = new Vector2[_tmpLocalVertices.Count];
 					}
-					positionToUv.SetMul(ref t, ref positionToUv);
-					float toSpriteVertexScaleX = spriteWidth / _sprite.pixelsPerUnit;
-					float toSpriteVertexScaleY = spriteHeight / _sprite.pixelsPerUnit;
-					float toSpriteVertexOffsetX = -_sprite.pivot.x / spriteWidth;
-					float toSpriteVertexOffsetY = -_sprite.pivot.y / spriteHeight;
-					for (int i = 0; i < uvs.Length; i++)
+					for (int i = 0; i < _overrideVertices.Length; i++)
 					{
-						var position = _overrideVertices[i];
-						position.x += toSpriteVertexOffsetX;
-						position.y += toSpriteVertexOffsetY;
-						position.x *= toSpriteVertexScaleX;
-						position.y *= toSpriteVertexScaleY;
-						positionToUv.Multiply(ref uvs[i], ref position);
+						_positionToTexcoordTransform.Multiply(out _tmpTexcoords[i], ref _overrideVertices[i]);
 					}
-#else
-
-					// 第一頂点からuvのoffsetを求める
-					Vector2 p0 = _sprite.vertices[0];
-					p0 *= _sprite.pixelsPerUnit;
-					p0 += _sprite.pivot;
-					Vector2 uv0 = _sprite.uv[0];
-					uv0.x *= atlasWidth;
-					uv0.y *= atlasHeight;
-					var uOffset = (uv0.x - p0.x) / atlasWidth;
-					var vOffset = (uv0.y - p0.y) / atlasHeight;
-Debug.LogWarning(_sprite.name + " " + uOffset + " " + vOffset);
-					for (int i = 0; i < uvs.Length; i++)
-					{
-						uvs[i].x = (_overrideVertices[i].x * uSize) + uOffset;
-						uvs[i].y = (_overrideVertices[i].y * vSize) + vOffset;
-Debug.LogWarning("\t" + i +  " " + uvs[i]);
-					}
-#endif
+					texcoords = _tmpTexcoords;
 					indices = null;
-					pixelsPerUnitX = rectSizeDelta.x;
-					pixelsPerUnitY = rectSizeDelta.y;
-					spritePivot = new Vector2(0f, 0f);
 				}
 				else
 				{
-					spritePivot = _sprite.pivot;
-					spritePivot.x /= spriteWidth;
-					spritePivot.y /= spriteHeight; // [0,1]に正規化
-					positions = _sprite.vertices;
-					uvs = _sprite.uv;
-					Debug.Assert(positions.Length == uvs.Length);
+					texcoords = _sprite.uv;
+					Debug.Assert(_tmpLocalVertices.Count == texcoords.Length);
 					indices = _sprite.triangles;
-					pixelsPerUnitX = pixelsPerUnitY = _sprite.pixelsPerUnit;
 				}
 			}
 			else
 			{
-				uvMin = uvMax = Vector2.zero;
-				atlasWidth = atlasHeight = spriteWidth = spriteHeight = 1f;
-				spritePivot = new Vector2(0.5f, 0.5f);
-				positions = _overrideVertices;
-				uvs = _overrideVertices;
+				texcoords = _overrideVertices; // なんでもいいのでそのまま使う
 				indices = null;
-				pixelsPerUnitX = pixelsPerUnitY = 1f;
 			}
- 			var scaleX = pixelsPerUnitX * rectSizeDelta.x / spriteWidth;
-			var scaleY = pixelsPerUnitY * rectSizeDelta.y / spriteHeight;
-			Vector2 offset;
-			offset.x = (spritePivot.x - rectPivot.x) * rectSizeDelta.x;
-			offset.y = (spritePivot.y - rectPivot.y) * rectSizeDelta.y;
-			for (int i = 0; i < positions.Length; i++)
+
+			for (int i = 0; i < _tmpLocalVertices.Count; i++)
 			{
-				var pos = positions[i];
-				pos.x *= scaleX;
-				pos.y *= scaleY;
-				pos += offset;
-//Debug.LogWarning(i + " " + pos + " " + uvs[i]);
-				vh.AddVert(pos, color32, uvs[i]);
+				vh.AddVert(_tmpLocalVertices[i], this.color, texcoords[i]);
 			}
 
 			if (indices != null)
@@ -251,27 +184,375 @@ Debug.LogWarning("\t" + i +  " " + uvs[i]);
 			}
 		}
 
-		struct Matrix33
+		static void CalcLocalVertices(
+			List<Vector2> verticesOut,
+			Sprite sprite,
+			RectTransform rectTransform,
+			Vector2[] overrideVertices)
 		{
-			public float m00, m01, m02;
-			public float m10, m11, m12;
-			public float m20, m21, m22;
+			verticesOut.Clear();
 
-			public void Dump()
+			var rectSizeDelta = rectTransform.sizeDelta;
+			Vector2 spritePivot;
+			float spriteWidth, spriteHeight;
+			Vector2[] positions;
+			float pixelsPerUnitX, pixelsPerUnitY;
+			if (sprite != null)
 			{
-				string t = "| " + m00 + "\t" + m01 + "\t" + m02 + "|\n";
-				t += "| " + m10 + "\t" + m11 + "\t" + m12 + "|\n";
-				t += "| " + m20 + "\t" + m21 + "\t" + m22 + "|";
-				Debug.LogWarning(t);
+				var spriteRect = sprite.rect;
+				spriteWidth = spriteRect.width;
+				spriteHeight = spriteRect.height;
+				if ((overrideVertices != null) && (overrideVertices.Length >= 3))
+				{
+					positions = overrideVertices;
+					pixelsPerUnitX = rectSizeDelta.x;
+					pixelsPerUnitY = rectSizeDelta.y;
+					spritePivot = new Vector2(0f, 0f);
+				}
+				else
+				{
+					spritePivot = sprite.pivot;
+					spritePivot.x /= spriteWidth;
+					spritePivot.y /= spriteHeight; // [0,1]に正規化
+					positions = sprite.vertices;
+					pixelsPerUnitX = pixelsPerUnitY = sprite.pixelsPerUnit;
+				}
 			}
-			public void Multiply(ref Vector2 to, ref Vector2 from)
+			else
 			{
-				float tx = (m00 * from.x) + (m01 * from.y) + m02;
-				to.y = (m10 * from.x) + (m11 * from.y) + m12;
+				spriteWidth = spriteHeight = 1f;
+				spritePivot = new Vector2(0.5f, 0.5f);
+				positions = overrideVertices;
+				pixelsPerUnitX = pixelsPerUnitY = 1f;
+			}
+			Matrix23NoRotation positionTransform = new Matrix23NoRotation();
+			positionTransform.SetIdentity();
+			positionTransform.ScaleFromLeft(
+ 				pixelsPerUnitX * rectSizeDelta.x / spriteWidth,
+				pixelsPerUnitY * rectSizeDelta.y / spriteHeight);
+			var rectPivot = rectTransform.pivot;
+			positionTransform.TranslateFromLeft(
+				(spritePivot.x - rectPivot.x) * rectSizeDelta.x,
+				(spritePivot.y - rectPivot.y) * rectSizeDelta.y);
+			for (int i = 0; i < positions.Length; i++)
+			{
+				Vector2 pos;
+				positionTransform.Multiply(out pos, ref positions[i]);
+				verticesOut.Add(pos);
+			}
+		}
+
+		void OnSpriteChange()
+		{
+			CreatePositionToTexcoordTransform();
+#if UNITY_EDITOR
+			CreateGizmoEdgeTable();
+#endif
+		}
+
+#if UNITY_EDITOR
+		static List<Vector3> _worldVertices; // キャッシュ用
+		static bool _vertexGuiEditEnabled; // 頂点ハンドル有効
+		HashSet<int> _gizmoEdges; // 上16bitと下16bitを分割して頂点番号とし、それで辺を描画する
+
+		protected override void OnValidate() // sprite変更時だけで良い
+		{
+			base.OnValidate();
+			OnSpriteChange();
+		}
+
+		void CreateGizmoEdgeTable()
+		{
+			if (_gizmoEdges == null)
+			{
+				_gizmoEdges = new HashSet<int>();
+			}
+			_gizmoEdges.Clear();
+			if ((_overrideVertices != null) && (_overrideVertices.Length >= 3))
+			{
+				int prev = _overrideVertices.Length - 1;
+				for (int i = 0; i < _overrideVertices.Length; i++)
+				{
+					_gizmoEdges.Add((i << 16) | prev);
+					prev = i;
+				}
+			}
+			else if (_sprite != null)
+			{
+				var indices = _sprite.triangles;
+				for (int i = 0; i < indices.Length; i += 3)
+				{
+					var i0 = indices[i + 0];
+					var i1 = indices[i + 1];
+					var i2 = indices[i + 2];
+					var key0 = (i0 > i1) ? ((i0 << 16) | i1) : ((i1 << 16) | i0);
+					var key1 = (i1 > i2) ? ((i1 << 16) | i2) : ((i2 << 16) | i1);
+					var key2 = (i2 > i0) ? ((i2 << 16) | i0) : ((i0 << 16) | i2);
+					_gizmoEdges.Add(key0);
+					_gizmoEdges.Add(key1);
+					_gizmoEdges.Add(key2);
+				}
+			}
+		}
+
+		void OnDrawGizmosSelected()
+		{
+			// 全頂点のローカル座標を得て、これをワールド座標に射影して描画する。
+			// この時、ワールド座標への射影行列が得られないケース(どこかでscaleが0になる)では、正常な描画結果が得られない。
+			if (_tmpLocalVertices == null)
+			{
+				_tmpLocalVertices = new List<Vector2>();
+			}
+			CalcLocalVertices(_tmpLocalVertices, _sprite, rectTransform, _overrideVertices);
+
+			// ワールド変換
+			if (_worldVertices == null)
+			{
+				_worldVertices = new List<Vector3>();
+			}
+			_worldVertices.Clear();
+			var toWorld = rectTransform.localToWorldMatrix;
+			for (int i = 0; i < _tmpLocalVertices.Count; i++)
+			{
+				var p = new Vector3(
+					_tmpLocalVertices[i].x,
+					_tmpLocalVertices[i].y,
+					rectTransform.anchoredPosition3D.z);
+				p = toWorld.MultiplyPoint3x4(p);
+				_worldVertices.Add(p);
+			}
+
+			Gizmos.color = new Color(0f, 1f, 0f, 0.5f);
+			foreach (var item in _gizmoEdges)
+			{
+				var i0 = item & 0xffff;
+				var i1 = item >> 16;
+				Gizmos.DrawLine(_worldVertices[i0], _worldVertices[i1]);
+			}
+		}
+
+		[CustomEditor(typeof(CutoutImage), true)]
+		public class CutoutImageInspector : Editor
+		{
+			public override void OnInspectorGUI()
+			{
+				base.OnInspectorGUI();
+				var self = (CutoutImage)target;
+
+				CutoutImage._vertexGuiEditEnabled = GUILayout.Toggle(CutoutImage._vertexGuiEditEnabled, "マウスで頂点編集");
+				if (GUILayout.Button("Set Native Size"))
+				{
+					self.SetNativeSize();
+				}
+			}
+
+			public override void OnPreviewGUI(Rect r, GUIStyle background)
+			{
+				Debug.LogWarning("Preview  " + r + " " + background);
+			}
+
+			private void OnSceneGUI()
+			{
+				if (!CutoutImage._vertexGuiEditEnabled) // 頂点編集モードでないなら抜ける
+				{
+					return;
+				}
+
+				var self = target as CutoutImage;
+				var vertices = self._overrideVertices;
+				if ((vertices == null) || (vertices.Length == 0))
+				{
+					return;
+				}
+
+				// 頂点ごとにローカル座標を導出し、ワールド座標に変換して描画。
+				// ハンドルの入力を取得し、動いていればローカル化して更新。
+				var rectTransform = self.rectTransform;
+				var toWorld = rectTransform.localToWorldMatrix;
+				var toLocal = rectTransform.worldToLocalMatrix;
+				var dstSizeDelta = rectTransform.sizeDelta;
+				Vector2 newLocalPos = Vector2.zero;
+				Handles.matrix = toWorld;
+				bool dirty = false;
+				for (int i = 0; i < vertices.Length; i++)
+				{
+					if (DrawAndCheckHandle(out newLocalPos, ref toWorld, ref toLocal, ref vertices[i], ref dstSizeDelta))
+					{
+						Undo.RecordObject(self, "Modify Override Vertex");
+						vertices[i] = newLocalPos;
+						dirty = true;
+					}
+				}
+				if (dirty)
+				{
+					self.SetVerticesDirty();
+				}
+			}
+
+			bool DrawAndCheckHandle(
+				out Vector2 newNormalizedLocalPos,
+				ref Matrix4x4 toWorld,
+				ref Matrix4x4 toLocal,
+				ref Vector2 normalizedLocalPos,
+				ref Vector2 sizeDelta)
+			{
+				var local3d = new Vector3(
+					normalizedLocalPos.x,
+					normalizedLocalPos.y,
+					0f);
+				local3d.x -= 0.5f;
+				local3d.y -= 0.5f;
+				local3d.x *= sizeDelta.x;
+				local3d.y *= sizeDelta.y; // 正規化座標→ピクセル座標
+
+				var handleSize = HandleUtility.GetHandleSize(local3d) * 0.2f;
+				var newLocal3d = Handles.FreeMoveHandle(
+					local3d,
+					Quaternion.identity,
+					handleSize,
+					new Vector3(1f, 1f, 0f),
+					Handles.CircleHandleCap);
+				newNormalizedLocalPos.x = (newLocal3d.x / sizeDelta.x) + 0.5f;
+				newNormalizedLocalPos.y = (newLocal3d.y / sizeDelta.y) + 0.5f;
+				// 汚ない数が出てくると鬱陶しいので量子化
+				newNormalizedLocalPos.x = (int)(newNormalizedLocalPos.x * 1024f) / 1024f;
+				newNormalizedLocalPos.y = (int)(newNormalizedLocalPos.y * 1024f) / 1024f;
+				var ret = false;
+				if ((newNormalizedLocalPos - normalizedLocalPos).sqrMagnitude > 1e-4f)
+				{
+					ret = true;
+				}
+				return ret;
+			}
+		}
+#endif
+
+		struct Matrix23NoRotation
+		{
+			public float m00, m02;
+			public float m11, m12;
+
+			// アフィン拡張された3ベクタから生成
+			public void SetIdentity()
+			{
+				m00 = m11 = 1f;
+				m02 = m12 = 0f;
+			}
+
+			public void TranslateFromLeft(float x, float y)
+			{
+				/*
+				|1 0 x| |m00  0  m02|   |m00   0 m02+x|
+				|0 1 y| |  0 m11 m12| = |  0 m11 m12+y|
+				*/
+				m02 += x;
+				m12 += y;
+			}
+
+			public void TranslateFromLeft(ref Vector2 v)
+			{
+				TranslateFromLeft(v.x, v.y);
+			}
+
+			public void Translate(float x, float y)
+			{
+				/*
+				|m00  0  m02||1 0 x|    |m00   0 m00*x+m02|
+				|  0 m11 m12||0 1 y|  = |  0 m11 m11*y+m12|
+				*/
+				m02 += (m00 * x);
+				m12 += (m11 * y);
+			}
+
+			public void Translate(ref Vector2 v)
+			{
+				Translate(v.x, v.y);
+			}
+
+			public void ScaleFromLeft(float x, float y)
+			{
+				/*
+				|x 0 0| |m00  0  m02|   |x*m00     0 x*m02|
+				|0 y 0| |  0 m11 m12| = |    0 y*m11 y*m12|
+				*/
+				m00 *= x;
+				m02 *= x;
+				m11 *= y;
+				m12 *= y;
+			}
+
+			public void ScaleFromLeft(ref Vector2 v)
+			{
+				ScaleFromLeft(v.x, v.y);
+			}
+
+			public void Scale(float x, float y)
+			{
+				/*
+				|m00  0  m02||x 0 0|    |m00*x     0 m02|
+				|  0 m11 m12||0 y 0|  = |    0 m11*y m12|
+				*/
+				m00 *= x;
+				m11 *= y;
+			}
+
+			public void Scale(ref Vector2 v)
+			{
+				Scale(v.x, v.y);
+			}
+
+			// z=1にアフィン拡張して乗算
+			public void Multiply(out Vector2 to, ref Vector2 from)
+			{
+				float tx = (m00 * from.x) + m02;
+				to.y = (m11 * from.y) + m12;
 				to.x = tx;
 			}
 
-			public void SetMul(ref Matrix33 a, ref Matrix33 b)
+			public void Dump() // デバグ用
+			{
+				string t = "| " + m00 + "\t0\t" + m02 + "|\n";
+				t += "|0\t" + m11 + "\t" + m12 + "|";
+				Debug.Log(t);
+			}
+		}
+
+		struct Matrix23
+		{
+			public float m00, m01, m02;
+			public float m10, m11, m12;
+
+			// アフィン拡張された3ベクタから生成
+			public Matrix23(ref Vector2 colVector0, ref Vector2 colVector1, ref Vector2 colVector2)
+			{
+				m00 = colVector0.x;
+				m10 = colVector0.y;
+				m01 = colVector1.x;
+				m11 = colVector1.y;
+				m02 = colVector2.x;
+				m12 = colVector2.y;
+			}
+
+			public void Multiply(ref Matrix33 a)
+			{
+				var t00 = (m00 * a.m00) + (m01 * a.m10) + (m02 * a.m20);
+				var t01 = (m00 * a.m01) + (m01 * a.m11) + (m02 * a.m21);
+				var t02 = (m00 * a.m02) + (m01 * a.m12) + (m02 * a.m22);
+
+				var t10 = (m10 * a.m00) + (m11 * a.m10) + (m12 * a.m20);
+				var t11 = (m10 * a.m01) + (m11 * a.m11) + (m12 * a.m21);
+				var t12 = (m10 * a.m02) + (m11 * a.m12) + (m12 * a.m22);
+
+				m00 = t00;
+				m01 = t01;
+				m02 = t02;
+				m10 = t10;
+				m11 = t11;
+				m12 = t12;
+			}
+
+			// a*bで初期化
+			public Matrix23(ref Matrix23 a, ref Matrix33 b)
 			{
 				var t00 = (a.m00 * b.m00) + (a.m01 * b.m10) + (a.m02 * b.m20);
 				var t01 = (a.m00 * b.m01) + (a.m01 * b.m11) + (a.m02 * b.m21);
@@ -281,22 +562,123 @@ Debug.LogWarning("\t" + i +  " " + uvs[i]);
 				var t11 = (a.m10 * b.m01) + (a.m11 * b.m11) + (a.m12 * b.m21);
 				var t12 = (a.m10 * b.m02) + (a.m11 * b.m12) + (a.m12 * b.m22);
 
-				var t20 = (a.m20 * b.m00) + (a.m21 * b.m10) + (a.m22 * b.m20);
-				var t21 = (a.m20 * b.m01) + (a.m21 * b.m11) + (a.m22 * b.m21);
-				var t22 = (a.m20 * b.m02) + (a.m21 * b.m12) + (a.m22 * b.m22);
-
 				m00 = t00;
 				m01 = t01;
 				m02 = t02;
 				m10 = t10;
 				m11 = t11;
 				m12 = t12;
-				m20 = t20;
-				m21 = t21;
-				m22 = t22;
 			}
 
-			public bool SetInverse(ref Matrix33 a)
+			public void TranslateFromLeft(float x, float y)
+			{
+				/*
+				|1 0 x| |m00 m01 m02|   |m00 m01 m02+x|
+				|0 1 y| |m10 m11 m12| = |m10 m11 m12+y|
+				*/
+				m02 += x;
+				m12 += y;
+			}
+
+			public void TranslateFromLeft(ref Vector2 v)
+			{
+				TranslateFromLeft(v.x, v.y);
+			}
+
+			public void Translate(float x, float y)
+			{
+				/*
+				|m00 m01 m02||1 0 x|    |m00 m01 m00*x+m01*y+m02|
+				|m10 m11 m12||0 1 y|  = |m10 m11 m10*x+m11*y+m12|
+				*/
+				m02 += (m00 * x) + (m01 * y);
+				m12 += (m10 * x) + (m11 * y);
+			}
+
+			public void Translate(ref Vector2 v)
+			{
+				Translate(v.x, v.y);
+			}
+
+			public void ScaleFromLeft(float x, float y)
+			{
+				/*
+				|x 0 0| |m00 m01 m02|   |x*m00 x*m01 x*m02|
+				|0 y 0| |m10 m11 m12| = |y*m10 y*m11 y*m12|
+				*/
+				m00 *= x;
+				m01 *= x;
+				m02 *= x;
+				m10 *= y;
+				m11 *= y;
+				m12 *= y;
+			}
+
+			public void ScaleFromLeft(ref Vector2 v)
+			{
+				ScaleFromLeft(v.x, v.y);
+			}
+
+			public void Scale(float x, float y)
+			{
+				/*
+				|m00 m01 m02||x 0 0|    |m00*x m01*y m02|
+				|m10 m11 m12||0 y 0|  = |m10*x m11*y m12|
+				*/
+				m00 *= x;
+				m01 *= y;
+				m10 *= x;
+				m11 *= y;
+			}
+
+			public void Scale(ref Vector2 v)
+			{
+				Scale(v.x, v.y);
+			}
+
+			// z=1にアフィン拡張して乗算
+			public void Multiply(out Vector2 to, ref Vector2 from)
+			{
+				float tx = (m00 * from.x) + (m01 * from.y) + m02;
+				to.y = (m10 * from.x) + (m11 * from.y) + m12;
+				to.x = tx;
+			}
+
+			public void Dump() // デバグ用
+			{
+				string t = "| " + m00 + "\t" + m01 + "\t" + m02 + "|\n";
+				t += "| " + m10 + "\t" + m11 + "\t" + m12 + "|";
+				Debug.Log(t);
+			}
+		}
+
+		struct Matrix33
+		{
+			public float m00, m01, m02;
+			public float m10, m11, m12;
+			public float m20, m21, m22;
+
+			// アフィン拡張された3ベクタから生成
+			public Matrix33(ref Vector2 colVector0, ref Vector2 colVector1, ref Vector2 colVector2)
+			{
+				m00 = colVector0.x;
+				m10 = colVector0.y;
+				m01 = colVector1.x;
+				m11 = colVector1.y;
+				m02 = colVector2.x;
+				m12 = colVector2.y;
+				m20 = m21 = m22 = 1f;
+			}
+
+			public void Dump() // デバグ用
+			{
+				string t = "| " + m00 + "\t" + m01 + "\t" + m02 + "|\n";
+				t += "| " + m10 + "\t" + m11 + "\t" + m12 + "|\n";
+				t += "| " + m20 + "\t" + m21 + "\t" + m22 + "|";
+				Debug.Log(t);
+			}
+
+			public bool Invert()
 			{
 				/*
 				|m00 m01 m02|
@@ -304,20 +686,18 @@ Debug.LogWarning("\t" + i +  " " + uvs[i]);
 				|m20 m21 m22|
 				の逆行列。
 				*/
-				var t00 = (a.m11 * a.m22) - (a.m12 * a.m21);
-				var t01 = (a.m12 * a.m20) - (a.m22 * a.m10);
-				var t02 = (a.m10 * a.m21) - (a.m11 * a.m20);
-				var t10 = (a.m21 * a.m02) - (a.m22 * a.m01);
-				var t11 = (a.m22 * a.m00) - (a.m20 * a.m02);
-				var t12 = (a.m20 * a.m01) - (a.m21 * a.m00);
+				// t__は余因子
+				var t00 = (m11 * m22) - (m12 * m21);
+				var t01 = (m12 * m20) - (m22 * m10);
+				var t02 = (m10 * m21) - (m11 * m20);
+				var t10 = (m21 * m02) - (m22 * m01);
+				var t11 = (m22 * m00) - (m20 * m02);
+				var t12 = (m20 * m01) - (m21 * m00);
+				var t20 = (m01 * m12) - (m02 * m11);
+				var t21 = (m02 * m10) - (m00 * m12);
+				var t22 = (m00 * m11) - (m01 * m10);
 
-				var t20 = (a.m01 * a.m12) - (a.m02 * a.m11);
-				var t21 = (a.m02 * a.m10) - (a.m00 * a.m12);
-				var t22 = (a.m00 * a.m11) - (a.m01 * a.m10);
-
-				var det = a.m00 * t00;
-				det += a.m01 * t01;
-				det += a.m02 * t02;
+				var det = (m00 * t00) + (m01 * t01) + (m02 * t02);
 				if (det == 0f)
 				{
 					return false;
@@ -325,6 +705,7 @@ Debug.LogWarning("\t" + i +  " " + uvs[i]);
 
 				var rcpDet = 1f / det;
 
+				// 余因子を転置しつつ行列式で除して完成
 				m00 = t00 * rcpDet;
 				m01 = t10 * rcpDet;
 				m02 = t20 * rcpDet;
@@ -337,138 +718,5 @@ Debug.LogWarning("\t" + i +  " " + uvs[i]);
 				return true;
 			}
 		}
-
-#if UNITY_EDITOR
-/*
-		private void OnDrawGizmosSelected()
-		{
-			var ap = rectTransform.anchoredPosition;
-			var t = rectTransform.localToWorldMatrix;
-			Gizmos.color = new Color(0f, 1f, 0f, 1f);
-			if ((_overrideVertices != null) && (_overrideVertices.Length >= 3))
-			{
-				var dstSizeDelta = rectTransform.sizeDelta;
-				var v = _overrideVertices[_overrideVertices.Length - 1];
-				v.x *= dstSizeDelta.x;
-				v.y *= dstSizeDelta.y;
-				var prev = t.MultiplyPoint3x4(v);
-				for (int i = 0; i < _overrideVertices.Length; i++)
-				{
-					v = _overrideVertices[i];
-					v.x *= dstSizeDelta.x;
-					v.y *= dstSizeDelta.y;
-					var current = t.MultiplyPoint3x4(v);
-					Gizmos.DrawLine(prev, current);
-					prev = current;
-				}
-			}
-			else
-			{
-				Debug.Assert(!_sprite.packed
-					|| ((_sprite.packingMode == SpritePackingMode.Rectangle) && (_sprite.packingRotation == SpritePackingRotation.None)));
-				var srcRect = (_sprite.packed) ? _sprite.textureRect : _sprite.rect;
-				var rcpSrcWidth = 1f / srcRect.width;
-				var rcpSrcHeight = 1f / srcRect.height;
-				var dstSizeDelta = rectTransform.sizeDelta;
-				var dstPivot = rectTransform.pivot;
-				var scaleX = _sprite.pixelsPerUnit * dstSizeDelta.x * rcpSrcWidth;
-				var scaleY = _sprite.pixelsPerUnit * dstSizeDelta.y * rcpSrcHeight;
-				var srcPivot = _sprite.pivot;
-				srcPivot.x *= rcpSrcWidth; // [0,1]に正規化
-				srcPivot.y *= rcpSrcHeight;
-				var offsetX = (srcPivot.x - dstPivot.x) * dstSizeDelta.x;
-				var offsetY = (srcPivot.y - dstPivot.y) * dstSizeDelta.y;
-				var positions = _sprite.vertices;
-				var indices = _sprite.triangles;
-				// TODO: 座標変換3倍通しててマジ重いが、変換済み頂点列前もって作るとメモリ汚すのでやってない。3倍くらいならいいかなあ。
-				for (int i = 0; i < indices.Length; i += 3)
-				{
-					var p0 = positions[indices[i + 0]];
-					var p1 = positions[indices[i + 1]];
-					var p2 = positions[indices[i + 2]];
-					p0.x *= scaleX;
-					p1.x *= scaleX;
-					p2.x *= scaleX;
-					p0.y *= scaleY;
-					p1.y *= scaleY;
-					p2.y *= scaleY;
-					p0.x += offsetX;
-					p1.x += offsetX;
-					p2.x += offsetX;
-					p0.y += offsetY;
-					p1.y += offsetY;
-					p2.y += offsetY;
-					p0 = t.MultiplyPoint3x4(p0);
-					p1 = t.MultiplyPoint3x4(p1);
-					p2 = t.MultiplyPoint3x4(p2);
-					Gizmos.DrawLine(p0, p1);
-					Gizmos.DrawLine(p1, p2);
-					Gizmos.DrawLine(p2, p0);
-				}
-			}
-		}
-*/
-		[CustomEditor(typeof(CutoutImage), true)]
-		public class ShavedImageInspector : Editor
-		{
-			public override void OnInspectorGUI()
-			{
-				base.OnInspectorGUI();
-				var self = (CutoutImage)target;
-
-				if (GUILayout.Button("Set Native Size"))
-				{
-					self.SetNativeSize();
-				}
-			}
-
-			private void OnSceneGUI()
-			{
-				Tools.current = Tool.None;
-
-				var component = target as CutoutImage;
-				var rectTransform = component.rectTransform;
-				var overrideVertices = component._overrideVertices;
-
-				var t = rectTransform.localToWorldMatrix;
-				var inverse = rectTransform.worldToLocalMatrix;
-				if ((overrideVertices != null) && (overrideVertices.Length >= 3))
-				{
-					var dstSizeDelta = rectTransform.sizeDelta;
-					var v = overrideVertices[overrideVertices.Length - 1];
-					v.x *= dstSizeDelta.x;
-					v.y *= dstSizeDelta.y;
-					for (int i = 0; i < overrideVertices.Length; i++)
-					{
-						v = overrideVertices[i];
-						v.x *= dstSizeDelta.x;
-						v.y *= dstSizeDelta.y;
-						var current = t.MultiplyPoint3x4(v);
-						PositionHandle(ref overrideVertices[i], ref inverse, ref current, ref dstSizeDelta);
-					}
-
-					component.SetVerticesDirty();
-				}
-			}
-
-			void PositionHandle(ref Vector2 targetPoint, ref Matrix4x4 inverse, ref Vector3 position, ref Vector2 sizeDelta)
-			{
-				// TODO: rotationも考慮していい感じにする
-				var handleSize = HandleUtility.GetHandleSize(position) * 0.2f;
-				var newWorldPosition = Handles.FreeMoveHandle(position, Quaternion.identity, handleSize, new Vector3(1f, 1f, 0f), Handles.CircleHandleCap);
-				var newPosition = inverse.MultiplyPoint3x4(newWorldPosition);
-				newPosition.x /= sizeDelta.x;
-				newPosition.y /= sizeDelta.y;
-				if (Mathf.Abs(newPosition.x - targetPoint.x) > 1e-5f)
-				{
-					targetPoint.x = newPosition.x;
-				}
-				if (Mathf.Abs(newPosition.y - targetPoint.y) > 1e-5f)
-				{
-					targetPoint.y = newPosition.y;
-				}
-			}
-		}
-#endif
 	}
 }
