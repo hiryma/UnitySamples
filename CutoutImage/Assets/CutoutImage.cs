@@ -14,8 +14,10 @@ namespace Kayac
 		Sprite _sprite;
 		[SerializeField]
 		Vector2[] _overrideVertices;
+		[SerializeField]
+		bool _vertexOverrideEnabled;
 
-		static List<Vector2> _tmpLocalVertices; // ローカル座標に射影した頂点位置の計算用配列
+		List<Vector2> _localVertices; // ローカル座標に射影した頂点位置(OnPopulateMeshで生成する)
 		static Vector2[] _tmpTexcoords; // テンポラリUV計算配列
 		Matrix23 _positionToTexcoordTransform; // 手動頂点UV決定用行列
 
@@ -31,7 +33,22 @@ namespace Kayac
 				OnSpriteChange();
 			}
 		}
-		public Vector2[] overrideVertices { get { return _overrideVertices; } }
+		public bool vertexOverrideEnabled
+		{
+			get
+			{
+				return _vertexOverrideEnabled;
+			}
+			set
+			{
+				_vertexOverrideEnabled = value;
+				if (value)
+				{
+					OnVertexOverrideEnable();
+				}
+				OnSpriteChange();
+			}
+		}
 		public override Texture mainTexture { get { return (_sprite != null) ? _sprite.texture : null; } }
 		public override void SetNativeSize()
 		{
@@ -44,6 +61,18 @@ namespace Kayac
 			rectTransform.sizeDelta = new Vector2(
 				rect.width,
 				rect.height);
+		}
+
+		void OnVertexOverrideEnable()
+		{
+			if ((_overrideVertices == null) || (_overrideVertices.Length == 0))
+			{
+				_overrideVertices = new Vector2[4];
+				_overrideVertices[0] = new Vector2(0f, 0f);
+				_overrideVertices[1] = new Vector2(0f, 1f);
+				_overrideVertices[2] = new Vector2(1f, 1f);
+				_overrideVertices[3] = new Vector2(1f, 0f);
+			}
 		}
 
 		protected override void Awake()
@@ -127,21 +156,25 @@ namespace Kayac
 		protected override void OnPopulateMesh(VertexHelper vh)
 		{
 			vh.Clear();
-			if (_tmpLocalVertices == null)
+			if (_localVertices == null)
 			{
-				_tmpLocalVertices = new List<Vector2>();
+				_localVertices = new List<Vector2>();
 			}
-			CalcLocalVertices(_tmpLocalVertices, _sprite, rectTransform, _overrideVertices);
+			CalcLocalVertices(
+				_localVertices,
+				_sprite,
+				rectTransform,
+				_vertexOverrideEnabled ? _overrideVertices : null);
 
 			Vector2[] texcoords;
 			ushort[] indices;
 			if (_sprite != null)
 			{
-				if ((_overrideVertices != null) && (_overrideVertices.Length >= 3))
+				if (_vertexOverrideEnabled)
 				{
-					if ((_tmpTexcoords == null) || (_tmpTexcoords.Length < _tmpLocalVertices.Count))
+					if ((_tmpTexcoords == null) || (_tmpTexcoords.Length < _localVertices.Count))
 					{
-						_tmpTexcoords = new Vector2[_tmpLocalVertices.Count];
+						_tmpTexcoords = new Vector2[_localVertices.Count];
 					}
 					for (int i = 0; i < _overrideVertices.Length; i++)
 					{
@@ -153,7 +186,7 @@ namespace Kayac
 				else
 				{
 					texcoords = _sprite.uv;
-					Debug.Assert(_tmpLocalVertices.Count == texcoords.Length);
+					Debug.Assert(_localVertices.Count == texcoords.Length);
 					indices = _sprite.triangles;
 				}
 			}
@@ -163,9 +196,9 @@ namespace Kayac
 				indices = null;
 			}
 
-			for (int i = 0; i < _tmpLocalVertices.Count; i++)
+			for (int i = 0; i < _localVertices.Count; i++)
 			{
-				vh.AddVert(_tmpLocalVertices[i], this.color, texcoords[i]);
+				vh.AddVert(_localVertices[i], this.color, texcoords[i]);
 			}
 
 			if (indices != null)
@@ -192,7 +225,6 @@ namespace Kayac
 		{
 			verticesOut.Clear();
 
-			var rectSizeDelta = rectTransform.sizeDelta;
 			Vector2 spritePivot;
 			float spriteWidth, spriteHeight;
 			Vector2[] positions;
@@ -202,11 +234,11 @@ namespace Kayac
 				var spriteRect = sprite.rect;
 				spriteWidth = spriteRect.width;
 				spriteHeight = spriteRect.height;
-				if ((overrideVertices != null) && (overrideVertices.Length >= 3))
+				if (overrideVertices != null)
 				{
 					positions = overrideVertices;
-					pixelsPerUnitX = rectSizeDelta.x;
-					pixelsPerUnitY = rectSizeDelta.y;
+					pixelsPerUnitX = spriteWidth;
+					pixelsPerUnitY = spriteHeight;
 					spritePivot = new Vector2(0f, 0f);
 				}
 				else
@@ -227,6 +259,7 @@ namespace Kayac
 			}
 			Matrix23NoRotation positionTransform = new Matrix23NoRotation();
 			positionTransform.SetIdentity();
+			var rectSizeDelta = rectTransform.sizeDelta;
 			positionTransform.ScaleFromLeft(
  				pixelsPerUnitX * rectSizeDelta.x / spriteWidth,
 				pixelsPerUnitY * rectSizeDelta.y / spriteHeight);
@@ -258,6 +291,10 @@ namespace Kayac
 		protected override void OnValidate() // sprite変更時だけで良い
 		{
 			base.OnValidate();
+			if (_vertexOverrideEnabled)
+			{
+				OnVertexOverrideEnable();
+			}
 			OnSpriteChange();
 		}
 
@@ -268,7 +305,7 @@ namespace Kayac
 				_gizmoEdges = new HashSet<int>();
 			}
 			_gizmoEdges.Clear();
-			if ((_overrideVertices != null) && (_overrideVertices.Length >= 3))
+			if (_vertexOverrideEnabled)
 			{
 				int prev = _overrideVertices.Length - 1;
 				for (int i = 0; i < _overrideVertices.Length; i++)
@@ -297,14 +334,16 @@ namespace Kayac
 
 		void OnDrawGizmosSelected()
 		{
-			// 全頂点のローカル座標を得て、これをワールド座標に射影して描画する。
-			// この時、ワールド座標への射影行列が得られないケース(どこかでscaleが0になる)では、正常な描画結果が得られない。
-			if (_tmpLocalVertices == null)
+			// 全頂点のローカル座標をワールド座標に射影して描画する。
+			if (_localVertices == null)
 			{
-				_tmpLocalVertices = new List<Vector2>();
+				_localVertices = new List<Vector2>();
 			}
-			CalcLocalVertices(_tmpLocalVertices, _sprite, rectTransform, _overrideVertices);
-
+			CalcLocalVertices(
+				_localVertices,
+				_sprite,
+				rectTransform,
+				_vertexOverrideEnabled ? _overrideVertices : null);
 			// ワールド変換
 			if (_worldVertices == null)
 			{
@@ -312,17 +351,17 @@ namespace Kayac
 			}
 			_worldVertices.Clear();
 			var toWorld = rectTransform.localToWorldMatrix;
-			for (int i = 0; i < _tmpLocalVertices.Count; i++)
+			for (int i = 0; i < _localVertices.Count; i++)
 			{
 				var p = new Vector3(
-					_tmpLocalVertices[i].x,
-					_tmpLocalVertices[i].y,
+					_localVertices[i].x,
+					_localVertices[i].y,
 					rectTransform.anchoredPosition3D.z);
 				p = toWorld.MultiplyPoint3x4(p);
 				_worldVertices.Add(p);
 			}
 
-			Gizmos.color = new Color(0f, 1f, 0f, 0.5f);
+			Gizmos.color = new Color(0f, 1f, 0f, 1f);
 			foreach (var item in _gizmoEdges)
 			{
 				var i0 = item & 0xffff;
@@ -339,16 +378,11 @@ namespace Kayac
 				base.OnInspectorGUI();
 				var self = (CutoutImage)target;
 
-				CutoutImage._vertexGuiEditEnabled = GUILayout.Toggle(CutoutImage._vertexGuiEditEnabled, "マウスで頂点編集");
+				CutoutImage._vertexGuiEditEnabled = GUILayout.Toggle(CutoutImage._vertexGuiEditEnabled, "GUI Vertex Editing");
 				if (GUILayout.Button("Set Native Size"))
 				{
 					self.SetNativeSize();
 				}
-			}
-
-			public override void OnPreviewGUI(Rect r, GUIStyle background)
-			{
-				Debug.LogWarning("Preview  " + r + " " + background);
 			}
 
 			private void OnSceneGUI()
@@ -368,15 +402,13 @@ namespace Kayac
 				// 頂点ごとにローカル座標を導出し、ワールド座標に変換して描画。
 				// ハンドルの入力を取得し、動いていればローカル化して更新。
 				var rectTransform = self.rectTransform;
-				var toWorld = rectTransform.localToWorldMatrix;
-				var toLocal = rectTransform.worldToLocalMatrix;
 				var dstSizeDelta = rectTransform.sizeDelta;
 				Vector2 newLocalPos = Vector2.zero;
-				Handles.matrix = toWorld;
+				Handles.matrix = rectTransform.localToWorldMatrix;
 				bool dirty = false;
 				for (int i = 0; i < vertices.Length; i++)
 				{
-					if (DrawAndCheckHandle(out newLocalPos, ref toWorld, ref toLocal, ref vertices[i], ref dstSizeDelta))
+					if (DrawAndCheckHandle(out newLocalPos, ref vertices[i], ref dstSizeDelta))
 					{
 						Undo.RecordObject(self, "Modify Override Vertex");
 						vertices[i] = newLocalPos;
@@ -391,8 +423,6 @@ namespace Kayac
 
 			bool DrawAndCheckHandle(
 				out Vector2 newNormalizedLocalPos,
-				ref Matrix4x4 toWorld,
-				ref Matrix4x4 toLocal,
 				ref Vector2 normalizedLocalPos,
 				ref Vector2 sizeDelta)
 			{
