@@ -284,7 +284,6 @@ namespace Kayac
 		}
 
 #if UNITY_EDITOR
-		static List<Vector3> _worldVertices; // キャッシュ用
 		static bool _vertexGuiEditEnabled; // 頂点ハンドル有効
 		HashSet<int> _gizmoEdges; // 上16bitと下16bitを分割して頂点番号とし、それで辺を描画する
 
@@ -344,34 +343,18 @@ namespace Kayac
 				_sprite,
 				rectTransform,
 				_vertexOverrideEnabled ? _overrideVertices : null);
-			// ワールド変換
-			if (_worldVertices == null)
-			{
-				_worldVertices = new List<Vector3>();
-			}
-			_worldVertices.Clear();
-			var toWorld = rectTransform.localToWorldMatrix;
-			for (int i = 0; i < _localVertices.Count; i++)
-			{
-				var p = new Vector3(
-					_localVertices[i].x,
-					_localVertices[i].y,
-					rectTransform.anchoredPosition3D.z);
-				p = toWorld.MultiplyPoint3x4(p);
-				_worldVertices.Add(p);
-			}
-
+			Gizmos.matrix = rectTransform.localToWorldMatrix;
 			Gizmos.color = new Color(0f, 1f, 0f, 1f);
 			foreach (var item in _gizmoEdges)
 			{
 				var i0 = item & 0xffff;
 				var i1 = item >> 16;
-				Gizmos.DrawLine(_worldVertices[i0], _worldVertices[i1]);
+				Gizmos.DrawLine(_localVertices[i0], _localVertices[i1]);
 			}
 		}
 
 		[CustomEditor(typeof(CutoutImage), true)]
-		public class CutoutImageInspector : Editor
+		public class Inspector : Editor
 		{
 			public override void OnInspectorGUI()
 			{
