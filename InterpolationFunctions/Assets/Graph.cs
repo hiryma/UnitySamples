@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 // あくまでテスト/デバグ用。性能のことは全く考えていない。事実クッソ遅い。
 public class Graph : MaskableGraphic
@@ -13,27 +14,33 @@ public class Graph : MaskableGraphic
 	[SerializeField]
 	float _yMax = 1f;
 
-	struct Data : System.IComparable<Data>
+
+	struct Data
 	{
-		public int CompareTo(Data other)
+		// Dataが直接IComparableを実装すると、Array.SortがムチャクチャGC Allocする。
+		public class Comparer : IComparer<Data>
 		{
-			if (x < other.x)
+			public int Compare(Data a, Data b)
 			{
-				return -1;
-			}
-			else if (x > other.x)
-			{
-				return 1;
-			}
-			else
-			{
-				return 0;
+				if (a.x < b.x)
+				{
+					return -1;
+				}
+				else if (a.x > b.x)
+				{
+					return 1;
+				}
+				else
+				{
+					return 0;
+				}
 			}
 		}
 		public float x, y;
 	}
 
 	Data[] _data;
+	IComparer<Data> _comparer = new Data.Comparer();
 	int _count;
 	float _xEnd;
 
@@ -64,7 +71,7 @@ public class Graph : MaskableGraphic
 		{
 			_data[0] = data;
 		}
-		System.Array.Sort(_data, 0, _count); // 超遅い
+		System.Array.Sort(_data, 0, _count, _comparer); // 超遅い
 		SetAllDirty();
 	}
 

@@ -47,7 +47,7 @@ public class Sample : MonoBehaviour
 	}
 	FunctionType _functionType = FunctionType.Linear;
 	State _key0 = new State(new Vector2(300f, 150f), 0f, 0f, 0f);
-	State _key1 = new State(new Vector2(-300f, -150f), 1050f, 1.3f, 2f);
+	State _key1 = new State(new Vector2(-250f, -100f), 1050f, 1.25f, 2f);
 	State _key2 = new State(new Vector2(250f, -200f), 1120f, 0.6f, 2f);
 	bool _nextIsKey2;
 	State _currentKey;
@@ -342,13 +342,19 @@ public class Sample : MonoBehaviour
 			_toolbarItemNames);
 
 		GUILayout.BeginHorizontal();
-		if (GUILayout.Button("start"))
+		if (!_playing)
 		{
-			_playing = true;
+			if (GUILayout.Button("start"))
+			{
+				_playing = true;
+			}
 		}
-		if (GUILayout.Button("stop"))
+		else
 		{
-			_playing = false;
+			if (GUILayout.Button("stop"))
+			{
+				_playing = false;
+			}
 		}
 		if (GUILayout.Button("rewind"))
 		{
@@ -358,6 +364,18 @@ public class Sample : MonoBehaviour
 		{
 			_nextIsKey2 = !_nextIsKey2;
 			_nextKey = _nextIsKey2 ? _key2 : _key1;
+		}
+		if (_functionType == FunctionType.SpringDumper)
+		{
+			if (GUILayout.Button("pulse"))
+			{
+				var m = 2000f;
+				_velocity.position += new Vector2(Random.Range(-m, m), Random.Range(-m, m));
+				m = 5000f;
+				_velocity.rotation += Random.Range(-m, m);
+				m = 10f;
+				_velocity.scale += Random.Range(-m, m);
+			}
 		}
 		GUILayout.EndHorizontal();
 	}
