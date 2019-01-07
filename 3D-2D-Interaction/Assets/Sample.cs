@@ -214,8 +214,12 @@ public class Sample : MonoBehaviour
 		effect.transform.localPosition = localPoint;
 		// 遠くなら小さく描画する必要があるのでスケールを計算
 		// distance == _effectDstUiPlaneDistanceFromCameraの時に1で、distanceが2倍になればスケールは半分になる。よって割り算
-		var posInViewSpace = _camera3d.transform.worldToLocalMatrix.MultiplyPoint(pos); //Zしか使わないので、ここの乗算は部分的に行うとより良い。
-		var scale = effect.uiPlaneDistanceFromCamera / posInViewSpace.z; // ビュー座標でZ<0なら写らないので考慮しなくて良い
+		var camToPos = pos - _camera3d.transform.position;
+		var zDistance = Vector3.Dot(_camera3d.transform.forward, camToPos);
+		/* 内積で距離を求めるのが理解し難ければ、以下のようにしても良い。一旦ビュー座標に移し、そのzだけを見る。
+		var zDistance = _camera3d.transform.worldToLocalMatrix.MultiplyPoint(pos).z; //Zしか使わないので、ここの乗算は部分的に行うとより良い。
+		*/
+		var scale = effect.uiPlaneDistanceFromCamera / zDistance;
 		effect.transform.localScale = new Vector3(scale, scale, scale);
 
 		// 終了判定
