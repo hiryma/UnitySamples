@@ -176,8 +176,10 @@ public class Sample : MonoBehaviour
 		var worldPos2d = uiTransform.position; // 2D世界おけるワールド座標を得る
 		var screenPos = camera2d.WorldToScreenPoint(worldPos2d); // スクリーン座標に変換
 		var ray = camera3d.ScreenPointToRay(screenPos); // 3D世界におけるカメラから出たレイに変換
-		var dotRayForward = Vector3.Dot(ray.direction, camera3d.transform.forward);
-		worldPositionOut = ray.origin + (ray.direction * uiPlaneDistanceFromCamera / dotRayForward);
+		var cosine = Vector3.Dot(ray.direction, camera3d.transform.forward)
+			/ camera3d.transform.forward.magnitude; // ray.directionの長さは1固定なので割らずに済む
+		var distance = uiPlaneDistanceFromCamera / cosine;
+		worldPositionOut = camera3d.transform.position + (ray.direction * distance);
 	}
 
 	void UpdateEffect2D(Effect effect, float dt)
@@ -218,7 +220,8 @@ public class Sample : MonoBehaviour
 		effect.transform.position = ray.origin; // レイ上のどこを選んでも2Dならば同じなので、originを使う。
 		// 遠くなら小さく描画する必要があるのでスケールを計算
 		var camToPos = pos - _camera3d.transform.position;
-		var zDistance = Vector3.Dot(_camera3d.transform.forward, camToPos);
+		var zDistance = Vector3.Dot(_camera3d.transform.forward, camToPos)
+			/ _camera3d.transform.forward.magnitude;
 		/* 内積で距離を求めるのが理解し難ければ、以下のようにしても良い。一旦ビュー座標に移し、そのzだけを見る。
 		var zDistance = _camera3d.transform.worldToLocalMatrix.MultiplyPoint3x4(pos).z; //Zしか使わないので、ここの乗算は部分的に行うとより良い。
 		*/
