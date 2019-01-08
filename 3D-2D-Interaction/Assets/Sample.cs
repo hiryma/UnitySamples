@@ -17,8 +17,6 @@ public class Sample : MonoBehaviour
 	[SerializeField]
 	Transform[] _3dEffectTransforms;
 	[SerializeField]
-	RectTransform _2dEffectParentTransform;
-	[SerializeField]
 	RectTransform[] _2dEffectTransforms;
 	[SerializeField]
 	Transform _heroTransform;
@@ -39,43 +37,33 @@ public class Sample : MonoBehaviour
 	Vector2 _cameraVelocityXZ;
 	Vector3 _prevMousePosition;
 	// エフェクト関連
-	class Effect3D // 2D→3Dで飛ぶように見える、3Dのエフェクト
+	class Effect
 	{
 		public Transform transform;
-		public RectTransform srcTransform;
+		public Transform srcTransform;
 		public Transform dstTransform;
 		public float time;
 		public float uiPlaneDistanceFromCamera;
 	}
-	class Effect2D // 3D→2Dで飛ぶように見える、2Dのエフェクト
-	{
-		public RectTransform parentTransform;
-		public RectTransform transform;
-		public Transform srcTransform;
-		public RectTransform dstTransform;
-		public float time;
-		public float uiPlaneDistanceFromCamera;
-	}
 
-	Effect3D[] _3dEffects;
-	Effect2D[] _2dEffects;
+	Effect[] _3dEffects;
+	Effect[] _2dEffects;
 	int _3dEffectIndex;
 	int _2dEffectIndex;
 
 	void Start()
 	{
-		_2dEffects = new Effect2D[_2dEffectTransforms.Length];
+		_2dEffects = new Effect[_2dEffectTransforms.Length];
 		for (int i = 0; i < _2dEffects.Length; i++)
 		{
-			_2dEffects[i] = new Effect2D();
+			_2dEffects[i] = new Effect();
 			_2dEffects[i].transform = _2dEffectTransforms[i];
-			_2dEffects[i].parentTransform = _2dEffectParentTransform;
 			_2dEffects[i].transform.gameObject.SetActive(false);
 		}
-		_3dEffects = new Effect3D[_3dEffectTransforms.Length];
+		_3dEffects = new Effect[_3dEffectTransforms.Length];
 		for (int i = 0; i < _3dEffects.Length; i++)
 		{
-			_3dEffects[i] = new Effect3D();
+			_3dEffects[i] = new Effect();
 			_3dEffects[i].transform = _3dEffectTransforms[i];
 			_3dEffects[i].transform.gameObject.SetActive(false);
 		}
@@ -145,7 +133,7 @@ public class Sample : MonoBehaviour
 		UpdateEffects(dt);
 	}
 
-	void EmitEffect3dTo2d(Transform src, RectTransform dst, float uiPlaneDistanceFromCamera, int index)
+	void EmitEffect3dTo2d(Transform src, Transform dst, float uiPlaneDistanceFromCamera, int index)
 	{
 		var effect = _2dEffects[index];
 		effect.time = 0f;
@@ -155,7 +143,7 @@ public class Sample : MonoBehaviour
 		effect.dstTransform = dst;
 	}
 
-	void EmitEffect2dTo3d(RectTransform src, Transform dst, float uiPlaneDistanceFromCamera, int index)
+	void EmitEffect2dTo3d(Transform src, Transform dst, float uiPlaneDistanceFromCamera, int index)
 	{
 		var effect = _3dEffects[index];
 		effect.time = 0f;
@@ -169,15 +157,30 @@ public class Sample : MonoBehaviour
 	{
 		for (int i = 0; i < _2dEffects.Length; i++)
 		{
-			UpdateEffect(_2dEffects[i], dt);
+			UpdateEffect2D(_2dEffects[i], dt);
 		}
 		for (int i = 0; i < _3dEffects.Length; i++)
 		{
-			UpdateEffect(_3dEffects[i], dt);
+			UpdateEffect3D(_3dEffects[i], dt);
 		}
 	}
 
-	void UpdateEffect(Effect2D effect, float dt)
+	// 2D要素が3D空間にあったとしたらどこにあるか、を算出する
+	static void Calc3dWorldPositionOfUi(
+		out Vector3 worldPositionOut,
+		Transform uiTransform,
+		Camera camera2d,
+		Camera camera3d,
+		float uiPlaneDistanceFromCamera)
+	{
+		var worldPos2d = uiTransform.position; // 2D世界おけるワールド座標を得る
+		var screenPos = camera2d.WorldToScreenPoint(worldPos2d); // スクリーン座標に変換
+		var ray = camera3d.ScreenPointToRay(screenPos); // 3D世界におけるカメラから出たレイに変換
+		var dotRayForward = Vector3.Dot(ray.direction, camera3d.transform.forward);
+		worldPositionOut = ray.origin + (ray.direction * uiPlaneDistanceFromCamera / dotRayForward);
+	}
+
+	void UpdateEffect2D(Effect effect, float dt)
 	{
 		if (!effect.transform.gameObject.activeSelf)
 		{
@@ -187,11 +190,13 @@ public class Sample : MonoBehaviour
 		var srcWorldPos = effect.srcTransform.position;
 
 		// 目標点のワールド座標を求める
-		var dstWorldPosIn2dCamera = effect.dstTransform.position; // 2D側カメラおけるワールド座標を得る
-		var dstScreenPos = _camera2d.WorldToScreenPoint(dstWorldPosIn2dCamera); // スクリーン座標に変換
-		var ray = _camera3d.ScreenPointToRay(dstScreenPos); // カメラから出たレイに変換
-		var dotRayForward = Vector3.Dot(ray.direction, _camera3d.transform.forward);
-		var dstWorldPos = ray.origin + (ray.direction * effect.uiPlaneDistanceFromCamera / dotRayForward);
+		Vector3 dstWorldPos;
+		Calc3dWorldPositionOfUi(
+			out dstWorldPos,
+			effect.dstTransform,
+			_camera2d,
+			_camera3d,
+			effect.uiPlaneDistanceFromCamera);
 		// 正規化時刻を求める
 		var t = effect.time / _effectDuration;
 		t *= t; // 加速した方がかっこいいので加速させてみる。このサンプルの本質には関係ない。
@@ -209,16 +214,15 @@ public class Sample : MonoBehaviour
 		}
 		// この3Dワールド座標が2Dカメラのキャンバス内でどこに来るのかを計算する
 		var screenPos = _camera3d.WorldToScreenPoint(pos); // スクリーン座標に変換
-		Vector2 localPoint;
-		RectTransformUtility.ScreenPointToLocalPointInRectangle(effect.parentTransform, screenPos, _camera2d, out localPoint);
-		effect.transform.localPosition = localPoint;
+		var ray = _camera2d.ScreenPointToRay(screenPos);
+		effect.transform.position = ray.origin; // レイ上のどこを選んでも2Dならば同じなので、originを使う。
 		// 遠くなら小さく描画する必要があるのでスケールを計算
-		// distance == _effectDstUiPlaneDistanceFromCameraの時に1で、distanceが2倍になればスケールは半分になる。よって割り算
 		var camToPos = pos - _camera3d.transform.position;
 		var zDistance = Vector3.Dot(_camera3d.transform.forward, camToPos);
 		/* 内積で距離を求めるのが理解し難ければ、以下のようにしても良い。一旦ビュー座標に移し、そのzだけを見る。
-		var zDistance = _camera3d.transform.worldToLocalMatrix.MultiplyPoint(pos).z; //Zしか使わないので、ここの乗算は部分的に行うとより良い。
+		var zDistance = _camera3d.transform.worldToLocalMatrix.MultiplyPoint3x4(pos).z; //Zしか使わないので、ここの乗算は部分的に行うとより良い。
 		*/
+		// distance == _effectDstUiPlaneDistanceFromCameraの時に1で、distanceが2倍になればスケールは半分になる。よって割り算。
 		var scale = effect.uiPlaneDistanceFromCamera / zDistance;
 		effect.transform.localScale = new Vector3(scale, scale, scale);
 
@@ -230,18 +234,20 @@ public class Sample : MonoBehaviour
 		effect.time += dt;
 	}
 
-	void UpdateEffect(Effect3D effect, float dt)
+	void UpdateEffect3D(Effect effect, float dt)
 	{
 		if (!effect.transform.gameObject.activeSelf)
 		{
 			return;
 		}
 		// 開始のワールド座標を求める
-		var srcWorldPosIn2dCamera = effect.srcTransform.position; // 2D側カメラおけるワールド座標を得る
-		var screenPos = _camera2d.WorldToScreenPoint(srcWorldPosIn2dCamera); // スクリーン座標に変換
-		var ray = _camera3d.ScreenPointToRay(screenPos); // カメラから出たレイに変換
-		var dotRayForward = Vector3.Dot(ray.direction, _camera3d.transform.forward);
-		var srcWorldPos = ray.origin + (ray.direction * effect.uiPlaneDistanceFromCamera / dotRayForward);
+		Vector3 srcWorldPos;
+		Calc3dWorldPositionOfUi(
+			out srcWorldPos,
+			effect.srcTransform,
+			_camera2d,
+			_camera3d,
+			effect.uiPlaneDistanceFromCamera);
 		// 目標点のワールド座標を得る
 		var dstWorldPos = effect.dstTransform.position;
 		// 正規化時刻を求める
@@ -294,15 +300,6 @@ public class Sample : MonoBehaviour
 		_camera3d.transform.localPosition = p;
 	}
 
-	static void Bezier(out Vector3 pOut, ref Vector3 p0, ref Vector3 p1, ref Vector3 controlPoint, float t)
-	{
-		pOut = p1 - (controlPoint * 2f) + p0;
-		pOut *= t;
-		pOut += (controlPoint - p0) * 2f;
-		pOut *= t;
-		pOut += p0;
-	}
-
 	void OnGUI()
 	{
 		GUILayout.Label("headerDistance: " + _headerUiPlaneDistanceFromCamera.ToString("N1"));
@@ -312,5 +309,14 @@ public class Sample : MonoBehaviour
 		GUILayout.Label("effectDuration: " + _effectDuration.ToString("N1"));
 		_effectDuration = GUILayout.HorizontalSlider(_effectDuration, 0.1f, 5f);
 		_useBezier = GUILayout.Toggle(_useBezier, "Bezier");
+	}
+
+	static void Bezier(out Vector3 pOut, ref Vector3 p0, ref Vector3 p1, ref Vector3 controlPoint, float t)
+	{
+		pOut = p1 - (controlPoint * 2f) + p0;
+		pOut *= t;
+		pOut += (controlPoint - p0) * 2f;
+		pOut *= t;
+		pOut += p0;
 	}
 }
