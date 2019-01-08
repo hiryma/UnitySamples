@@ -5,14 +5,14 @@ using UnityEngine;
 public class Sample : MonoBehaviour
 {
 	[SerializeField]
-	Billboard _prefab;
+	GameObject _billboardPrefab;
 	[SerializeField]
 	Transform _root;
 	[SerializeField]
 	Camera _camera;
 
 	int _billboardCount = 100;
-	Billboard[] _billboards;
+	GameObject[] _billboards;
 	// カメラ角度
 	Quaternion _cameraOrientation;
 	Vector3 _prevMousePosition;
@@ -25,10 +25,10 @@ public class Sample : MonoBehaviour
 	void Start()
 	{
 		_cameraOrientation = Quaternion.identity;
-		_billboards = new Billboard[_billboardCount];
+		_billboards = new GameObject[_billboardCount];
 		for (int i = 0; i < _billboards.Length; i++)
 		{
-			_billboards[i] = Instantiate(_prefab, _root, false);
+			_billboards[i] = Instantiate(_billboardPrefab, _root, false);
 		}
 		ArrangeBillboards();
 	}

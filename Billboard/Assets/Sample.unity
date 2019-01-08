@@ -302,7 +302,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1343384324}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -10, z: 0}
+  m_LocalPosition: {x: 0, y: -1.24, z: 0}
   m_LocalScale: {x: 15, y: 15, z: 15}
   m_Children: []
   m_Father: {fileID: 0}
@@ -335,7 +335,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 83286d8cad1dd47269fa5ec0e71970fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _prefab: {fileID: 114719147524817856, guid: 6ad112da47cc74c7d983cde381045f90, type: 2}
+  _billboardPrefab: {fileID: 1104026766319556, guid: 6ad112da47cc74c7d983cde381045f90,
+    type: 2}
   _root: {fileID: 1049138238}
   _camera: {fileID: 229122577}
 --- !u!4 &1690233168
