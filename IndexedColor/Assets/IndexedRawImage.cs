@@ -135,11 +135,6 @@ namespace Kayac
 				EditorGUILayout.EndHorizontal();
 
 				EditorGUILayout.BeginHorizontal();
-				GUILayout.Label("RaycastTarget");
-				self.raycastTarget = GUILayout.Toggle(self.raycastTarget, "");
-				EditorGUILayout.EndHorizontal();
-
-				EditorGUILayout.BeginHorizontal();
 				GUILayout.Label("BilinearFilter");
 				var newBilinearFilter = GUILayout.Toggle(self._bilinearFilter, "");
 				if (newBilinearFilter != self._bilinearFilter)
@@ -147,6 +142,11 @@ namespace Kayac
 					self._bilinearFilter = newBilinearFilter;
 					self.CreateMaterial();
 				}
+				EditorGUILayout.EndHorizontal();
+
+				EditorGUILayout.BeginHorizontal();
+				GUILayout.Label("RaycastTarget");
+				self.raycastTarget = GUILayout.Toggle(self.raycastTarget, "");
 				EditorGUILayout.EndHorizontal();
 
 				if (GUILayout.Button("Set Native Size"))
