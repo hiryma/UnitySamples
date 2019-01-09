@@ -65,7 +65,7 @@ namespace Kayac
 			if (shader != null)
 			{
 				_material = new Material(shader);
-				SetTextures();
+				SetTexturesToMaterial();
 			}
 			else
 			{
@@ -73,14 +73,19 @@ namespace Kayac
 			}
 		}
 
-		void SetTextures()
+		void OnTextureChange()
 		{
 			if (_material != null)
 			{
-				_material.mainTexture = _indexTexture;
-				_material.SetTexture("_TableTex", _tableTexture);
+				SetTexturesToMaterial();
 				SetMaterialDirty();
 			}
+		}
+
+		void SetTexturesToMaterial()
+		{
+			_material.mainTexture = _indexTexture;
+			_material.SetTexture("_TableTex", _tableTexture);
 		}
 
 		public override void SetNativeSize()
@@ -115,7 +120,7 @@ namespace Kayac
 				if (newIndexTexture != self._indexTexture) // カスタムエディタだと勝手にOnValidateが呼ばれない
 				{
 					self._indexTexture = newIndexTexture;
-					self.SetTextures();
+					self.OnTextureChange();
 				}
 				EditorGUILayout.EndHorizontal();
 
