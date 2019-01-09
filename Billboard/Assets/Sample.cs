@@ -19,7 +19,7 @@ public class Sample : MonoBehaviour
 	float _cameraMoveSpeed = 0.005f;
 	float _cameraRollSpeed = 0.1f;
 	bool _rollEnabled;
-	bool _faceToViewVector;
+	bool _faceToCamera;
 	bool _randomArrangement;
 
 	void Start()
@@ -73,38 +73,26 @@ public class Sample : MonoBehaviour
 		UpdateCamera();
 		for (int i = 0; i < _billboards.Length; i++)
 		{
-			var rotation = Quaternion.identity;
-			if (_rollEnabled)
+			Vector3 forward;
+			Vector3 up;
+			if (_faceToCamera)
 			{
-				if (_faceToViewVector)
-				{
-					rotation = Quaternion.LookRotation(
-						-_camera.transform.forward,
-						_camera.transform.up);
-				}
-				else
-				{
-					rotation = Quaternion.LookRotation(
-						_camera.transform.position - _billboards[i].transform.position,
-						_camera.transform.up);
-				}
+				forward = _camera.transform.position - _billboards[i].transform.position;
 			}
 			else
 			{
-				if (_faceToViewVector)
-				{
-					rotation = Quaternion.LookRotation(
-						-_camera.transform.forward,
-						new Vector3(0f, 1f, 0f));
-				}
-				else
-				{
-					rotation = Quaternion.LookRotation(
-						_camera.transform.position - _billboards[i].transform.position,
-						new Vector3(0f, 1f, 0f));
-				}
+				forward = -_camera.transform.forward;
 			}
-			_billboards[i].transform.rotation = rotation;
+
+			if (_rollEnabled)
+			{
+				up = _camera.transform.up;
+			}
+			else
+			{
+				up = new Vector3(0f, 1f, 0f);
+			}
+			_billboards[i].transform.rotation = Quaternion.LookRotation(forward, up);
 		}
 	}
 
@@ -127,10 +115,15 @@ public class Sample : MonoBehaviour
 			var w = new Vector3(0f, 0f, _cameraRollSpeed);
 			_cameraOrientation = Integrate(_cameraOrientation, w);
 		}
+		if (GUILayout.Button("ResetCameraRoll"))
+		{
+			_cameraOrientation = Quaternion.LookRotation(_camera.transform.forward, new Vector3(0f, 1f, 0f));
+			_cameraOrientation = SetNorm(_cameraOrientation, Mathf.Sqrt(distance));
+		}
 		GUILayout.Label("cameraMoveSpeed: " + _cameraMoveSpeed.ToString("N3"));
 		_cameraMoveSpeed = GUILayout.HorizontalSlider(_cameraMoveSpeed, 0.001f, 0.02f);
 		_rollEnabled = GUILayout.Toggle(_rollEnabled, "Roll");
-		_faceToViewVector = GUILayout.Toggle(_faceToViewVector, "ToViewVector");
+		_faceToCamera = GUILayout.Toggle(_faceToCamera, "ToViewVector");
 		var newRandomArrangement = GUILayout.Toggle(_randomArrangement, "RandomArrangement");
 		if (newRandomArrangement != _randomArrangement)
 		{
