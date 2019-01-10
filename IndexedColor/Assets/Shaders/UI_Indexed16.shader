@@ -49,15 +49,14 @@
 			fixed4 frag (v2f i) : SV_Target
 			{
 				// 左画素のIndexと、右画素のIndexを分離
-				half index = tex2D(_MainTex, i.uv).a * 255.01 / 16; // 整数部が左画素、少数部が右画素。.01は誤差対策。
-				half indexRight = frac(index);
-				half indexLeft = (index - indexRight) / 16;
-				// 左画素なのか右画素なのかを判定して分岐
-				half texcoordX = i.uv.x * _MainTex_TexelSize.z * 2; // ピクセル単位座標に変換
-				half texcoordHalfX = texcoordX * 0.5;
-				half texcoordHalfXFrac = frac(texcoordHalfX);
-				index = (texcoordHalfXFrac > 0.49) ? indexRight : indexLeft; // 非2羃テクスチャで誤差が出た時のために少し甘めに見ておく
-				fixed4 col = tex2D(_TableTex, index);
+				half indexEncoded = tex2D(_MainTex, i.uv).a * (255.01 / 16); // 整数部が左画素、少数部が右画素。.01は誤差対策。
+				half indexRight = frac(indexEncoded);
+				half indexLeft = (indexEncoded - indexRight) / 16;
+				// 左画素なのか右画素なのかを判定
+				half texcoordX = i.uv.x * _MainTex_TexelSize.z; // ピクセル単位座標に変換(幅半分のテクスチャでの)
+				// 2倍して「元の幅」にし、これを0.5倍してfracが0.5なら右で、0なら左。2倍して0.5倍なので、そのまま。
+				half index = (frac(texcoordX) < 0.49) ? indexLeft : indexRight; // 非2羃テクスチャで誤差が出た時のために少し甘めに見ておく
+				fixed4 col = tex2D(_TableTex, index.xx);
 				return col;
 			}
 			ENDCG
