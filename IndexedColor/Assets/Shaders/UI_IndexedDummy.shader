@@ -1,4 +1,4 @@
-﻿Shader "UI/Indexed256"
+﻿Shader "UI/IndexedDummy" // インターフェイスはUI/Indexed...と同じだが、単にIndexTextureを返すだけ
 {
 	Properties
 	{
@@ -35,7 +35,6 @@
 
 			sampler2D _MainTex;
 			float4 _MainTex_ST;
-			sampler2D _TableTex;
 
 			v2f vert (appdata v)
 			{
@@ -47,9 +46,7 @@
 
 			fixed4 frag (v2f i) : SV_Target
 			{
-				half index = tex2D(_MainTex, i.uv).a;
-				fixed4 col = tex2D(_TableTex, index);
-				return col;
+				return tex2D(_MainTex, i.uv);
 			}
 			ENDCG
 		}

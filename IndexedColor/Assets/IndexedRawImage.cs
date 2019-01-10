@@ -33,44 +33,47 @@ namespace Kayac
 
 		void CreateMaterial()
 		{
-			if (_tableTexture == null)
+			Shader shader = null;
+			if (_tableTexture != null)
 			{
+				switch (_tableTexture.width)
+				{
+					case 256:
+						if (_bilinearFilter)
+						{
+							shader = IndexedRawImageShaderHolder.indexed256Bilinear;
+						}
+						else
+						{
+							shader = IndexedRawImageShaderHolder.indexed256;
+						}
+						break;
+					case 16:
+						if (_bilinearFilter)
+						{
+							shader = IndexedRawImageShaderHolder.indexed16Bilinear;
+						}
+						else
+						{
+							shader = IndexedRawImageShaderHolder.indexed16;
+						}
+						break;
+				}
+			}
+			if (shader == null)
+			{
+				shader = IndexedRawImageShaderHolder.dummy;
+			}
+			if (shader == null)
+			{
+				Debug.LogError("IndexedRawImageShaderHolder not exists. can't render IndexedRawImage.");
 				return;
 			}
-			var shaderName = "";
-			switch (_tableTexture.width)
-			{
-				case 256:
-					if (_bilinearFilter)
-					{
-						shaderName = "UI/Indexed256Bilinear";
-					}
-					else
-					{
-						shaderName = "UI/Indexed256";
-					}
-					break;
-				case 16:
-					if (_bilinearFilter)
-					{
-						shaderName = "UI/Indexed16Bilinear";
-					}
-					else
-					{
-						shaderName = "UI/Indexed16";
-					}
-					break;
-			}
-			var shader = Shader.Find(shaderName);
-			if (shader != null)
+			if ((_material == null) || (_material.shader.name != shader.name))
 			{
 				_material = new Material(shader);
-				SetTexturesToMaterial();
 			}
-			else
-			{
-				Debug.LogWarning("Shader Not Found");
-			}
+			SetTexturesToMaterial();
 		}
 
 		void OnTextureChange()
