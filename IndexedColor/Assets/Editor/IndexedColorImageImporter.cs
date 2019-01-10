@@ -159,7 +159,7 @@ public class IndexedColorImageImporter : AssetPostprocessor
 		file.Close();
 	}
 
-	Texture2D MakeIndexTexture16(Hash map, Color32[] srcPixels, int width, int height)
+	Texture2D MakeIndexTexture16(ColorMap map, Color32[] srcPixels, int width, int height)
 	{
 		var dstWidth = (width + 1) / 2; // 切り上げで幅半分にする
 		var texture = new Texture2D(dstWidth, height, TextureFormat.Alpha8, false);
@@ -184,7 +184,7 @@ public class IndexedColorImageImporter : AssetPostprocessor
 		return texture;
 	}
 
-	Texture2D MakeIndexTexture256(Hash map, Color32[] srcPixels, int width, int height)
+	Texture2D MakeIndexTexture256(ColorMap map, Color32[] srcPixels, int width, int height)
 	{
 		var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
 		for (int y = 0; y < height; y++)
@@ -202,7 +202,7 @@ public class IndexedColorImageImporter : AssetPostprocessor
 		return texture;
 	}
 
-	Texture2D MakeTableTexture(Hash map, int colorCount)
+	Texture2D MakeTableTexture(ColorMap map, int colorCount)
 	{
 		var texture = new Texture2D(colorCount, 1, TextureFormat.RGBA32, false);
 		// 配列化してテクスチャに書き込み
@@ -223,10 +223,10 @@ public class IndexedColorImageImporter : AssetPostprocessor
 		return texture;
 	}
 
-	Hash MakeColorMap(Color32[] srcPixels, int maxColorCount)
+	ColorMap MakeColorMap(Color32[] srcPixels, int maxColorCount)
 	{
 		// 色辞書を生成
-		var map = new Hash(9, 10); //512インデクス、総容量1024
+		var map = new ColorMap(9, 10); //512インデクス、総容量1024
 		int index = 0;
 		foreach (var color in srcPixels)
 		{
@@ -242,9 +242,9 @@ public class IndexedColorImageImporter : AssetPostprocessor
 		return map;
 	}
 
-	class Hash
+	class ColorMap
 	{
-		public Hash(int hashBits, int capacityBits)
+		public ColorMap(int hashBits, int capacityBits)
 		{
 			var capacity = 1 << capacityBits;
 			_keys = new uint[capacity];
