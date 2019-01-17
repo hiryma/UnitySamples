@@ -21,6 +21,7 @@ public class IndexedColorImageImporter : AssetPostprocessor
 				// SetPlatformTextureSettingsした後に使い回して大丈夫かわからなので全部別インスタンスでやる
 				var settings = new TextureImporterPlatformSettings();
 				settings.format = TextureImporterFormat.Alpha8;
+
 				settings.overridden = true;
 				settings.maxTextureSize = importer.maxTextureSize;
 

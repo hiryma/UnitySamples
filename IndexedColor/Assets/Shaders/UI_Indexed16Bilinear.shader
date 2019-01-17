@@ -50,9 +50,9 @@
 			{
 				// 4ピクセルタップ
 				half2 texcoord = i.uv * _MainTex_TexelSize.zw; // ピクセル単位座標に変換
-				texcoord -= 0.5; // 左下ピクセルは0.5づつずたした場所
+				texcoord -= half2(0.25, 0.5); // i.uvはピクセル中心なので整数単位に直すと0.5がついている。これを減ずる
 				half2 texcoordFrac = frac(texcoord);
-				half2 uv00 = (texcoord - texcoordFrac) * _MainTex_TexelSize.xy;
+				half2 uv00 = (texcoord - texcoordFrac + half2(0.25, 0.5)) * _MainTex_TexelSize.xy; // 戻し
 				half2 uv11 = half2(
 					uv00.x + _MainTex_TexelSize.x,
 					uv00.y + _MainTex_TexelSize.y); // 1ピクセル分のUVを追加
@@ -73,7 +73,7 @@
 				half index11l = (indexEncoded11 - index11r) / 16;
 
 				// 2倍して「元の幅」にし、これを0.5倍してfracが0.5なら右で、0なら左。2倍して0.5倍なので、そのまま。
-				bool isLeft = (frac(texcoord.x) < 0.49); // 非2羃テクスチャでの誤差に配慮して甘くしておく
+				bool isLeft = (texcoordFrac.x < 0.49); // 非2羃テクスチャでの誤差に配慮して甘くしておく
 
 				// インデクス決定
 				half index00 = isLeft ? index00l : index00r;

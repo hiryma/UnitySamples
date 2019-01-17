@@ -19,6 +19,18 @@ namespace Kayac
 
 		Material _material;
 		public override Texture mainTexture { get { return _indexTexture; } }
+		public Texture2D tableTexture
+		{
+			get
+			{
+				return _tableTexture;
+			}
+			set
+			{
+				_tableTexture = value;
+				OnTextureChange();
+			}
+		}
 		public override Material material
 		{
 			get
@@ -81,7 +93,6 @@ namespace Kayac
 			if (_material != null)
 			{
 				SetTexturesToMaterial();
-				SetMaterialDirty();
 			}
 		}
 
@@ -124,6 +135,7 @@ namespace Kayac
 				{
 					self._indexTexture = newIndexTexture;
 					self.OnTextureChange();
+					self.SetMaterialDirty();
 				}
 				EditorGUILayout.EndHorizontal();
 
@@ -134,6 +146,7 @@ namespace Kayac
 				{
 					self._tableTexture = newTableTexture;
 					self.CreateMaterial();
+					self.SetMaterialDirty();
 				}
 				EditorGUILayout.EndHorizontal();
 
@@ -144,6 +157,7 @@ namespace Kayac
 				{
 					self._bilinearFilter = newBilinearFilter;
 					self.CreateMaterial();
+					self.SetMaterialDirty();
 				}
 				EditorGUILayout.EndHorizontal();
 

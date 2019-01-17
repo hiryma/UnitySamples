@@ -32,9 +32,10 @@ public class Sample : MonoBehaviour
 	bool _positionEnabled = true;
 	bool _rotationEnabled = true;
 	bool _scaleEnabled = true;
-	float _exponentialCoefficient = 2f;
-	float _springCoefficient = 20f;
-	float _dumperCoefficient = 10f;
+	float _exponentialCoefficient = 8f;
+	float _springCoefficient = 40f;
+	float _dumperCoefficient = 20f;
+	bool _popup;
 
 	enum FunctionType
 	{
@@ -48,23 +49,35 @@ public class Sample : MonoBehaviour
 	FunctionType _functionType = FunctionType.Linear;
 	State _key0 = new State(new Vector2(300f, 150f), 0f, 0f, 0f);
 	State _key1 = new State(new Vector2(-250f, -100f), 1050f, 1.25f, 2f);
-	State _key2 = new State(new Vector2(250f, -200f), 1120f, 0.6f, 2f);
+	State _key2 = new State(new Vector2(250f, -200f), 1120f, 0.6f, 4f);
 	bool _nextIsKey2;
 	State _currentKey;
 	State _nextKey;
 	string[] _toolbarItemNames;
+	State _key0popup = new State(new Vector2(-400f, -300f), 0f, 0f, 0f);
+	State _key1popup = new State(new Vector2(-100f, -50f), 0f, 1f, 0.4f);
+	State _key2popup = new State(new Vector2(-400f, -300f), 0f, 0.0f, 0.8f);
 
 	void Start()
 	{
 		var enumNames = System.Enum.GetNames(typeof(FunctionType));
 		_toolbarItemNames = new string[enumNames.Length];
+		_nextIsKey2 = false;
 		for (int i = 0; i < enumNames.Length; i++)
 		{
 			_toolbarItemNames[i] = enumNames[i];
 		}
-		_state = _currentKey = _key0;
 		_velocity = new State(); // 0初期化
-		_nextKey = _nextIsKey2 ? _key2 : _key1;
+		if (_popup)
+		{
+			_state = _currentKey = _key0popup;
+			_nextKey = _key1popup;
+		}
+		else
+		{
+			_state = _currentKey = _key0;
+			_nextKey = _key1;
+		}
 		_playing = true;
 	}
 
@@ -324,14 +337,21 @@ public class Sample : MonoBehaviour
 		GUILayout.Label("speed: " + _speed.ToString("N2"));
 		_speed = GUILayout.HorizontalSlider(_speed, 0f, 2f);
 		GUILayout.Label("ExpCoeff: " + _exponentialCoefficient.ToString("N2"));
-		_exponentialCoefficient = GUILayout.HorizontalSlider(_exponentialCoefficient, 0f, 10f);
+		float log = Mathf.Log10(_exponentialCoefficient);
+		log = GUILayout.HorizontalSlider(log, -1f, 2f);
+		_exponentialCoefficient = Mathf.Pow(10f, log);
 		GUILayout.Label("spring: " + _springCoefficient.ToString("N2"));
-		_springCoefficient = GUILayout.HorizontalSlider(_springCoefficient, 0f, 100f);
+		log = Mathf.Log10(_springCoefficient);
+		log = GUILayout.HorizontalSlider(log, -2f, 3f);
+		_springCoefficient = Mathf.Pow(10f, log);
 		GUILayout.Label("dumper: " + _dumperCoefficient.ToString("N2"));
-		_dumperCoefficient = GUILayout.HorizontalSlider(_dumperCoefficient, 0f, 100f);
+		log = Mathf.Log10(_dumperCoefficient);
+		log = GUILayout.HorizontalSlider(log, -2f, 3f);
+		_dumperCoefficient = Mathf.Pow(10f, log);
 		GUILayout.EndHorizontal();
 
 		GUILayout.BeginHorizontal();
+		_popup = GUILayout.Toggle(_popup, "popupMotion");
 		_positionEnabled = GUILayout.Toggle(_positionEnabled, "position");
 		_rotationEnabled = GUILayout.Toggle(_rotationEnabled, "rotation");
 		_scaleEnabled = GUILayout.Toggle(_scaleEnabled, "scale");
@@ -363,7 +383,15 @@ public class Sample : MonoBehaviour
 		if (GUILayout.Button("switchGoal"))
 		{
 			_nextIsKey2 = !_nextIsKey2;
-			_nextKey = _nextIsKey2 ? _key2 : _key1;
+			_currentKey = _nextKey;
+			if (_popup)
+			{
+				_nextKey = _nextIsKey2 ? _key2popup : _key1popup;
+			}
+			else
+			{
+				_nextKey = _nextIsKey2 ? _key2 : _key1;
+			}
 		}
 		if (_functionType == FunctionType.SpringDumper)
 		{

@@ -535,7 +535,6 @@ MonoBehaviour:
   _image: {fileID: 620619504}
   _randomTypeText: {fileID: 821692720}
   _testTypeText: {fileID: 1873476841}
-  _collisionTestDiffScale: 0
 --- !u!1 &821692718
 GameObject:
   m_ObjectHideFlags: 0
@@ -603,7 +602,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u4E71\u6570\u7A2E"
+  m_Text: algorithmType
 --- !u!222 &821692721
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -677,7 +676,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u30C6\u30B9\u30C8\u7A2E"
+  m_Text: testType
 --- !u!222 &1873476842
 CanvasRenderer:
   m_ObjectHideFlags: 0

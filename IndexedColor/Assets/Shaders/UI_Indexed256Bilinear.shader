@@ -50,9 +50,9 @@
 			{
 				// UV決定
 				half2 texcoord = i.uv * _MainTex_TexelSize.zw; // ピクセル単位座標に変換
-				texcoord -= 0.5; // 左下ピクセルは0.5づつずたした場所
+				texcoord -= 0.5; // i.uvはピクセル中心なので整数単位に直すと0.5がついている。これを減ずる
 				half2 texcoordFrac = frac(texcoord);
-				half2 uv00 = (texcoord - texcoordFrac - 0.5) * _MainTex_TexelSize.xy;
+				half2 uv00 = (texcoord - texcoordFrac + 0.5) * _MainTex_TexelSize.xy; //さっき減じた0.5を戻す
 				half2 uv11 = half2(
 					uv00.x + _MainTex_TexelSize.x,
 					uv00.y + _MainTex_TexelSize.y); // 1ピクセル分のUVを追加
@@ -64,10 +64,10 @@
 				half index10 = tex2D(_MainTex, uv10).a;
 				half index11 = tex2D(_MainTex, uv11).a;
 				// 色取得
-				fixed4 col00 = tex2D(_TableTex, half2(index00, 0));
-				fixed4 col01 = tex2D(_TableTex, half2(index01, 0));
-				fixed4 col10 = tex2D(_TableTex, half2(index10, 0));
-				fixed4 col11 = tex2D(_TableTex, half2(index11, 0));
+				fixed4 col00 = tex2D(_TableTex, index00.xx);
+				fixed4 col01 = tex2D(_TableTex, index01.xx);
+				fixed4 col10 = tex2D(_TableTex, index10.xx);
+				fixed4 col11 = tex2D(_TableTex, index11.xx);
 				// バイリニア
 				fixed4 col00_01 = lerp(col00, col01, texcoordFrac.y);
 				fixed4 col10_11 = lerp(col10, col11, texcoordFrac.y);
