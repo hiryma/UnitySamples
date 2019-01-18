@@ -32,9 +32,9 @@ public class Sample : MonoBehaviour
 	bool _positionEnabled = true;
 	bool _rotationEnabled = true;
 	bool _scaleEnabled = true;
-	float _exponentialCoefficient = 8f;
-	float _springCoefficient = 40f;
-	float _dumperCoefficient = 20f;
+	float _exponentialCoefficient = 4f;
+	float _springCoefficient = 20f;
+	float _dumperCoefficient = 5f;
 	bool _popup;
 
 	enum FunctionType
@@ -148,10 +148,11 @@ public class Sample : MonoBehaviour
 	{
 		float t = GetNormalizedTime(key0.time, key1.time);
 		t = Mathf.Clamp01(t);
-		_state.position.x = QuadraticBeginV0(key0.position.x, key1.position.x, t);
-		_state.position.y = QuadraticBeginV0(key0.position.y, key1.position.y, t);
-		_state.rotation = QuadraticBeginV0(key0.rotation, key1.rotation, t);
-		_state.scale = QuadraticBeginV0(key0.scale, key1.scale, t);
+		t *= t; // 時刻を二乗にしてLinearを使う
+		_state.position.x = Linear(key0.position.x, key1.position.x, t);
+		_state.position.y = Linear(key0.position.y, key1.position.y, t);
+		_state.rotation = Linear(key0.rotation, key1.rotation, t);
+		_state.scale = Linear(key0.scale, key1.scale, t);
 	}
 	void SetQuadraticEndV0(ref State key0, ref State key1)
 	{
@@ -198,29 +199,6 @@ public class Sample : MonoBehaviour
 	static float Linear(float p0, float p1, float t)
 	{
 		return ((p1 - p0) * t) + p0;
-	}
-
-	/*
-	二つのキーフレームの時刻を0,1とした時の時刻をtとし、
-	関数型はp=at^2+bt+cとする。
-	t=0でp=p0、t=1でp=p1から、
-	p0=c
-	p1=a+b+c
-	式が足りないので、t=0での微分、つまり速度が0であるとすると(速度が与えられていればそれを使うが、今は0とする)
-	微分は p'=2at+b
-	t=0を入れると0=bがわかる。
-
-	a=p1-p0
-	b=0
-	c=p0
-
-	から、関数形は
-	p=(p1-p0)t^2 + p0
-	*/
-	static float QuadraticBeginV0(float p0, float p1, float t)
-	{
-		float a = p1 - p0;
-		return (a * t * t) + p0;
 	}
 
 	/*
@@ -302,8 +280,8 @@ public class Sample : MonoBehaviour
 	}
 
 	/*
-	p += ((goal - p) * (1 - Exp(k*dt)))
-	で、値を更新する。
+	指数関数(p-p1)*exp(-k*dt)のt=0からt=dtまでの定積分を加算して更新する。
+	定積分は(p1-p)*(1 - exp(-k*dt))
 	dt=0であればExpの項が1となり、何も足さない。dt=無限であれば、Expの項が0となり、
 	goal-pを加えて即座に最終値に至る。
 	*/
@@ -330,24 +308,32 @@ public class Sample : MonoBehaviour
 	void OnGUI()
 	{
 		GUILayout.BeginHorizontal();
+
 		GUILayout.Label("time: " + _state.time.ToString("N2"));
 		float t = GetNormalizedTime(_currentKey.time, _nextKey.time);
 		t = GUILayout.HorizontalSlider(t, 0f, 1f);
 		SetNormalizedTime(t, _currentKey.time, _nextKey.time);
+
 		GUILayout.Label("speed: " + _speed.ToString("N2"));
 		_speed = GUILayout.HorizontalSlider(_speed, 0f, 2f);
+
 		GUILayout.Label("ExpCoeff: " + _exponentialCoefficient.ToString("N2"));
 		float log = Mathf.Log10(_exponentialCoefficient);
 		log = GUILayout.HorizontalSlider(log, -1f, 2f);
 		_exponentialCoefficient = Mathf.Pow(10f, log);
+
+		var maxSpring = 1f / (Time.maximumDeltaTime * Time.maximumDeltaTime); // これ以上は危険。宇宙の果てへ行く恐れあり
 		GUILayout.Label("spring: " + _springCoefficient.ToString("N2"));
 		log = Mathf.Log10(_springCoefficient);
-		log = GUILayout.HorizontalSlider(log, -2f, 3f);
+		log = GUILayout.HorizontalSlider(log, -2f, Mathf.Log10(maxSpring));
 		_springCoefficient = Mathf.Pow(10f, log);
+
+		var maxDumper = 1f / Time.maximumDeltaTime;
 		GUILayout.Label("dumper: " + _dumperCoefficient.ToString("N2"));
 		log = Mathf.Log10(_dumperCoefficient);
-		log = GUILayout.HorizontalSlider(log, -2f, 3f);
+		log = GUILayout.HorizontalSlider(log, -2f, Mathf.Log10(maxDumper));
 		_dumperCoefficient = Mathf.Pow(10f, log);
+
 		GUILayout.EndHorizontal();
 
 		GUILayout.BeginHorizontal();
