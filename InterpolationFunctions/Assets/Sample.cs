@@ -26,7 +26,7 @@ public class Sample : MonoBehaviour
 	}
 
 	State _state;
-	State _velocity; // SpringDumper用
+	State _velocity; // SpringDamper用
 	bool _playing;
 	float _speed = 1f;
 	bool _positionEnabled = true;
@@ -34,7 +34,7 @@ public class Sample : MonoBehaviour
 	bool _scaleEnabled = true;
 	float _exponentialCoefficient = 4f;
 	float _springCoefficient = 20f;
-	float _dumperCoefficient = 5f;
+	float _damperCoefficient = 5f;
 	bool _popup;
 
 	enum FunctionType
@@ -44,7 +44,7 @@ public class Sample : MonoBehaviour
 		QuadraticEndV0,
 		CubicBoundaryV0,
 		Exponential,
-		SpringDumper,
+		SpringDamper,
 	}
 	FunctionType _functionType = FunctionType.Linear;
 	State _key0 = new State(new Vector2(300f, 150f), 0f, 0f, 0f);
@@ -105,8 +105,8 @@ public class Sample : MonoBehaviour
 			case FunctionType.Exponential:
 				UpdateExponential(ref _nextKey, dt, _exponentialCoefficient);
 				break;
-			case FunctionType.SpringDumper:
-				UpdateSpringDumper(ref _nextKey, dt, _springCoefficient, _dumperCoefficient);
+			case FunctionType.SpringDamper:
+				UpdateSpringDamper(ref _nextKey, dt, _springCoefficient, _damperCoefficient);
 				break;
 		}
 
@@ -179,12 +179,12 @@ public class Sample : MonoBehaviour
 		_state.rotation = Exponential(_state.rotation, goal.rotation, deltaTime, coeff);
 		_state.scale = Exponential(_state.scale, goal.scale, deltaTime, coeff);
 	}
-	void UpdateSpringDumper(ref State goal, float deltaTime, float spring, float dumper)
+	void UpdateSpringDamper(ref State goal, float deltaTime, float spring, float damper)
 	{
-		SpringDumper(ref _state.position.x, ref _velocity.position.x, goal.position.x, deltaTime, spring, dumper);
-		SpringDumper(ref _state.position.y, ref _velocity.position.y, goal.position.y, deltaTime, spring, dumper);
-		SpringDumper(ref _state.rotation, ref _velocity.rotation, goal.rotation, deltaTime, spring, dumper);
-		SpringDumper(ref _state.scale, ref _velocity.scale, goal.scale, deltaTime, spring, dumper);
+		SpringDamper(ref _state.position.x, ref _velocity.position.x, goal.position.x, deltaTime, spring, damper);
+		SpringDamper(ref _state.position.y, ref _velocity.position.y, goal.position.y, deltaTime, spring, damper);
+		SpringDamper(ref _state.rotation, ref _velocity.rotation, goal.rotation, deltaTime, spring, damper);
+		SpringDamper(ref _state.scale, ref _velocity.scale, goal.scale, deltaTime, spring, damper);
 	}
 
 	/*
@@ -298,9 +298,9 @@ public class Sample : MonoBehaviour
 	/*
 	速度、位置から、加速度を求めて次の位置、速度を更新する。
 	*/
-	static void SpringDumper(ref float position, ref float velocity, float goal, float dt, float spring, float dumper)
+	static void SpringDamper(ref float position, ref float velocity, float goal, float dt, float spring, float damper)
 	{
-		float a = ((goal - position) * spring) - (velocity * dumper); // 目的地までの距離に比例した加速度と、現速度に比例した逆向きの加速度を加える。
+		float a = ((goal - position) * spring) - (velocity * damper); // 目的地までの距離に比例した加速度と、現速度に比例した逆向きの加速度を加える。
 		velocity += a * dt;
 		position += velocity * dt;
 	}
@@ -328,11 +328,11 @@ public class Sample : MonoBehaviour
 		log = GUILayout.HorizontalSlider(log, -2f, Mathf.Log10(maxSpring));
 		_springCoefficient = Mathf.Pow(10f, log);
 
-		var maxDumper = 1f / Time.maximumDeltaTime;
-		GUILayout.Label("dumper: " + _dumperCoefficient.ToString("N2"));
-		log = Mathf.Log10(_dumperCoefficient);
-		log = GUILayout.HorizontalSlider(log, -2f, Mathf.Log10(maxDumper));
-		_dumperCoefficient = Mathf.Pow(10f, log);
+		var maxDamper = 1f / Time.maximumDeltaTime;
+		GUILayout.Label("damper: " + _damperCoefficient.ToString("N2"));
+		log = Mathf.Log10(_damperCoefficient);
+		log = GUILayout.HorizontalSlider(log, -2f, Mathf.Log10(maxDamper));
+		_damperCoefficient = Mathf.Pow(10f, log);
 
 		GUILayout.EndHorizontal();
 
@@ -379,7 +379,7 @@ public class Sample : MonoBehaviour
 				_nextKey = _nextIsKey2 ? _key2 : _key1;
 			}
 		}
-		if (_functionType == FunctionType.SpringDumper)
+		if (_functionType == FunctionType.SpringDamper)
 		{
 			if (GUILayout.Button("pulse"))
 			{
