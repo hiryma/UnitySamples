@@ -297,12 +297,14 @@ public class Sample : MonoBehaviour
 
 	/*
 	速度、位置から、加速度を求めて次の位置、速度を更新する。
+	半陰的オイラー法(semi-implicit euler method) https://en.wikipedia.org/wiki/Semi-implicit_Euler_method
+	を使っている。今は精度が欲しいのではなく、安定してほしいだけなので、より凝った方法を使う利点は小さい。
 	*/
 	static void SpringDamper(ref float position, ref float velocity, float goal, float dt, float spring, float damper)
 	{
 		float a = ((goal - position) * spring) - (velocity * damper); // 目的地までの距離に比例した加速度と、現速度に比例した逆向きの加速度を加える。
 		velocity += a * dt;
-		position += velocity * dt;
+		position += velocity * dt; // この2行をひっくり返すと本来のオイラー法になり、damperが0なだけで宇宙の果てに飛ぶようになる。
 	}
 
 	void OnGUI()
