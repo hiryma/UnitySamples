@@ -1,4 +1,6 @@
-﻿using System.Threading;
+﻿//#define UNITY_WEBGL // WEBGLのテスト
+
+using System.Threading;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Profiling;
@@ -16,19 +18,23 @@ public class ThreadPool
 	// 個別終了待ち合わせできない低機能スレッドプール
 	public ThreadPool(int threadCount, int jobCapacity = 128)
 	{
-		_threads = new Thread[threadCount];
 		_jobStartSemaphore = new Semaphore(0, jobCapacity);
 		_jobEndSemaphore = new Semaphore(0, jobCapacity);
 		_queue = new Queue<System.Action>();
+#if !UNITY_WEBGL
+		_threads = new Thread[threadCount];
+#endif
 		_idleSamplers = new CustomSampler[threadCount];
 		_jobSamplers = new CustomSampler[threadCount];
 		for (int i = 0; i < threadCount; i++)
 		{
-			_threads[i] = new Thread(ThreadFunc);
-			_threads[i].Priority = System.Threading.ThreadPriority.BelowNormal;
 			_idleSamplers[i] = CustomSampler.Create("MyThreadPool.Idle");
 			_jobSamplers[i] = CustomSampler.Create("MyThreadPool.Job");
+#if !UNITY_WEBGL
+			_threads[i] = new Thread(ThreadFunc);
+			_threads[i].Priority = System.Threading.ThreadPriority.BelowNormal;
 			_threads[i].Start(i);
+#endif
 		}
 	}
 
@@ -38,37 +44,45 @@ public class ThreadPool
 		UnityEngine.Profiling.Profiler.BeginThreadProfiling("MyThreadPool", "MyThread: " + index.ToString());
 		while (true) // 終了要求が来ていなければ先へ。タイムアウトを0にすれば待たずに抜けられる。
 		{
-			_idleSamplers[index].Begin();
-
-			_jobStartSemaphore.WaitOne(); // ジョブが投入されるまで待つ
-			_idleSamplers[index].End();
-			System.Action job = null;
-			lock (_queue)
-			{
-				job = _queue.Dequeue();
-			}
-			if (job == null) // 終了のダミージョブ
+			if (!TryExecute(index))
 			{
 				break;
 			}
-			try
-			{
-				_jobSamplers[index].Begin();
-				job();
-				_jobSamplers[index].End();
-			}
-			catch (System.Exception e)
-			{
-				Debug.Log("Job Threw Exception: " + e.GetType().Name);
-			}
-			_jobEndSemaphore.Release();
 		}
 		UnityEngine.Profiling.Profiler.EndThreadProfiling();
 	}
 
+	bool TryExecute(int index)
+	{
+		_idleSamplers[index].Begin();
+		_jobStartSemaphore.WaitOne(); // ジョブが投入されるまで待つ
+		_idleSamplers[index].End();
+		System.Action job = null;
+		lock (_queue)
+		{
+			job = _queue.Dequeue();
+		}
+		if (job == null) // 終了のダミージョブ
+		{
+			return false;
+		}
+		try
+		{
+			_jobSamplers[index].Begin();
+			job();
+			_jobSamplers[index].End();
+		}
+		catch (System.Exception e)
+		{
+			Debug.Log("Job Threw Exception: " + e.GetType().Name);
+		}
+		_jobEndSemaphore.Release();
+		return true;
+	}
 
 	public void Dispose()
 	{
+#if !UNITY_WEBGL
 		for (int i = 0; i < _threads.Length; i++)
 		{
 			_queue.Enqueue(null); // ダミージョブ投入
@@ -78,6 +92,7 @@ public class ThreadPool
 		{
 			_threads[i].Join();
 		}
+#endif
 		_threads = null;
 		_jobStartSemaphore = null;
 		_jobEndSemaphore = null;
@@ -93,6 +108,9 @@ public class ThreadPool
 		}
 		_jobStartSemaphore.Release();
 		_queuedCount++;
+#if UNITY_WEBGL // 今すぐ実行
+		TryExecute(0);
+#endif
 	}
 
 	public void Wait()

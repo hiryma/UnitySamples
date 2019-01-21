@@ -1,16 +1,13 @@
 ﻿using UnityEngine;
 using System.Threading;
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine.UI;
 
 public class RandomComparison : MonoBehaviour
 {
 	[SerializeField]
 	RawImage _image;
-	[SerializeField]
-	Text _randomTypeText;
-	[SerializeField]
-	Text _testTypeText;
 
 	Texture2D _texture;
 	IRandom[] _randoms;
@@ -41,9 +38,7 @@ public class RandomComparison : MonoBehaviour
 	const int Width = 512;
 	const int Height = 256;
 	const int PixelsPerUnit = 100000;
-	bool[][,] _boxes;
-	double[][] _counts;
-	int _collisionTestFrameCount;
+	string _benchmarkResult;
 
 	void Start()
 	{
@@ -54,16 +49,11 @@ public class RandomComparison : MonoBehaviour
 		TestUnityRandomFromOtherThread();
 #endif
 
-#if false // 速度計測
-		Benchmark();
-#endif
-
 		_texture = new Texture2D(Width, Height, TextureFormat.RGBA32, false);
 		_image.texture = _texture;
 		_image.rectTransform.sizeDelta = new Vector2(Width, Height);
 		_pixels = new Color32[ThreadCount][];
 		_testType = TestType.Fill;
-		_testTypeText.text = _testType.ToString();
 		SetRandomType(RandomType.XorShift32);
 		for (int i = 0; i < ThreadCount; i++)
 		{
@@ -221,34 +211,66 @@ public class RandomComparison : MonoBehaviour
 		CopyToTexture();
 	}
 
-	public void OnRandomTypeButonClick()
+	void OnGUI()
 	{
-		Clear();
-		// タイプ変更
-		RandomType next = RandomType.None;
-		switch (_randomType)
+		GUILayout.BeginHorizontal();
+		GUILayout.Label("RandomType");
+		if (GUILayout.Button(_randomType.ToString()))
 		{
-			case RandomType.XorShift128: next = RandomType.XorShift64; break;
-			case RandomType.XorShift64: next = RandomType.XorShift32; break;
-			case RandomType.XorShift32: next = RandomType.Mwc32; break;
-			case RandomType.Mwc32: next = RandomType.Mwc64; break;
-			case RandomType.Mwc64: next = RandomType.Standard; break;
-			case RandomType.Standard: next = RandomType.BadLcg; break;
-			case RandomType.BadLcg: next = RandomType.PopularLcg; break;
-			case RandomType.PopularLcg: next = RandomType.MinStd; break;
-			case RandomType.MinStd: next = RandomType.XorShift128; break;
+			Clear();
+			// タイプ変更
+			RandomType next = RandomType.None;
+			switch (_randomType)
+			{
+				case RandomType.XorShift128: next = RandomType.XorShift64; break;
+				case RandomType.XorShift64: next = RandomType.XorShift32; break;
+				case RandomType.XorShift32: next = RandomType.Mwc32; break;
+				case RandomType.Mwc32: next = RandomType.Mwc64; break;
+				case RandomType.Mwc64: next = RandomType.Standard; break;
+				case RandomType.Standard: next = RandomType.BadLcg; break;
+				case RandomType.BadLcg: next = RandomType.PopularLcg; break;
+				case RandomType.PopularLcg: next = RandomType.MinStd; break;
+				case RandomType.MinStd: next = RandomType.XorShift128; break;
+			}
+			SetRandomType(next);
+			if (_testType == TestType.Gorilla)
+			{
+				StartCoroutine(CoGorillaTest());
+			}
 		}
-		SetRandomType(next);
-		if (_testType == TestType.Gorilla)
+		GUILayout.EndHorizontal();
+
+		GUILayout.BeginHorizontal();
+		GUILayout.Label("TestType");
+		if (GUILayout.Button(_testType.ToString()))
 		{
-			StartCoroutine(CoGorillaTest());
+			Clear();
+			// タイプ変更
+			switch (_testType)
+			{
+				case TestType.Fill: _testType = TestType.Gorilla; break;
+				case TestType.Gorilla: _testType = TestType.Fill; break;
+			}
+			if (_testType == TestType.Gorilla)
+			{
+				StartCoroutine(CoGorillaTest());
+			}
+		}
+		GUILayout.EndHorizontal();
+
+		if (GUILayout.Button("Benchmark"))
+		{
+			StartCoroutine(CoBenchmark());
+		}
+		if (_benchmarkResult != null)
+		{
+			GUILayout.Label(_benchmarkResult);
 		}
 	}
 
 	void SetRandomType(RandomType next)
 	{
 		_randomType = next;
-		_randomTypeText.text = next.ToString();
 		for (int i = 0; i < ThreadCount; i++)
 		{
 			switch (_randomType)
@@ -263,22 +285,6 @@ public class RandomComparison : MonoBehaviour
 				case RandomType.PopularLcg: _randoms[i] = new PopularLcg(i); break;
 				case RandomType.MinStd: _randoms[i] = new MinStd(i); break;
 			}
-		}
-	}
-
-	public void OnTestTypeButonClick()
-	{
-		Clear();
-		// タイプ変更
-		switch (_testType)
-		{
-			case TestType.Fill: _testType = TestType.Gorilla; break;
-			case TestType.Gorilla: _testType = TestType.Fill; break;
-		}
-		_testTypeText.text = _testType.ToString();
-		if (_testType == TestType.Gorilla)
-		{
-			StartCoroutine(CoGorillaTest());
 		}
 	}
 
@@ -471,38 +477,40 @@ public class RandomComparison : MonoBehaviour
 		}
 	}
 
-	void Benchmark()
+	IEnumerator CoBenchmark()
 	{
-		SetRandomType(RandomType.XorShift32);
-		BenchmarkSub();
+		var sb = new System.Text.StringBuilder();
+		BenchmarkSub(RandomType.XorShift32, sb);
+		yield return null;
 
-		SetRandomType(RandomType.XorShift64);
-		BenchmarkSub();
+		BenchmarkSub(RandomType.XorShift64, sb);
+		yield return null;
 
-		SetRandomType(RandomType.XorShift128);
-		BenchmarkSub();
+		BenchmarkSub(RandomType.XorShift128, sb);
+		yield return null;
 
-		SetRandomType(RandomType.Mwc32);
-		BenchmarkSub();
+		BenchmarkSub(RandomType.Mwc32, sb);
+		yield return null;
 
-		SetRandomType(RandomType.Mwc64);
-		BenchmarkSub();
+		BenchmarkSub(RandomType.Mwc64, sb);
+		yield return null;
 
-		SetRandomType(RandomType.Standard);
-		BenchmarkSub();
+		BenchmarkSub(RandomType.Standard, sb);
+		yield return null;
 
-		SetRandomType(RandomType.BadLcg);
-		BenchmarkSub();
+		BenchmarkSub(RandomType.BadLcg, sb);
+		yield return null;
 
-		SetRandomType(RandomType.PopularLcg);
-		BenchmarkSub();
+		BenchmarkSub(RandomType.PopularLcg, sb);
+		yield return null;
 
-		SetRandomType(RandomType.MinStd);
-		BenchmarkSub();
+		BenchmarkSub(RandomType.MinStd, sb);
+		yield return null;
 	}
 
-	void BenchmarkSub()
+	void BenchmarkSub(RandomType type, System.Text.StringBuilder sb)
 	{
+		SetRandomType(type);
 		const int N = 1000 * 1000 * 100; // 1億
 		var t0 = Time.realtimeSinceStartup;
 		int sum = 0; // 結果を何かに使わないと最適化で消されそうなので用意
@@ -512,6 +520,8 @@ public class RandomComparison : MonoBehaviour
 			sum += rand.Next();
 		}
 		var t1 = Time.realtimeSinceStartup;
+		sb.Append(_randomType.ToString() + " " + (t1 - t0) + " sum:" + sum + "\n");
+		_benchmarkResult = sb.ToString();
 		Debug.Log(_randomType.ToString() + " " + (t1 - t0) + " sum:" + sum);
 	}
 }
