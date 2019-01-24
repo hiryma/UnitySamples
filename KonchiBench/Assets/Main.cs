@@ -17,6 +17,12 @@ public class Main : MonoBehaviour
 	Material _embossTextMaterial;
 	[SerializeField]
 	GameObject _titleRoot;
+	[SerializeField]
+	Text _fillModeText;
+	[SerializeField]
+	Toggle _fillTestToggle;
+	[SerializeField]
+	Image _blackFilter;
 
 	Coroutine _coroutine;
 	float _count;
@@ -26,20 +32,20 @@ public class Main : MonoBehaviour
 	int _countIndex;
 	List<RawImage> _fillTestImages;
 	int _enabledFillTestImageCount;
-	bool _fillTestEnabled;
 	int _fillTestMaterialIndex;
 	bool _clearInstanceRequested;
 	System.Text.StringBuilder _stringBuilder;
 	bool _autoTest;
 	int _fillTestFrameCount;
+	string _result;
 
 	void Start()
 	{
+		_blackFilter.enabled = false;
 		_stringBuilder = new System.Text.StringBuilder();
 		_times = new float[60];
 		_counts = new float[60];
 		_fillTestImages = new List<RawImage>();
-		Application.targetFrameRate = 10000; // 無限
 		_embossTextMaterial.EnableKeyword("FOR_TEXT");
 	}
 
@@ -49,9 +55,9 @@ public class Main : MonoBehaviour
 		{
 			// CPUテスト中。何もしない
 		}
-		else if (!_fillTestEnabled)
+		else if (!_fillTestToggle.isOn)
 		{
-			_fillTestEnabled = true;
+			_fillTestToggle.isOn = true;
 			_fillTestMaterialIndex = 0; // 0番からテスト開始
 		}
 		else // フィルテスト中。カウントが安定したら次へ行く。
@@ -80,7 +86,8 @@ public class Main : MonoBehaviour
 			if ((_fillTestFrameCount >= _counts.Length) && (a < 0f))
 			{
 				_fillTestFrameCount = 0;
-				_stringBuilder.Append("Fill:" + _fillTestMaterials[_fillTestMaterialIndex].name + " " + _count + "\n");
+				_stringBuilder.Append("Fill:" + _fillTestMaterials[_fillTestMaterialIndex].name + " " + _count.ToString("N3") + "\n");
+				_result = _stringBuilder.ToString();
 				_count = 0f;
 				for (int i = 0; i < _counts.Length; i++)
 				{
@@ -92,8 +99,9 @@ public class Main : MonoBehaviour
 				if (_fillTestMaterialIndex >= _fillTestMaterials.Length)
 				{
 					_fillTestMaterialIndex = 0;
-					_fillTestEnabled = false;
+					_fillTestToggle.isOn = false;
 					_autoTest = false;
+					_stringBuilder.Length = 0;
 				}
 			}
 		}
@@ -124,9 +132,11 @@ public class Main : MonoBehaviour
 			}
 			_enabledFillTestImageCount = 0;
 		}
-		if (_fillTestEnabled)
+		if (_fillTestToggle.isOn)
 		{
-			_count += ((1f / 24f) - Time.unscaledDeltaTime) * 10f;
+			var deltaCount = ((1f / 24f) - Time.unscaledDeltaTime) * 10f;
+			deltaCount = Mathf.Min(deltaCount, 1f);
+			_count += deltaCount;
 			if (_count < 0f)
 			{
 				_count = 0f;
@@ -152,10 +162,14 @@ public class Main : MonoBehaviour
 				_fillTestImages[_enabledFillTestImageCount].rectTransform.localScale = Vector3.zero;
 			}
 		}
-		_titleRoot.SetActive(!_fillTestEnabled && (_coroutine == null));
+		_titleRoot.SetActive(!_fillTestToggle.isOn && (_coroutine == null));
 		if (_autoTest)
 		{
 			UpdateAutoTest();
+		}
+		if (_fillTestToggle.isOn)
+		{
+			_fillModeText.text = _fillTestMaterials[_fillTestMaterialIndex].name;
 		}
 	}
 
@@ -163,15 +177,11 @@ public class Main : MonoBehaviour
 	{
 		var latest = ((_timeIndex - 1) < 0) ? (_times.Length - 1) : (_timeIndex - 1);
 		var avg = (_times[latest] - _times[_timeIndex]) / (_times.Length - 1);
+		GUILayout.Label(SystemInfo.deviceModel + " " + SystemInfo.deviceName);
 		GUILayout.Label("FrameTime: " + (avg * 1000f).ToString("N2"));
 		GUILayout.Label("Count: " + _count);
-		if (!_autoTest)
+		if (_fillTestToggle.isOn)
 		{
-			_fillTestEnabled = GUILayout.Toggle(_fillTestEnabled, "FillTest");
-		}
-		if (_fillTestEnabled)
-		{
-			GUILayout.Label("FillTestType: " + _fillTestMaterials[_fillTestMaterialIndex].name);
 			if (!_autoTest && GUILayout.Button("Switch FillTestType"))
 			{
 				_fillTestMaterialIndex++;
@@ -182,32 +192,41 @@ public class Main : MonoBehaviour
 				_clearInstanceRequested = true;
 			}
 		}
-		else if (!_autoTest)
+		if (_result != null)
 		{
-			_count = 0;
-			if (_coroutine == null)
-			{
-				if (GUILayout.Button("Do All Test"))
-				{
-					_stringBuilder.Length = 0;
-					_autoTest = true;
-					_coroutine = StartCoroutine(CoBenchmark());
-				}
-				if (GUILayout.Button("Start CPU Tests."))
-				{
-					_stringBuilder.Length = 0;
-					_coroutine = StartCoroutine(CoBenchmark());
-				}
-			}
+			_blackFilter.enabled = true;
+			GUILayout.Label(_result);
 		}
-		if (_stringBuilder.Length > 0)
+#if !UNITY_WEBGL
+		if (GUILayout.Button("CopyToClipboard"))
 		{
-			GUILayout.Label(_stringBuilder.ToString());
-			if (GUILayout.Button("copy to clipboard"))
-			{
-				GUIUtility.systemCopyBuffer = _stringBuilder.ToString();
-			}
+			GUIUtility.systemCopyBuffer	= _result;
 		}
+#endif
+	}
+
+	public void OnClickAutoButton()
+	{
+		_autoTest = true;
+		OnClickCpuButton();
+	}
+
+	public void OnClickCpuButton()
+	{
+		_stringBuilder.Length = 0;
+		_coroutine = StartCoroutine(CoBenchmark());
+	}
+
+	public void OnClickSysInfoButton()
+	{
+		var sb = _stringBuilder;
+		sb.Length = 0;
+		sb.Append(SystemInfo.graphicsDeviceType + " " + SystemInfo.graphicsDeviceVersion + "\n");
+		sb.Append("Texture Size/NPOT: " + SystemInfo.maxTextureSize + " " + SystemInfo.npotSupport + "\n");
+		sb.Append("Cpu Type/Count: " + SystemInfo.processorType + " " + SystemInfo.processorCount + "\n");
+		sb.Append("Memory(GPU): " + SystemInfo.systemMemorySize + "(" + SystemInfo.graphicsMemorySize + ")\n");
+		_result = sb.ToString();
+		sb.Length = 0;
 	}
 
 	IEnumerator CoBenchmark()
@@ -219,27 +238,31 @@ public class Main : MonoBehaviour
 		t0 = Time.realtimeSinceStartup;
 		var r0 = FibonacciInt(35);
 		t1 = Time.realtimeSinceStartup;
-		sb.Append("FibonacchiInt: " + (t1 - t0) + "\n");
+		sb.Append("FibonacchiInt: " + (t1 - t0).ToString("N3") + "\n");
+		_result = _stringBuilder.ToString();
 		yield return null;
 
 		t0 = Time.realtimeSinceStartup;
 		var r1 = FibonacciFloat(35);
 		t1 = Time.realtimeSinceStartup;
-		sb.Append("FibonacchiFloat: " + (t1 - t0) + "\n");
+		sb.Append("FibonacchiFloat: " + (t1 - t0).ToString("N3") + "\n");
+		_result = _stringBuilder.ToString();
 		yield return null;
 
 		var stackInt = new int[64];
 		t0 = Time.realtimeSinceStartup;
 		var r2 = FibonacciIntNonRecursive(stackInt, 35);
 		t1 = Time.realtimeSinceStartup;
-		sb.Append("FibonacchiIntNonRecursive: " + (t1 - t0) + "\n");
+		sb.Append("FibonacchiIntNonRecursive: " + (t1 - t0).ToString("N3") + "\n");
+		_result = _stringBuilder.ToString();
 		yield return null;
 
 		var stackFloat = new float[64];
 		t0 = Time.realtimeSinceStartup;
 		var r3 = FibonacciFloatNonRecursive(stackFloat, 35);
 		t1 = Time.realtimeSinceStartup;
-		sb.Append("FibonacchiFloatNonRecursive: " + (t1 - t0) + "\n");
+		sb.Append("FibonacchiFloatNonRecursive: " + (t1 - t0).ToString("N3") + "\n");
+		_result = _stringBuilder.ToString();
 		yield return null;
 
 		var array = new int[1024 * 1024 * 4];
@@ -254,7 +277,8 @@ public class Main : MonoBehaviour
 		t0 = Time.realtimeSinceStartup;
 		HeapSort(array);
 		t1 = Time.realtimeSinceStartup;
-		sb.Append("HeapSort: " + (t1 - t0) + "\n");
+		sb.Append("HeapSort: " + (t1 - t0).ToString("N3") + "\n");
+		_result = _stringBuilder.ToString();
 		int prev = int.MinValue;
 		for (int i = 0; i < array.Length; i++)
 		{
@@ -274,7 +298,8 @@ public class Main : MonoBehaviour
 			q = Integrate(q, w);
 		}
 		t1 = Time.realtimeSinceStartup;
-		sb.Append("QuaternionIntegration: " + (t1 - t0) + "\n");
+		sb.Append("QuaternionIntegration: " + (t1 - t0).ToString("N3") + "\n");
+		_result = _stringBuilder.ToString();
 		yield return null;
 		Debug.Log("result log for anti-optimization " + (r0 + r1 + r2 + r3) + " " + q);
 
