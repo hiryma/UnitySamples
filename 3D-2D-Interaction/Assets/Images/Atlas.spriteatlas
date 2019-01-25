@@ -3,10 +3,12 @@
 --- !u!687078895 &4343727234628468602
 SpriteAtlas:
   m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
   m_Name: Atlas
   m_EditorData:
+    serializedVersion: 2
     textureSettings:
       serializedVersion: 2
       anisoLevel: 1
@@ -18,8 +20,19 @@ SpriteAtlas:
       readable: 0
       crunchedCompression: 0
       sRGB: 1
-    platformSettings: []
-    packingParameters:
+    platformSettings:
+    - serializedVersion: 2
+      m_BuildTarget: DefaultTexturePlatform
+      m_MaxTextureSize: 2048
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: -1
+      m_TextureCompression: 0
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 0
+      m_AndroidETC2FallbackOverride: 0
+    packingSettings:
       serializedVersion: 2
       padding: 4
       blockOffset: 1
@@ -36,23 +49,24 @@ SpriteAtlas:
     - {fileID: 2800000, guid: b081d4bacb8eb42a6898ce343fcbd5e6, type: 3}
     - {fileID: 2800000, guid: 9c2551a7868594d9289209e2f290a696, type: 3}
     - {fileID: 2800000, guid: de40093a0de2341e0b909e12570c9283, type: 3}
+    totalSpriteSurfaceArea: 138464
     bindAsDefault: 1
   m_MasterAtlas: {fileID: 0}
   m_PackedSprites:
   - {fileID: 21300000, guid: d2430a813969d4606aaf8e89977d8bd8, type: 3}
-  - {fileID: 21300000, guid: 9c2551a7868594d9289209e2f290a696, type: 3}
   - {fileID: 21300000, guid: 5de09b3358008493cbee2833862aa0df, type: 3}
-  - {fileID: 21300000, guid: b081d4bacb8eb42a6898ce343fcbd5e6, type: 3}
-  - {fileID: 21300000, guid: de40093a0de2341e0b909e12570c9283, type: 3}
-  - {fileID: 21300000, guid: a99650a8ed9ac4bf4b1b8cbb96b2673e, type: 3}
   - {fileID: 21300000, guid: e435a6639812445c7bc46f62a4db68ef, type: 3}
+  - {fileID: 21300000, guid: 9c2551a7868594d9289209e2f290a696, type: 3}
+  - {fileID: 21300000, guid: a99650a8ed9ac4bf4b1b8cbb96b2673e, type: 3}
+  - {fileID: 21300000, guid: de40093a0de2341e0b909e12570c9283, type: 3}
+  - {fileID: 21300000, guid: b081d4bacb8eb42a6898ce343fcbd5e6, type: 3}
   m_PackedSpriteNamesToIndex:
   - hero
-  - eff_chain_p
   - enemy
-  - btm_move_go_base_frame
-  - eff_coin_p01
-  - btm_chain_label
   - icon_booty
+  - eff_chain_p
+  - btm_chain_label
+  - eff_coin_p01
+  - btm_move_go_base_frame
   m_Tag: Atlas
   m_IsVariant: 0

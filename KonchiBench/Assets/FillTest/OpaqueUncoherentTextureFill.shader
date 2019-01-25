@@ -6,10 +6,11 @@
 	}
 	SubShader
 	{
-		Tags { "Queue" = "Geometry" }
+		Tags { "Queue" = "Transparent" }
 		LOD 100
 		ZTest Always
 		ZWrite Off
+		Blend SrcAlpha OneMinusSrcAlpha
 
 		Pass
 		{
