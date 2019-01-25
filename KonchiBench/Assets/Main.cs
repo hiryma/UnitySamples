@@ -171,6 +171,10 @@ public class Main : MonoBehaviour
 		{
 			_fillModeText.text = _fillTestMaterials[_fillTestMaterialIndex].name;
 		}
+		else
+		{
+			_fillModeText.text = "";
+		}
 	}
 
 	void OnGUI()
