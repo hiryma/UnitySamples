@@ -85,20 +85,9 @@ public class Main : MonoBehaviour
 			a /= ((float)_counts.Length * sumX2) - (sumX * sumX);
 			if ((_fillTestFrameCount >= _counts.Length) && (a < 0f))
 			{
-				_fillTestFrameCount = 0;
-				_stringBuilder.Append("Fill:" + _fillTestMaterials[_fillTestMaterialIndex].name + " " + _count.ToString("N3") + "\n");
-				_result = _stringBuilder.ToString();
-				_count = 0f;
-				for (int i = 0; i < _counts.Length; i++)
+				OnFillModeButton();
+				if (_fillTestMaterialIndex == 0)
 				{
-					_counts[i] = 0f;
-				}
-				_countIndex = 0;
-				_fillTestMaterialIndex++;
-				_clearInstanceRequested = true;
-				if (_fillTestMaterialIndex >= _fillTestMaterials.Length)
-				{
-					_fillTestMaterialIndex = 0;
 					_fillTestToggle.isOn = false;
 					_autoTest = false;
 					_stringBuilder.Length = 0;
@@ -166,7 +155,13 @@ public class Main : MonoBehaviour
 		if (_autoTest)
 		{
 			UpdateAutoTest();
+			Screen.sleepTimeout = SleepTimeout.NeverSleep;
 		}
+		else
+		{
+			Screen.sleepTimeout = SleepTimeout.SystemSetting;
+		}
+
 		if (_fillTestToggle.isOn)
 		{
 			_fillModeText.text = _fillTestMaterials[_fillTestMaterialIndex].name;
@@ -182,20 +177,8 @@ public class Main : MonoBehaviour
 		var latest = ((_timeIndex - 1) < 0) ? (_times.Length - 1) : (_timeIndex - 1);
 		var avg = (_times[latest] - _times[_timeIndex]) / (_times.Length - 1);
 		GUILayout.Label(SystemInfo.deviceModel + " " + SystemInfo.deviceName);
-		GUILayout.Label("FrameTime: " + (avg * 1000f).ToString("N2"));
+		GUILayout.Label("FrameTime: " + (avg * 1000f).ToString("N2") + " frame:" + Time.frameCount);
 		GUILayout.Label("Count: " + _count);
-		if (_fillTestToggle.isOn)
-		{
-			if (!_autoTest && GUILayout.Button("Switch FillTestType"))
-			{
-				_fillTestMaterialIndex++;
-				if (_fillTestMaterialIndex >= _fillTestMaterials.Length)
-				{
-					_fillTestMaterialIndex = 0;
-				}
-				_clearInstanceRequested = true;
-			}
-		}
 		if (_result != null)
 		{
 			_blackFilter.enabled = true;
@@ -219,6 +202,25 @@ public class Main : MonoBehaviour
 	{
 		_stringBuilder.Length = 0;
 		_coroutine = StartCoroutine(CoBenchmark());
+	}
+
+	public void OnFillModeButton()
+	{
+		_fillTestFrameCount = 0;
+		_stringBuilder.Append("Fill:" + _fillTestMaterials[_fillTestMaterialIndex].name + " " + _count.ToString("N3") + "\n");
+		_result = _stringBuilder.ToString();
+		_count = 0f;
+		for (int i = 0; i < _counts.Length; i++)
+		{
+			_counts[i] = 0f;
+		}
+		_countIndex = 0;
+		_fillTestMaterialIndex++;
+		if (_fillTestMaterialIndex >= _fillTestMaterials.Length)
+		{
+			_fillTestMaterialIndex = 0;
+		}
+		_clearInstanceRequested = true;
 	}
 
 	public void OnClickSysInfoButton()

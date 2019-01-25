@@ -6,7 +6,7 @@
 	}
 	SubShader
 	{
-		Tags { "Queue" = "AlphaTest" }
+		Tags { "Queue" = "Transparent" }
 		LOD 100
 		ZTest Always
 		ZWrite Off
