@@ -1,4 +1,4 @@
-﻿Shader "Benchmark/OpaqueUncoherentTextureFill"
+﻿Shader "Benchmark/DependentTextureFill"
 {
 	Properties
 	{
@@ -46,9 +46,8 @@
 
 			fixed4 frag (v2f i) : SV_Target
 			{
-				float t = sin(dot(i.uv.xy, float2(12.9898, 78.233)));
-				float2 uv = frac(t * float2(43758.5453, 43758.5453 * 1.4569)); // 後ろの定数はテキトー。なんかいい感じになったので使う。
-				return tex2D(_MainTex, uv);
+				float2 uv = tex2D(_MainTex, i.uv).xy;
+				return tex2D(_MainTex, uv) * fixed4(1.0, 1.0, 1.0, 0.1);
 			}
 			ENDCG
 		}

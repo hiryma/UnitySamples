@@ -81,7 +81,7 @@
 				float ambient = ((ambientGround - ambientSky) * hitNormal.z) + ambientSky;
 				float fresnel = schlick(reflection0, nh);
 				float3 lighted = (diffuseColor * nl) + (specularColor * pow(nh, shininess) * ((shininess + 2.0) / (2.0 * pi)) * fresnel) + (ambient * diffuseColor);
-				return float4(lighted, 1.0);
+				return float4(lighted, 0.1);
 			}
 			ENDCG
 		}

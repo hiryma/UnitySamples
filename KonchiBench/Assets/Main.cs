@@ -240,26 +240,11 @@ public class Main : MonoBehaviour
 		var sb = _stringBuilder;
 		yield return null;
 
-		float t0, t1;
-		t0 = Time.realtimeSinceStartup;
-		var r0 = FibonacciInt(35);
-		t1 = Time.realtimeSinceStartup;
-		sb.Append("FibonacchiInt: " + (t1 - t0).ToString("N3") + "\n");
-		_result = _stringBuilder.ToString();
-		yield return null;
-
-		t0 = Time.realtimeSinceStartup;
-		var r1 = FibonacciFloat(35);
-		t1 = Time.realtimeSinceStartup;
-		sb.Append("FibonacchiFloat: " + (t1 - t0).ToString("N3") + "\n");
-		_result = _stringBuilder.ToString();
-		yield return null;
-
 		var stackInt = new int[64];
-		t0 = Time.realtimeSinceStartup;
+		var t0 = Time.realtimeSinceStartup;
 		var r2 = FibonacciIntNonRecursive(stackInt, 35);
-		t1 = Time.realtimeSinceStartup;
-		sb.Append("FibonacchiIntNonRecursive: " + (t1 - t0).ToString("N3") + "\n");
+		var t1 = Time.realtimeSinceStartup;
+		sb.Append("FibonacchiInt: " + (t1 - t0).ToString("N3") + "\n");
 		_result = _stringBuilder.ToString();
 		yield return null;
 
@@ -267,7 +252,7 @@ public class Main : MonoBehaviour
 		t0 = Time.realtimeSinceStartup;
 		var r3 = FibonacciFloatNonRecursive(stackFloat, 35);
 		t1 = Time.realtimeSinceStartup;
-		sb.Append("FibonacchiFloatNonRecursive: " + (t1 - t0).ToString("N3") + "\n");
+		sb.Append("FibonacchiFloat: " + (t1 - t0).ToString("N3") + "\n");
 		_result = _stringBuilder.ToString();
 		yield return null;
 
@@ -307,7 +292,7 @@ public class Main : MonoBehaviour
 		sb.Append("QuaternionIntegration: " + (t1 - t0).ToString("N3") + "\n");
 		_result = _stringBuilder.ToString();
 		yield return null;
-		Debug.Log("result log for anti-optimization " + (r0 + r1 + r2 + r3) + " " + q);
+		Debug.Log("result log for anti-optimization " + (r2 + r3) + " " + q);
 
 		_coroutine = null;
 	}
