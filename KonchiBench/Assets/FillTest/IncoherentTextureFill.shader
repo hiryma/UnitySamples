@@ -1,4 +1,4 @@
-﻿Shader "Benchmark/CoherentTextureFill"
+﻿Shader "Benchmark/IncoherentTextureFill"
 {
 	Properties
 	{
@@ -42,18 +42,17 @@
 			{
 				v2f o;
 				o.vertex = UnityObjectToClipPos(v.vertex);
-				float2 uv = TRANSFORM_TEX(v.uv, _MainTex);
-				float ox = _MainTex_TexelSize.x;
-				float oy = _MainTex_TexelSize.y;
-
-				o.uv01.xy = uv.xy + float2(-ox, -oy);
-				o.uv01.zw = uv.xy + float2(-ox, 0.0);
-				o.uv23.xy = uv.xy + float2(-ox, oy);
-				o.uv23.zw = uv.xy + float2(0.0, -ox);
-				o.uv45.xy = uv.xy + float2(0.0, oy);
-				o.uv45.zw = uv.xy + float2(ox, -oy);
-				o.uv67.xy = uv.xy + float2(ox, 0.0);
-				o.uv67.zw = uv.xy + float2(ox, oy);
+				float2 uv = TRANSFORM_TEX(v.uv, _MainTex) * 16.0;
+				float ox = _MainTex_TexelSize.x;// * 16.0;
+				float oy = _MainTex_TexelSize.y;// * 16.0;
+				o.uv01.xy = uv + float2(-ox, -oy);
+				o.uv01.zw = uv + float2(-ox, 0.0);
+				o.uv23.xy = uv + float2(-ox, oy);
+				o.uv23.zw = uv + float2(0.0, -oy);
+				o.uv45.xy = uv + float2(0.0, oy);
+				o.uv45.zw = uv + float2(ox, -oy);
+				o.uv67.xy = uv + float2(ox, 0.0);
+				o.uv67.zw = uv + float2(ox, oy);
 				return o;
 			}
 
@@ -69,7 +68,6 @@
 				c += tex2D(_MainTex, i.uv45.zw);
 				c += tex2D(_MainTex, i.uv67.xy);
 				c += tex2D(_MainTex, i.uv67.zw);
-				c.rgb *= 0.125;
 				c.a = 0.5;
 				return c;
 			}

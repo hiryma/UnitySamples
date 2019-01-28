@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: ShowRendered
-  m_Shader: {fileID: 4800000, guid: c55ed32bb37ae410aa0d71cfadc54b19, type: 3}
+  m_Name: IncoherentTexureFill
+  m_Shader: {fileID: 4800000, guid: d7dfdd22d1c444fff9264344a07b7d8f, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0

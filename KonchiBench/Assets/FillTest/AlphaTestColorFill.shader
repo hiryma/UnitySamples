@@ -37,7 +37,7 @@
 				{
 					discard;
 				}
-				return fixed4(1.0, 0.0, 0.0, 0.1);
+				return fixed4(1.0, 0.0, 0.0, 0.5);
 			}
 			ENDCG
 		}

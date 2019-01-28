@@ -41,6 +41,11 @@ public class Main : MonoBehaviour
 
 	void Start()
 	{
+#if UNITY_EDITOR || UNITY_STANDALONE
+		Application.runInBackground = true;
+#else
+		Application.runInBackground = false;
+#endif
 		_blackFilter.enabled = false;
 		_stringBuilder = new System.Text.StringBuilder();
 		_times = new float[60];
@@ -176,7 +181,7 @@ public class Main : MonoBehaviour
 	{
 		var latest = ((_timeIndex - 1) < 0) ? (_times.Length - 1) : (_timeIndex - 1);
 		var avg = (_times[latest] - _times[_timeIndex]) / (_times.Length - 1);
-		GUILayout.Label(SystemInfo.deviceModel + " " + SystemInfo.deviceName);
+		GUILayout.Label("v0.1.7: " + SystemInfo.deviceModel + " " + SystemInfo.deviceName);
 		GUILayout.Label("FrameTime: " + (avg * 1000f).ToString("N2") + " frame:" + Time.frameCount);
 		GUILayout.Label("Count: " + _count);
 		if (_result != null)
