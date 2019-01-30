@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: OpaqueHeavyCalcFill
-  m_Shader: {fileID: 4800000, guid: 9deb1b36332094a9dbc23c32d3c252e7, type: 3}
+  m_Name: OpaqueColor
+  m_Shader: {fileID: 4800000, guid: cb45afbee45e740a2aad083f25f40102, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -70,7 +70,6 @@ Material:
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _Time: 0
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:

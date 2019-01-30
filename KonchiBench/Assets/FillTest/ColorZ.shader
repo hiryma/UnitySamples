@@ -1,4 +1,4 @@
-﻿Shader "Benchmark/ColorFill"
+﻿Shader "Benchmark/ColorZ"
 {
 	Properties
 	{
@@ -7,8 +7,8 @@
 	{
 		Tags { "Queue" = "Transparent" }
 		LOD 100
-		ZTest Always
-		ZWrite Off
+		ZTest LEqual
+		ZWrite On
 		Blend SrcAlpha OneMinusSrcAlpha
 
 		Pass

@@ -1,4 +1,4 @@
-﻿Shader "Benchmark/AlphaTestColorFill"
+﻿Shader "Benchmark/AlphaTestColor"
 {
 	Properties
 	{
@@ -33,7 +33,7 @@
 			fixed4 frag (UNITY_VPOS_TYPE vpos : VPOS) : SV_Target
 			{
 				vpos.xy *= 1.0 / 128.0;
-				if (frac(dot(vpos, half2(1.0, 1.0))) < 0.5)
+				if (frac(vpos.x + vpos.y) < 0.5)
 				{
 					discard;
 				}

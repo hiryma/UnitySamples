@@ -6,10 +6,6 @@ using UnityEngine.UI;
 public class Main : MonoBehaviour
 {
 	[SerializeField]
-	RawImage _fillTestImagePrefab;
-	[SerializeField]
-	Transform _renderTextureCanvasTransform;
-	[SerializeField]
 	Material[] _fillTestMaterials;
 	[SerializeField]
 	Material _embossMaterial;
@@ -23,17 +19,17 @@ public class Main : MonoBehaviour
 	Toggle _fillTestToggle;
 	[SerializeField]
 	Image _blackFilter;
+	[SerializeField]
+	FillRenderer _fillRenderer;
 
 	Coroutine _coroutine;
 	float _count;
+	float _countVelocity;
 	float[] _times;
 	int _timeIndex;
 	float[] _counts;
 	int _countIndex;
-	List<RawImage> _fillTestImages;
-	int _enabledFillTestImageCount;
 	int _fillTestMaterialIndex;
-	bool _clearInstanceRequested;
 	System.Text.StringBuilder _stringBuilder;
 	bool _autoTest;
 	int _fillTestFrameCount;
@@ -49,9 +45,9 @@ public class Main : MonoBehaviour
 		_blackFilter.enabled = false;
 		_stringBuilder = new System.Text.StringBuilder();
 		_times = new float[60];
-		_counts = new float[60];
-		_fillTestImages = new List<RawImage>();
+		_counts = new float[120];
 		_embossTextMaterial.EnableKeyword("FOR_TEXT");
+		_fillRenderer.ManualStart();
 	}
 
 	void UpdateAutoTest()
@@ -88,7 +84,8 @@ public class Main : MonoBehaviour
 			}
 			float a = ((float)_counts.Length * sumXy) - (sumX * sumY);
 			a /= ((float)_counts.Length * sumX2) - (sumX * sumX);
-			if ((_fillTestFrameCount >= _counts.Length) && (a < 0f))
+			if (((_fillTestFrameCount >= _counts.Length) && (a < 0f))
+				|| (_count >= 10000f))
 			{
 				OnFillModeButton();
 				if (_fillTestMaterialIndex == 0)
@@ -116,45 +113,15 @@ public class Main : MonoBehaviour
 			_countIndex = 0;
 		}
 
-		if (_clearInstanceRequested)
-		{
-			_clearInstanceRequested = false;
-			for (int i = 0; i < _fillTestImages.Count; i++)
-			{
-				_fillTestImages[i].material = _fillTestMaterials[_fillTestMaterialIndex];
-				_fillTestImages[i].rectTransform.localScale = Vector3.zero;
-			}
-			_enabledFillTestImageCount = 0;
-		}
 		if (_fillTestToggle.isOn)
 		{
-			var deltaCount = ((1f / 24f) - Time.unscaledDeltaTime) * 10f;
-			deltaCount = Mathf.Min(deltaCount, 1f);
-			_count += deltaCount;
-			if (_count < 0f)
-			{
-				_count = 0f;
-			}
-			if (_enabledFillTestImageCount < (int)_count)
-			{
-				if (_fillTestImages.Count < (int)_count)
-				{
-					var obj = Instantiate(_fillTestImagePrefab, _renderTextureCanvasTransform, false);
-					obj.name = obj.name + "_" + _fillTestImages.Count;
-					obj.material = _fillTestMaterials[_fillTestMaterialIndex];
-					_fillTestImages.Add(obj);
-				}
-				else
-				{
-					_fillTestImages[_enabledFillTestImageCount].rectTransform.localScale = Vector3.one;
-				}
-				_enabledFillTestImageCount++;
-			}
-			else if ((_enabledFillTestImageCount > (int)_count) && (_fillTestImages.Count >= _enabledFillTestImageCount))
-			{
-				_enabledFillTestImageCount--;
-				_fillTestImages[_enabledFillTestImageCount].rectTransform.localScale = Vector3.zero;
-			}
+			var accel = (((1f / 24f) - Time.unscaledDeltaTime) * (_count + 1f) * 0.1f) - (_countVelocity * 0.5f);
+			_countVelocity += accel;
+			_count += _countVelocity;
+			_count = Mathf.Clamp(_count, 0f, 10000f);
+			_fillRenderer.SetCount((int)_count);
+			_fillRenderer.SetMaterial(_fillTestMaterials[_fillTestMaterialIndex]);
+			_fillRenderer.ManualUpdate();
 		}
 		_titleRoot.SetActive(!_fillTestToggle.isOn && (_coroutine == null));
 		if (_autoTest)
@@ -181,9 +148,13 @@ public class Main : MonoBehaviour
 	{
 		var latest = ((_timeIndex - 1) < 0) ? (_times.Length - 1) : (_timeIndex - 1);
 		var avg = (_times[latest] - _times[_timeIndex]) / (_times.Length - 1);
-		GUILayout.Label("v0.1.7: " + SystemInfo.deviceModel + " " + SystemInfo.deviceName);
-		GUILayout.Label("FrameTime: " + (avg * 1000f).ToString("N2") + " frame:" + Time.frameCount);
-		GUILayout.Label("Count: " + _count);
+		var sb = new System.Text.StringBuilder();
+		sb.Append("v0.2.4: " + SystemInfo.deviceModel + "\n");
+		sb.Append("\tOs: " + SystemInfo.operatingSystem + "\n");
+		sb.Append("\tGpu: " + SystemInfo.graphicsDeviceName + "\n");
+		sb.Append("FrameTime: " + (avg * 1000f).ToString("N2") + " frame:" + Time.frameCount + "\n");
+		sb.Append("Count: " + _count.ToString("N0") + "\n");
+		GUILayout.Label(sb.ToString());
 		if (_result != null)
 		{
 			_blackFilter.enabled = true;
@@ -212,9 +183,9 @@ public class Main : MonoBehaviour
 	public void OnFillModeButton()
 	{
 		_fillTestFrameCount = 0;
-		_stringBuilder.Append("Fill:" + _fillTestMaterials[_fillTestMaterialIndex].name + " " + _count.ToString("N3") + "\n");
+		_stringBuilder.Append(_fillTestMaterials[_fillTestMaterialIndex].name + " " + _count.ToString("N2") + "\n");
 		_result = _stringBuilder.ToString();
-		_count = 0f;
+		_count = _countVelocity = 0f;
 		for (int i = 0; i < _counts.Length; i++)
 		{
 			_counts[i] = 0f;
@@ -225,17 +196,23 @@ public class Main : MonoBehaviour
 		{
 			_fillTestMaterialIndex = 0;
 		}
-		_clearInstanceRequested = true;
 	}
 
 	public void OnClickSysInfoButton()
 	{
 		var sb = _stringBuilder;
 		sb.Length = 0;
-		sb.Append(SystemInfo.graphicsDeviceType + " " + SystemInfo.graphicsDeviceVersion + "\n");
-		sb.Append("Texture Size/NPOT: " + SystemInfo.maxTextureSize + " " + SystemInfo.npotSupport + "\n");
 		sb.Append("Cpu Type/Count: " + SystemInfo.processorType + " " + SystemInfo.processorCount + "\n");
-		sb.Append("Memory(GPU): " + SystemInfo.systemMemorySize + "(" + SystemInfo.graphicsMemorySize + ")\n");
+		sb.Append("Gpu Type: " + SystemInfo.graphicsDeviceType + " " + SystemInfo.graphicsDeviceVersion + "\n");
+		sb.Append("Memory Cpu/Gpu: " + SystemInfo.systemMemorySize + " " + SystemInfo.graphicsMemorySize + "\n");
+		sb.Append("\tTexture Size/NPOT: " + SystemInfo.maxTextureSize + "\n");
+		sb.Append("\tTexture NPOT: " + SystemInfo.npotSupport + "\n");
+		sb.Append("\tInstancing: " + SystemInfo.supportsInstancing + "\n");
+		sb.Append("\tComputeShader: " + SystemInfo.supportsComputeShaders + "\n");
+		sb.Append("\tIndexingInFragment: " + SystemInfo.hasDynamicUniformArrayIndexingInFragmentShaders + "\n");
+		sb.Append("\tShadow: " + SystemInfo.supportsShadows + "\n");
+		sb.Append("\tDepthSampling: " + SystemInfo.supportsRawShadowDepthSampling + "\n");
+		sb.Append("\tRenderToCube: " + SystemInfo.supportsRenderToCubemap + "\n");
 		_result = sb.ToString();
 		sb.Length = 0;
 	}
@@ -247,7 +224,7 @@ public class Main : MonoBehaviour
 
 		var stackInt = new int[64];
 		var t0 = Time.realtimeSinceStartup;
-		var r2 = FibonacciIntNonRecursive(stackInt, 35);
+		var r2 = FibonacciInt(stackInt, 35);
 		var t1 = Time.realtimeSinceStartup;
 		sb.Append("FibonacchiInt: " + (t1 - t0).ToString("N3") + "\n");
 		_result = _stringBuilder.ToString();
@@ -255,7 +232,7 @@ public class Main : MonoBehaviour
 
 		var stackFloat = new float[64];
 		t0 = Time.realtimeSinceStartup;
-		var r3 = FibonacciFloatNonRecursive(stackFloat, 35);
+		var r3 = FibonacciFloat(stackFloat, 35);
 		t1 = Time.realtimeSinceStartup;
 		sb.Append("FibonacchiFloat: " + (t1 - t0).ToString("N3") + "\n");
 		_result = _stringBuilder.ToString();
@@ -302,35 +279,7 @@ public class Main : MonoBehaviour
 		_coroutine = null;
 	}
 
-	int FibonacciInt(int x)
-	{
-		int r;
-		if (x <= 1)
-		{
-			r = x;
-		}
-		else
-		{
-			r = FibonacciInt(x - 1) + FibonacciInt(x - 2);
-		}
-		return r;
-	}
-
-	float FibonacciFloat(float x)
-	{
-		float r;
-		if (x <= 1f)
-		{
-			r = x;
-		}
-		else
-		{
-			r = FibonacciFloat(x - 1f) + FibonacciFloat(x - 2f);
-		}
-		return r;
-	}
-
-	int FibonacciIntNonRecursive(int[] stack, int x)
+	int FibonacciInt(int[] stack, int x)
 	{
 		stack[0] = x;
 		int stackPos = 1;
@@ -353,7 +302,7 @@ public class Main : MonoBehaviour
 		return r;
 	}
 
-	float FibonacciFloatNonRecursive(float[] stack, float x)
+	float FibonacciFloat(float[] stack, float x)
 	{
 		stack[0] = x;
 		int stackPos = 1;

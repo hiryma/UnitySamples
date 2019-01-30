@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: HeavyCalcFill
-  m_Shader: {fileID: 4800000, guid: eaf1f6b0946fd4f9898b98306e9ac115, type: 3}
+  m_Name: IncoherentTexure
+  m_Shader: {fileID: 4800000, guid: d7dfdd22d1c444fff9264344a07b7d8f, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -40,7 +40,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 3f3d4728dfb2049f59e5f9e527a48a1f, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -70,7 +70,6 @@ Material:
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _Time: 107.096245
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:

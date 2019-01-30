@@ -1,4 +1,4 @@
-﻿Shader "Benchmark/OpaqueHeavyCalcFill"
+﻿Shader "Benchmark/HeavyCalc"
 {
 	Properties
 	{
@@ -6,11 +6,11 @@
 	}
 	SubShader
 	{
-		Tags { "Queue" = "Geometry" }
+		Tags { "Queue" = "Transparent" }
 		LOD 100
 		ZTest Always
 		ZWrite Off
-//		Blend SrcAlpha OneMinusSrcAlpha
+		Blend SrcAlpha OneMinusSrcAlpha
 
 		Pass
 		{
