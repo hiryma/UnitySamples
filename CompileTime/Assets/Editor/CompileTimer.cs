@@ -25,21 +25,31 @@ namespace Kayac
 			int compileStartTime = EditorPrefs.GetInt(compileStartTimeKey, 0);
 			float lastCompileTime = EditorPrefs.GetFloat(lastCompileTimeKey, 0f);
 			var baseTime = new DateTime(2019, 1, 1);
-			EditorGUILayout.LabelField("Compiling:", compiling ? "Yes" : "No");
-			EditorGUILayout.LabelField("LastCompileTime: " + lastCompileTime);
-			if (!prevCompiling && compiling)
+			var currentCompileTime = 0f;
+			if (prevCompiling)
+			{
+				var startTime = baseTime.AddSeconds(compileStartTime);
+				if (compiling)
+				{
+					currentCompileTime = (float)(DateTime.Now - startTime).TotalSeconds;
+				}
+				else
+				{
+					lastCompileTime = (float)(DateTime.Now - startTime).TotalSeconds;
+					EditorPrefs.SetFloat(lastCompileTimeKey, lastCompileTime);
+					EditorPrefs.SetInt(compileStartTimeKey, 0);
+				}
+			}
+			else if (compiling)
 			{
 				var startTime = (int)(DateTime.Now - baseTime).TotalSeconds;
 				EditorPrefs.SetInt(compileStartTimeKey, startTime);
 			}
-			else if (prevCompiling && !compiling)
-			{
-				var startTime = baseTime.AddSeconds(compileStartTime);
-				lastCompileTime = (float)(DateTime.Now - startTime).TotalSeconds;
-				EditorPrefs.SetFloat(lastCompileTimeKey, lastCompileTime);
-				EditorPrefs.SetInt(compileStartTimeKey, 0);
-			}
+
+			EditorGUILayout.LabelField("Compiling:", compiling ? currentCompileTime.ToString("F2") : "No");
+			EditorGUILayout.LabelField("LastCompileTime:", lastCompileTime.ToString("F2"));
 			EditorPrefs.SetBool(prevCompilingKey, compiling);
+
 			this.Repaint();
 		}
 	}
