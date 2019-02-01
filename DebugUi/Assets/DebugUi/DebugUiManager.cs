@@ -1,14 +1,16 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Kayac
 {
-	public class DebugUiManager : MonoBehaviour
+	public class DebugUiManager : Graphic
 		, IPointerClickHandler
 		, IPointerDownHandler
 		, IPointerUpHandler
 		, IBeginDragHandler
 		, IDragHandler
+		, ICanvasRaycastFilter
 	{
 		private DebugUiControl _root;
 		public class Input
@@ -27,7 +29,6 @@ namespace Kayac
 
 		private Input _input;
 		private DebugPrimitiveRenderer2D _renderer;
-		private BoxCollider2D _collider;
 		public DebugPrimitiveRenderer2D primitiveRenderer
 		{
 			get
@@ -68,21 +69,19 @@ namespace Kayac
 		}
 
 		public static DebugUiManager Create(
-			Camera camera,
 			GameObject parentGameObject,
 			DebugPrimitiveRenderer2D renderer)
 		{
 			var self = parentGameObject.AddComponent<DebugUiManager>();
-			self._collider = parentGameObject.AddComponent<BoxCollider2D>();
-			var vSize = camera.orthographicSize * 2f;
-			var aspectRatio = (float)Screen.width / (float)Screen.height;
-			if (camera.gameObject.GetComponent<Physics2DRaycaster>() == null)
-			{
-				var raycaster = camera.gameObject.AddComponent<Physics2DRaycaster>();
-				raycaster.maxRayIntersections = 1; // allocationを抑制。
-			}
-			self._collider.size = new Vector2(vSize * aspectRatio, vSize);
 			self.Initialize(renderer);
+			Debug.Assert(self.rectTransform != null, "RectTransformがない!canvasの下にあるGameObjectを指定してください!");
+			if (self.rectTransform != null)
+			{
+				self.rectTransform.anchorMin = new Vector2(0f, 0f);
+				self.rectTransform.anchorMax = new Vector2(1f, 1f);
+				self.rectTransform.offsetMin = new Vector2(0f, 0f);
+				self.rectTransform.offsetMax = new Vector2(0f, 0f);
+			}
 			return self;
 		}
 
@@ -91,7 +90,7 @@ namespace Kayac
 			_renderer = renderer;
 			_root = new DebugUiControl();
 			_input = new Input();
-			_collider.enabled = true;
+			this.raycastTarget = true;
 			inputEnabled = true;
 		}
 
@@ -203,31 +202,26 @@ namespace Kayac
 
 		public void OnPointerClick(PointerEventData data)
 		{
-//Debug.LogWarning("DebugUi: click");
 			UpdatePointer(data.position);
 			_input.hasJustClicked = true;
 		}
 
 		public void OnPointerDown(PointerEventData data)
 		{
-//Debug.LogWarning("DebugUi: pointerDown");
 			UpdatePointer(data.position);
 			_input.isPointerDown = true;
 		}
 
 		public void OnPointerUp(PointerEventData data)
 		{
-//Debug.LogWarning("DebugUi: pointerUp");
 			UpdatePointer(data.position);
 			_input.isPointerDown = false;
 			// TODO: UpdatePerFrameの中で呼びたいなできれば...コールバック類は同じ場所から呼ばれる保証が欲しい
 			var dragged = _input.draggedControl;
 			if (dragged != null)
 			{
-//Debug.LogWarning("DragEnd : " + _input.draggedControl);
 				if (dragged.onDragEnd != null)
 				{
-//Debug.LogWarning("\tcall onDragEnd()");
 					dragged.onDragEnd();
 				}
 			}
@@ -236,7 +230,6 @@ namespace Kayac
 
 		public void OnBeginDrag(PointerEventData data)
 		{
-//Debug.LogWarning("DebugUi: beginDrag");
 			UpdatePointer(data.position);
 			_input.isPointerDown = true;
 			_input.hasJustDragStarted = true;
@@ -244,7 +237,6 @@ namespace Kayac
 
 		public void OnDrag(PointerEventData data)
 		{
-//Debug.LogWarning("DebugUi: drag");
 			UpdatePointer(data.position);
 			_input.isPointerDown = true;
 		}
@@ -322,6 +314,13 @@ namespace Kayac
 			x = x * actualWidth / referenceWidth;
 			// Yはスケールして反転
 			y = actualHeight - (y * actualHeight / referenceHeight);
+		}
+
+		// 以下UI.Graphicのデフォルト挙動を殺すためのコード。
+		// 素のGraphicでもRectTransformのサイズに合わせて4頂点作って描画するので頂点を消してやる必要がある!!!
+		protected override void OnPopulateMesh(VertexHelper vh)
+		{
+			vh.Clear();
 		}
 	}
 }
