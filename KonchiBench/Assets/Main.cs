@@ -140,7 +140,7 @@ public class Main : MonoBehaviour
 		}
 		else
 		{
-			_fillModeText.text = "FillTest";
+			_fillModeText.text = "";
 		}
 	}
 
@@ -150,8 +150,8 @@ public class Main : MonoBehaviour
 		var avg = (_times[latest] - _times[_timeIndex]) / (_times.Length - 1);
 		var sb = new System.Text.StringBuilder();
 		sb.Append("v0.2.4: " + SystemInfo.deviceModel + "\n");
-		sb.Append("Os: " + SystemInfo.operatingSystem + "\n");
-		sb.Append("Gpu: " + SystemInfo.graphicsDeviceName + "\n");
+		sb.Append("\tOs: " + SystemInfo.operatingSystem + "\n");
+		sb.Append("\tGpu: " + SystemInfo.graphicsDeviceName + "\n");
 		sb.Append("FrameTime: " + (avg * 1000f).ToString("N2") + " frame:" + Time.frameCount + "\n");
 		sb.Append("Count: " + _count.ToString("N0") + "\n");
 		GUILayout.Label(sb.ToString());

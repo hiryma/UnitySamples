@@ -86,7 +86,6 @@ namespace Kayac
 			_texturedMaterial = new Material(_texturedShader);
 			_materialPropertyBlock = new MaterialPropertyBlock();
 			_commandBuffer = new CommandBuffer();
-			_commandBuffer.name = "Kayac.DebugPrimitiveRenderer";
 			_camera.AddCommandBuffer(CameraEvent.AfterForwardAlpha, _commandBuffer);
 
 			_textureShaderPropertyId = Shader.PropertyToID("_MainTex");
@@ -304,17 +303,6 @@ namespace Kayac
 		{
 			AddTriangleIndices(i0, i1, i2);
 			AddTriangleIndices(i2, i3, i0);
-		}
-
-		// 以下未実装。箱だけ作っておく。数字の文字列化に伴うGC Alloc抹殺のため
-		public static void ToStringAsCharArray(out int writeCount, char[] dst, int dstPos, int value, int precision)
-		{
-			writeCount = 0;
-		}
-
-		public static void ToStringAsCharArray(out int writeCount, char[] dst, int dstPos, float value, int precision)
-		{
-			writeCount = 0;
 		}
 	}
 }

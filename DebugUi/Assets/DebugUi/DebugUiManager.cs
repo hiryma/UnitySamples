@@ -1,14 +1,17 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Kayac
 {
-	public class DebugUiManager : MonoBehaviour
+	public class DebugUiManager :
+		Graphic
 		, IPointerClickHandler
 		, IPointerDownHandler
 		, IPointerUpHandler
 		, IBeginDragHandler
 		, IDragHandler
+		, ICanvasRaycastFilter
 	{
 		private DebugUiControl _root;
 		public class Input
@@ -27,7 +30,6 @@ namespace Kayac
 
 		private Input _input;
 		private DebugPrimitiveRenderer2D _renderer;
-		private BoxCollider2D _collider;
 		public DebugPrimitiveRenderer2D primitiveRenderer
 		{
 			get
@@ -68,21 +70,19 @@ namespace Kayac
 		}
 
 		public static DebugUiManager Create(
-			Camera camera,
 			GameObject parentGameObject,
 			DebugPrimitiveRenderer2D renderer)
 		{
 			var self = parentGameObject.AddComponent<DebugUiManager>();
-			self._collider = parentGameObject.AddComponent<BoxCollider2D>();
-			var vSize = camera.orthographicSize * 2f;
-			var aspectRatio = (float)Screen.width / (float)Screen.height;
-			if (camera.gameObject.GetComponent<Physics2DRaycaster>() == null)
-			{
-				var raycaster = camera.gameObject.AddComponent<Physics2DRaycaster>();
-				raycaster.maxRayIntersections = 1; // allocationを抑制。
-			}
-			self._collider.size = new Vector2(vSize * aspectRatio, vSize);
 			self.Initialize(renderer);
+			Debug.Assert(self.rectTransform != null, "RectTransformがない!canvasの下にあるGameObjectを指定してください!");
+			if (self.rectTransform != null)
+			{
+				self.rectTransform.anchorMin = new Vector2(0f, 0f);
+				self.rectTransform.anchorMax = new Vector2(1f, 1f);
+				self.rectTransform.offsetMin = new Vector2(0f, 0f);
+				self.rectTransform.offsetMax = new Vector2(0f, 0f);
+			}
 			return self;
 		}
 
@@ -91,7 +91,7 @@ namespace Kayac
 			_renderer = renderer;
 			_root = new DebugUiControl();
 			_input = new Input();
-			_collider.enabled = true;
+			this.raycastTarget = true;
 			inputEnabled = true;
 		}
 
@@ -137,25 +137,17 @@ namespace Kayac
 
 		public void ManualUpdate(float deltaTime)
 		{
-			UnityEngine.Profiling.Profiler.BeginSample("DebugUiManager.ManualUpdate");
 			Debug.Assert(_renderer != null, "call Initialize()");
 			_input.eventConsumer = null;
 
-			UnityEngine.Profiling.Profiler.BeginSample("DebugUiManager.UpdateEventRecursive");
 			_root.UpdateEventRecursive(0, 0, _input, true);
-			UnityEngine.Profiling.Profiler.EndSample();
 
 			// inputのうち非継続的な状態をリセット
 			_input.hasJustClicked = false;
 			_input.hasJustDragStarted = false;
 
-			UnityEngine.Profiling.Profiler.BeginSample("DebugUiManager.UpdateRecursize");
 			_root.UpdateRecursive();
-			UnityEngine.Profiling.Profiler.EndSample();
-
-			UnityEngine.Profiling.Profiler.BeginSample("DebugUiManager.DrawRecursive");
 			_root.DrawRecursive(0, 0, _renderer);
-			UnityEngine.Profiling.Profiler.EndSample();
 			// ドラッグマーク描画
 			if (_input.draggedControl != null)
 			{
@@ -169,7 +161,6 @@ namespace Kayac
 					consumer.onEventConsume();
 				}
 			}
-			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
 		private void DrawDragMark(DebugUiControl dragged)
@@ -322,6 +313,13 @@ namespace Kayac
 			x = x * actualWidth / referenceWidth;
 			// Yはスケールして反転
 			y = actualHeight - (y * actualHeight / referenceHeight);
+		}
+
+		// 以下UI.Graphicのデフォルト挙動を殺すためのコード。
+		// 素のGraphicでもRectTransformのサイズに合わせて4頂点作って描画するので頂点を消してやる必要がある!!!
+		protected override void OnPopulateMesh(VertexHelper vh)
+		{
+			vh.Clear();
 		}
 	}
 }
