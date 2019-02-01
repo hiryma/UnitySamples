@@ -29,6 +29,7 @@ public class Sample : MonoBehaviour
 			_camera,
 			capacity: 8192);
 		_debugUi = DebugUiManager.Create(
+			_camera,
 			_gameObjectForDebugUiManager,
 			_renderer);
 		_sampleWindow = new SampleWindow(_debugUi);
