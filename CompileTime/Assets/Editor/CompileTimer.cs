@@ -66,7 +66,6 @@ namespace Kayac
 				MeasureCode(root, "Assets");
 
 				var sb = new System.Text.StringBuilder();
-				sb.Append("[CodeAmount]\n");
 				WriteCodeTreeSize(root, sb, 0);
 
 				var file = new StreamWriter("codeAmount.txt");
