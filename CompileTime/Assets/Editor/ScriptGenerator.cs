@@ -4,6 +4,8 @@ using System;
 
 public class ScriptGenerator
 {
+	const int FileCount = 1000;
+	const int MethodCount = 1000;
 	[MenuItem("Sample/ClearGenerated")]
 	static void ClearGenerated()
 	{
@@ -18,7 +20,7 @@ public class ScriptGenerator
 	[MenuItem("Sample/GenerateIndependent")]
 	static void GenerateIndependent()
 	{
-		for (int i = 0; i < 10000; i++)
+		for (int i = 0; i < FileCount; i++)
 		{
 			GenerateIndependentScript(i);
 		}
@@ -31,9 +33,41 @@ public class ScriptGenerator
 		file.WriteLine("using UnityEngine;");
 		file.WriteLine("public class Hoge" + i + " : MonoBehaviour{");
 		file.WriteLine("\tvoid Start(){");
+		file.WriteLine("\t\tDebug.Log(Hoge" + i.ToString() + ".GetIndex());");
 		file.WriteLine("\t}");
 		file.WriteLine("\tvoid Update(){");
 		file.WriteLine("\t}");
+		file.WriteLine("\tpublic static int GetIndex(){ return " + i + "; }");
+		file.WriteLine("}");
+		file.Close();
+	}
+
+	[MenuItem("Sample/GenerateDependent")]
+	static void GenerateDependent()
+	{
+		for (int i = 0; i < FileCount; i++)
+		{
+			GenerateDependentScript(i);
+		}
+	}
+
+	static void GenerateDependentScript(int i)
+	{
+		Debug.Log("Generate " + i + " th file.");
+		var file = new System.IO.StreamWriter("Assets/Generated/Hoge" + i + ".generated.cs");
+		file.WriteLine("using UnityEngine;");
+		file.WriteLine("public class Hoge" + i + " : MonoBehaviour{");
+		file.WriteLine("\tvoid Start(){");
+		int next = i + 1;
+		if (next >= FileCount)
+		{
+			next = 0;
+		}
+		file.WriteLine("\t\tDebug.Log(Hoge" + next.ToString() + ".GetIndex());");
+		file.WriteLine("\t}");
+		file.WriteLine("\tvoid Update(){");
+		file.WriteLine("\t}");
+		file.WriteLine("\tpublic static int GetIndex(){ return " + i + "; }");
 		file.WriteLine("}");
 		file.Close();
 	}
@@ -42,7 +76,7 @@ public class ScriptGenerator
 	static void GeneratePartial()
 	{
 		GeneratePartialMain();
-		for (int i = 0; i < 4000; i++)
+		for (int i = 0; i < FileCount; i++)
 		{
 			GeneratePartialSub(i);
 		}
@@ -80,6 +114,36 @@ public class ScriptGenerator
 		file.WriteLine("\t}");
 		file.WriteLine("\tvoid Update(){");
 		file.WriteLine("\t}");
+		file.WriteLine("\tpublic static int GetIndex(){ return " + i + "; }");
+		file.WriteLine("}");
+		file.Close();
+	}
+
+	[MenuItem("Sample/GenerateHuge")]
+	static void GenerateHuge()
+	{
+		for (int i = 0; i < FileCount; i++)
+		{
+			GenerateHugeScript(i);
+		}
+	}
+
+	static void GenerateHugeScript(int i)
+	{
+		Debug.Log("Generate " + i + " th file.");
+		var file = new System.IO.StreamWriter("Assets/Generated/Hoge" + i + ".generated.cs");
+		file.WriteLine("using UnityEngine;");
+		file.WriteLine("public class Hoge" + i + " : MonoBehaviour{");
+		file.WriteLine("\tvoid Start(){");
+		file.WriteLine("\t\tDebug.Log(Hoge" + i.ToString() + ".GetIndex());");
+		file.WriteLine("\t}");
+		file.WriteLine("\tvoid Update(){");
+		file.WriteLine("\t}");
+		file.WriteLine("\tpublic static int GetIndex(){ return " + i + "; }");
+		for (int j = 0; j < MethodCount; j++)
+		{
+			file.WriteLine("\tpublic int GetIndex" + j + "(){ return " + j + "; }");
+		}
 		file.WriteLine("}");
 		file.Close();
 	}
