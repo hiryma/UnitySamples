@@ -38,7 +38,6 @@ namespace Kayac
 			var currentTime = 0f;
 			if (prevCompiling)
 			{
-				currentTime = (float)(DateTime.Now - startTime).TotalSeconds;
 				if (compiling)
 				{
 					currentTime = (float)(DateTime.Now - startTime).TotalSeconds;
@@ -63,10 +62,10 @@ namespace Kayac
 			if (GUILayout.Button("コード量分析"))
 			{
 				var root = new Node();
-				MeasureCode(root, "Assets");
-
+				root.Build("Assets");
+				root.Optimize();
 				var sb = new System.Text.StringBuilder();
-				WriteCodeTreeSize(root, sb, 0);
+				root.Write(sb, 0);
 
 				var file = new StreamWriter("codeAmount.txt");
 				file.Write(sb.ToString());
@@ -77,49 +76,73 @@ namespace Kayac
 
 		class Node
 		{
+			public void Build(string path)
+			{
+				nodes = new List<Node>();
+				name = System.IO.Path.GetFileName(path);
+
+				var directories = Directory.GetDirectories(path);
+				foreach (var item in directories)
+				{
+					var child = new Node();
+					child.Build(item);
+					size += child.size;
+					nodes.Add(child);
+				}
+				var files = Directory.GetFiles(path);
+				foreach (var item in files)
+				{
+					var ext = System.IO.Path.GetExtension(item);
+					if (ext.ToLower() == ".cs")
+					{
+						size += new System.IO.FileInfo(item).Length;
+					}
+				}
+			}
+
+			// フォルダが一個しかなければ、子を親に統合する
+			public void Optimize()
+			{
+				// サイズが0のノードを削除
+				int dst = 0;
+				for (int i = 0; i < nodes.Count; i++)
+				{
+					if (nodes[i].size > 0)
+					{
+						nodes[i].Optimize(); // サイズが非0なら下流呼び出し
+						nodes[dst] = nodes[i];
+						dst++;
+					}
+				}
+				nodes.RemoveRange(dst, nodes.Count - dst);
+
+				// 子が1つなら自分に統合
+				if (dst == 1)
+				{
+					size += nodes[0].size;
+					nodes = nodes[0].nodes;
+				}
+			}
+
+			public void Write(System.Text.StringBuilder sb, int level)
+			{
+				if (size > 0)
+				{
+					for (int i = 0; i < level; i++)
+					{
+						sb.Append('\t');
+					}
+					sb.AppendFormat("{0}\t{1}\n", name, size);
+					foreach (var item in nodes)
+					{
+						item.Write(sb, level + 1);
+					}
+				}
+			}
+
 			public string name;
 			public List<Node> nodes;
 			public long size;
-		}
-
-		static void MeasureCode(Node node, string path)
-		{
-			node.nodes = new List<Node>();
-			node.name = System.IO.Path.GetFileName(path);
-
-			var directories = Directory.GetDirectories(path);
-			foreach (var item in directories)
-			{
-				var childNode = new Node();
-				MeasureCode(childNode, item);
-				node.size += childNode.size;
-				node.nodes.Add(childNode);
-			}
-			var files = Directory.GetFiles(path);
-			foreach (var item in files)
-			{
-				var ext = System.IO.Path.GetExtension(item);
-				if (ext.ToLower() == ".cs")
-				{
-					node.size += new System.IO.FileInfo(item).Length;
-				}
-			}
-		}
-
-		static void WriteCodeTreeSize(Node node, System.Text.StringBuilder sb, int level)
-		{
-			if (node.size > 0)
-			{
-				for (int i = 0; i < level; i++)
-				{
-					sb.Append('\t');
-				}
-				sb.AppendFormat("{0}\t{1}\n", node.name, node.size);
-				foreach (var item in node.nodes)
-				{
-					WriteCodeTreeSize(item, sb, level + 1);
-				}
-			}
 		}
 	}
 }
