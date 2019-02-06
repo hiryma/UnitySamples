@@ -15,7 +15,7 @@ namespace Kayac
 			instance = new SlackDebug(apiToken, defaultScreenShotChannel, defaultMessageChannel);
 		}
 
-		public static SlackDebug instance{ get; private set; }
+		public static SlackDebug instance { get; private set; }
 		public delegate void OnComplete(string errorMessage); // エラーがなく成功すればnull
 
 		public IEnumerator CoPostScreenshot(

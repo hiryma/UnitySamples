@@ -6,6 +6,8 @@ public class Main : MonoBehaviour
 {
 	[SerializeField]
 	Texture _testTex; // デバグで投げるためのテクスチャ
+	[SerializeField]
+	UnityEngine.UI.Text _logText;
 
 	void Start()
 	{
@@ -27,11 +29,12 @@ public class Main : MonoBehaviour
 		Kayac.MemoryLogHandler.Create(lineCapacity: 100); // 最新N個のログを保存
 	}
 
-	void Update()
+	void OnGUI()
 	{
-		if (Input.GetKeyDown(KeyCode.F1))
+		var slack = Kayac.SlackDebug.instance;
+		if (GUILayout.Button("スクショ"))
 		{
-			StartCoroutine(Kayac.SlackDebug.instance.CoPostScreenshot(
+			StartCoroutine(slack.CoPostScreenshot(
 				"スクショテスト",
 				() => Debug.Log("OnImageCaptured"),
 				(errorMessage) => Debug.Log("CoPostScreenshot OnComplete " + errorMessage),
@@ -39,35 +42,35 @@ public class Main : MonoBehaviour
 				waitFrameCount: 0));
 		}
 
-		if (Input.GetKeyDown(KeyCode.F2))
+		if (GUILayout.Button("メッセージ"))
 		{
-			StartCoroutine(Kayac.SlackDebug.instance.CoPostMessage(
+			StartCoroutine(slack.CoPostMessage(
 				"メッセージテスト",
 				(errorMessage) => Debug.Log("CoPostMessage OnComplete " + errorMessage),
 				channel: null));
 		}
 
-		if (Input.GetKeyDown(KeyCode.F3))
+		if (GUILayout.Button("スニペット"))
 		{
-			StartCoroutine(Kayac.SlackDebug.instance.CoPostSnippet(
+			StartCoroutine(slack.CoPostSnippet(
 				"スニペットテスト",
 				(errorMessage) => Debug.Log("CoPostSnippet OnComplete " + errorMessage),
 				channel: null));
 		}
 
-		if (Input.GetKeyDown(KeyCode.F4))
+		if (GUILayout.Button("ログ投稿"))
 		{
-			StartCoroutine(Kayac.SlackDebug.instance.CoPostBinary(
-				Kayac.MemoryLogHandler.GetBytes(),
-				"bynaryTest.txt",
+			StartCoroutine(slack.CoPostBinary(
+				Kayac.MemoryLogHandler.instance.GetBytes(),
+				"binaryTest.txt",
 				(errorMessage) => Debug.Log("CoPostBinary OnComplete " + errorMessage),
 				null,
 				null));
 		}
 
-		if (Input.GetKeyDown(KeyCode.F5))
+		if (GUILayout.Button("テクスチャ投稿"))
 		{
-			StartCoroutine(Kayac.SlackDebug.instance.CoPostTexture(
+			StartCoroutine(slack.CoPostTexture(
 				_testTex,
 				null,
 				null,
@@ -75,26 +78,30 @@ public class Main : MonoBehaviour
 				channel: null));
 		}
 
-		if (Input.GetKeyDown(KeyCode.F6))
+		if (GUILayout.Button("Log"))
 		{
-			Debug.Log("F6 pressed.");
+			Debug.Log("LogButton pressed.");
 		}
 
-		if (Input.GetKeyDown(KeyCode.F7))
+		if (GUILayout.Button("Warning"))
 		{
-			Debug.LogWarning("F7 pressed.");
+			Debug.LogWarning("WarningButton pressed.");
 		}
 
-		if (Input.GetKeyDown(KeyCode.F8))
+		if (GUILayout.Button("Error"))
 		{
-			Debug.LogError("F8 pressed.");
+			Debug.LogError("ErrorButton pressed.");
 		}
 
-		if (Input.GetKeyDown(KeyCode.F9))
+		if (GUILayout.Button("Null例外"))
 		{
 			string a = null;
-			Debug.Log(a.Length);
-			throw new System.InvalidOperationException("F9 pressed.");
+			int b = a.Length; // null死して例外吐く。これがログに溜まることを確認する
 		}
+	}
+
+	void Update()
+	{	// 画面にログの最新部を表示
+		_logText.text = Kayac.MemoryLogHandler.instance.Tail(10);
 	}
 }

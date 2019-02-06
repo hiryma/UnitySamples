@@ -7,11 +7,6 @@ namespace Kayac
 {
 	public class MemoryLogHandler : ILogHandler
 	{
-		static MemoryLogHandler _instance;
-		ILogHandler _defaultHandler;
-		string[] _buffer;
-		int _bufferPos;
-
 		public static void Create(int lineCapacity)
 		{
 			if (_instance != null)
@@ -24,15 +19,6 @@ namespace Kayac
 			Application.logMessageReceived += _instance.HandleLog;
 		}
 
-		void HandleLog(string logString, string stackTrace, LogType type)
-		{
-			if (type == LogType.Exception)
-			{
-				var message = DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + type.ToString() + " : " + logString + "\n" + stackTrace;
-				_instance.Add(message);
-			}
-		}
-
 		public static void Destory()
 		{
 			if (_instance != null)
@@ -43,15 +29,9 @@ namespace Kayac
 			_instance = null;
 		}
 
-		public static void Clear()
-		{
-			if (_instance != null)
-			{
-				_instance.ClearInner();
-			}
-		}
+		public static MemoryLogHandler instance { get; private set; }
 
-		void ClearInner()
+		public void Clear()
 		{
 			for (int i = 0; i < _buffer.Length; i++)
 			{
@@ -60,28 +40,25 @@ namespace Kayac
 			_bufferPos = 0;
 		}
 
-		public static byte[] GetBytes()
+		// 最新maxLines行を改行で連結して返す
+		public string Tail(int maxLines)
 		{
-			if (_instance != null)
+			if (maxLines >= _buffer.Length)
 			{
-				return _instance.GetBytesInner();
+				maxLines = _buffer.Length;
 			}
-			else
+			_tmpStringBuilder.Length = 0;
+			int pos = _bufferPos - maxLines;
+			if (pos < 0)
 			{
-				return new byte[0];
+				pos += _buffer.Length;
 			}
-		}
-
-		byte[] GetBytesInner()
-		{
-			var sb = new System.Text.StringBuilder();
-			int pos = _bufferPos;
-			for (int i = 0; i < _buffer.Length; i++)
+			for (int i = 0; i < maxLines; i++)
 			{
 				if (_buffer[pos] != null)
 				{
-					sb.Append(_buffer[pos]);
-					sb.Append('\n');
+					_tmpStringBuilder.Append(_buffer[pos]);
+					_tmpStringBuilder.Append('\n');
 				}
 				pos++;
 				if (pos >= _buffer.Length)
@@ -89,24 +66,14 @@ namespace Kayac
 					pos = 0;
 				}
 			}
-			var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
-			return bytes;
+			return _tmpStringBuilder.ToString();
 		}
 
-		MemoryLogHandler(int lineCapacity)
+		// 全量をUTF8でエンコードしてbyte[]として返す
+		public byte[] GetBytes()
 		{
-			_buffer = new string[lineCapacity];
-			_bufferPos = 0;
-		}
-
-		void Add(string message)
-		{
-			_buffer[_bufferPos] = message;
-			_bufferPos++;
-			if (_bufferPos >= _buffer.Length)
-			{
-				_bufferPos = 0;
-			}
+			var str = Tail(int.MaxValue);
+			return System.Text.Encoding.UTF8.GetBytes(str);
 		}
 
 		public void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args)
@@ -123,5 +90,38 @@ namespace Kayac
 			Add(message);
 			_defaultHandler.LogException(exception, context);
 		}
+
+		// ---- 以下private ----
+		MemoryLogHandler(int lineCapacity)
+		{
+			_buffer = new string[lineCapacity];
+			_bufferPos = 0;
+			_tmpStringBuilder = new System.Text.StringBuilder();
+		}
+
+		void HandleLog(string logString, string stackTrace, LogType type)
+		{
+			if (type == LogType.Exception)
+			{
+				var message = DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + type.ToString() + " : " + logString + "\n" + stackTrace;
+				_instance.Add(message);
+			}
+		}
+
+		void Add(string message)
+		{
+			_buffer[_bufferPos] = message;
+			_bufferPos++;
+			if (_bufferPos >= _buffer.Length)
+			{
+				_bufferPos = 0;
+			}
+		}
+
+		static MemoryLogHandler _instance;
+		ILogHandler _defaultHandler;
+		string[] _buffer;
+		int _bufferPos;
+		System.Text.StringBuilder _tmpStringBuilder;
 	}
 }
