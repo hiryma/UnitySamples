@@ -22,7 +22,7 @@ namespace Kayac
 			string message = null,
 			System.Action onImageCaptured = null, // 画像が取れた後で呼ぶコールバック(デバグUIを復活させるなど)
 			OnComplete onComplete = null,  // 完了コールバック(ポップアップを出す、ログを出す、等々)
-			string channel = null, // チャネル名を変更したければここに与える(与えなければdefaultScreenShotChannel)
+			string channel = null, // チャネル名を変更したければここに与える(与えなければdefaultChannel)
 			int waitFrameCount = 0) // デバグUIを消すなどがすぐに済まない場合、ここにフレーム数を指定
 		{
 			for (int i = 0; i < waitFrameCount; i++)
@@ -48,7 +48,7 @@ namespace Kayac
 
 			var now = System.DateTime.Now;
 			string filename = now.ToString("yyyyMMdd_HHmmss") + ".png";
-			yield return CoPostBinary(pngBytes, filename, onComplete, channel, message);
+			yield return CoPostBinary(pngBytes, filename, message, onComplete, channel);
 		}
 
 		public IEnumerator CoPostTexture(
@@ -85,7 +85,7 @@ namespace Kayac
 				tex2d.ReadPixels(new Rect(0, 0, tex2d.width, tex2d.height), 0, 0);
 			}
 			var pnbBytes = tex2d.EncodeToPNG();
-			var coPostBinary = CoPostBinary(pnbBytes, filename, onComplete, channel, message);
+			var coPostBinary = CoPostBinary(pnbBytes, filename, message, onComplete, channel);
 			while (coPostBinary.MoveNext())
 			{
 				yield return null;
@@ -143,9 +143,9 @@ namespace Kayac
 		public IEnumerator CoPostBinary(
 			byte[] binary,
 			string filename,
+			string message = null,
 			OnComplete onComplete = null,
-			string channel = null,
-			string message = null)
+			string channel = null)
 		{
 			Debug.Assert(binary != null);
 			Debug.Assert(filename != null);

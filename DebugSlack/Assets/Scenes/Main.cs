@@ -71,6 +71,7 @@ public class Main : MonoBehaviour
 			bytes,
 			"errorLog" + System.DateTime.Now.ToString("yyyy_MM_dd__HH_mm_ss_fff") + ".txt",
 			null,
+			null,
 			_errorReportChannel));
 	}
 
@@ -116,8 +117,8 @@ public class Main : MonoBehaviour
 			StartCoroutine(slack.CoPostBinary(
 				Kayac.MemoryLogHandler.instance.GetBytes(),
 				"binaryTest.txt",
-				(errorMessage) => Debug.Log("CoPostBinary OnComplete " + errorMessage),
 				null,
+				(errorMessage) => Debug.Log("CoPostBinary OnComplete " + errorMessage),
 				null));
 		}
 
