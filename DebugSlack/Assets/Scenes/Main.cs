@@ -39,7 +39,7 @@ public class Main : MonoBehaviour
 			"エラー報告",
 			() => _onGuiDisabled = false,
 			null,
-			channel: null,
+			channel: "unity-error-report",
 			waitFrameCount: 1)); // 次のフレームでOnGUIで何もしない状態にしてから撮影
 		var log = Kayac.MemoryLogHandler.instance.GetString();
 		var sb = new System.Text.StringBuilder();
@@ -66,7 +66,9 @@ public class Main : MonoBehaviour
 		var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString() + log);
 		StartCoroutine(slack.CoPostBinary(
 			bytes,
-			"errorLog" + System.DateTime.Now.ToString("yyyy_MM_dd__HH_mm_ss_fff") + ".txt"));
+			"errorLog" + System.DateTime.Now.ToString("yyyy_MM_dd__HH_mm_ss_fff") + ".txt",
+			null,
+			"unity-error-report"));
 	}
 
 	void OnGUI()
