@@ -9,10 +9,9 @@ namespace Kayac
 		// シングルトンにしているのは、不要な時(リリースビルド)等でインスタンスすら作りたくないという要求と、どこでも使いたいという要求の間の妥協
 		public static void Create(
 			string apiToken,
-			string defaultScreenShotChannel,
-			string defaultMessageChannel)
+			string defaultChannel)
 		{
-			instance = new DebugSlack(apiToken, defaultScreenShotChannel, defaultMessageChannel);
+			instance = new DebugSlack(apiToken, defaultChannel);
 		}
 
 		public static DebugSlack instance { get; private set; }
@@ -44,7 +43,7 @@ namespace Kayac
 
 			if (channel == null)
 			{
-				channel = _defaultScreenShotChannel;
+				channel = _defaultChannel;
 			}
 
 			var now = System.DateTime.Now;
@@ -101,7 +100,7 @@ namespace Kayac
 			Debug.Assert(message != null);
 			if (channel == null)
 			{
-				channel = _defaultMessageChannel;
+				channel = _defaultChannel;
 			}
 			var form = new WWWForm();
 			form.AddField("token", _apiToken);
@@ -123,7 +122,7 @@ namespace Kayac
 			Debug.Assert(message != null);
 			if (channel == null)
 			{
-				channel = _defaultMessageChannel;
+				channel = _defaultChannel;
 			}
 			var form = new WWWForm();
 			form.AddField("token", _apiToken);
@@ -152,7 +151,7 @@ namespace Kayac
 			Debug.Assert(filename != null);
 			if (channel == null)
 			{
-				channel = _defaultMessageChannel;
+				channel = _defaultChannel;
 			}
 			var form = new WWWForm();
 			form.AddField("token", _apiToken);
@@ -181,12 +180,10 @@ namespace Kayac
 
 		DebugSlack(
 			string apiToken,
-			string defaultScreenShotChannel,
-			string defaultMessageChannel)
+			string defaultChannel)
 		{
 			_apiToken = apiToken;
-			_defaultScreenShotChannel = defaultScreenShotChannel;
-			_defaultMessageChannel = defaultMessageChannel;
+			_defaultChannel = defaultChannel;
 		}
 
 		static IEnumerator CoPost(string uri, WWWForm form, OnComplete onComplete)
@@ -210,8 +207,7 @@ namespace Kayac
 		}
 
 		readonly string _apiToken;
-		readonly string _defaultScreenShotChannel;
-		readonly string _defaultMessageChannel;
+		readonly string _defaultChannel;
 		const string _baseUri = "https://slack.com/api/";
 		const string _fileUploadUri = _baseUri + "files.upload";
 		const string _postMessageUri = _baseUri + "chat.postMessage";
