@@ -22,7 +22,7 @@ namespace Kayac
 		public IEnumerator CoPostScreenshot(
 			string message = null,
 			System.Action onImageCaptured = null, // 画像が取れた後で呼ぶコールバック(デバグUIを復活させるなど)
-			OnComplete onComplete = null,  // 完ー了コルバック(ポップアップを出す、ログを出す、等々)
+			OnComplete onComplete = null,  // 完了コールバック(ポップアップを出す、ログを出す、等々)
 			string channel = null, // チャネル名を変更したければここに与える(与えなければdefaultScreenShotChannel)
 			int waitFrameCount = 0) // デバグUIを消すなどがすぐに済まない場合、ここにフレーム数を指定
 		{
