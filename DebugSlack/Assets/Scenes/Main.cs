@@ -13,13 +13,15 @@ public class Main : MonoBehaviour
 
 	void Start()
 	{
+		// ログ蓄積クラス初期化
+		Kayac.MemoryLogHandler.Create(lineCapacity: 100); // 最新N個のログを保存
 		/*
 		slackのtokenをコードに直打ちすると漏れそうで怖いですね。
 		実用にする場合はいろいろ考えておくのが良いと思います。
-		このサンプルではエディタからしか起動しないので、
-		.gitignoreしたテキストファイルから読んでいます。
+		このサンプルでは.gitignoreでgitに入らなくしたテキストファイルをStreamingAssetsから読んでいます。
 		*/
-		var tokenFile = new System.IO.StreamReader("slackToken.txt"); // 暗号化しといた方がいいよ!
+		var tokenFilePath = Application.streamingAssetsPath + "/slackToken.txt";
+		var tokenFile = new System.IO.StreamReader(tokenFilePath); // 暗号化しといた方がいいよ!
 		var token = tokenFile.ReadToEnd();
 		tokenFile.Close();
 		// 初期化が必要
@@ -27,8 +29,6 @@ public class Main : MonoBehaviour
 			token,
 			"unity-debug",
 			"unity-debug");
-		// ログ蓄積クラス初期化
-		Kayac.MemoryLogHandler.Create(lineCapacity: 100); // 最新N個のログを保存
 	}
 
 	void ReportError()
@@ -149,7 +149,8 @@ public class Main : MonoBehaviour
 	}
 
 	void Update()
-	{	// 画面にログの最新部を表示。なお製品でこんなことをやると激遅いので注意。
+	{
+		// 画面にログの最新部を表示。なお製品でこんなことをやると激遅いので注意。
 		_logText.text = Kayac.MemoryLogHandler.instance.Tail(10);
 	}
 }
