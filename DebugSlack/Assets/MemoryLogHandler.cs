@@ -9,36 +9,28 @@ namespace Kayac
 	{
 		public static void Create(int lineCapacity)
 		{
-			if (_instance != null)
+			if (instance != null)
 			{
 				Destory();
 			}
-			_instance = new MemoryLogHandler(lineCapacity);
-			_instance._defaultHandler = Debug.unityLogger.logHandler;
-			Debug.unityLogger.logHandler = _instance;
-			Application.logMessageReceived += _instance.HandleLog;
+			instance = new MemoryLogHandler(lineCapacity);
+			instance._defaultHandler = Debug.unityLogger.logHandler;
+			Debug.unityLogger.logHandler = instance; // TODO: 危険
+			Application.logMessageReceived += instance.HandleLog;
 		}
 
+		// TODO: Create-Destroyの間に別の何かがDebug.unityLogger.logHandlerを触るとバグる。イケてない。
 		public static void Destory()
 		{
-			if (_instance != null)
+			if (instance != null)
 			{
-				Debug.unityLogger.logHandler = _instance._defaultHandler;
-				Application.logMessageReceived -= _instance.HandleLog;
+				Debug.unityLogger.logHandler = instance._defaultHandler; // TODO: 危険
+				Application.logMessageReceived -= instance.HandleLog;
 			}
-			_instance = null;
+			instance = null;
 		}
 
 		public static MemoryLogHandler instance { get; private set; }
-
-		public void Clear()
-		{
-			for (int i = 0; i < _buffer.Length; i++)
-			{
-				_buffer[i] = null;
-			}
-			_bufferPos = 0;
-		}
 
 		// 最新maxLines行を改行で連結して返す
 		public string Tail(int maxLines)
@@ -72,8 +64,13 @@ namespace Kayac
 		// 全量をUTF8でエンコードしてbyte[]として返す
 		public byte[] GetBytes()
 		{
-			var str = Tail(int.MaxValue);
+			var str = GetString();
 			return System.Text.Encoding.UTF8.GetBytes(str);
+		}
+
+		public string GetString()
+		{
+			return Tail(int.MaxValue);
 		}
 
 		public void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args)
@@ -104,7 +101,7 @@ namespace Kayac
 			if (type == LogType.Exception)
 			{
 				var message = DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + type.ToString() + " : " + logString + "\n" + stackTrace;
-				_instance.Add(message);
+				Add(message);
 			}
 		}
 
@@ -118,7 +115,6 @@ namespace Kayac
 			}
 		}
 
-		static MemoryLogHandler _instance;
 		ILogHandler _defaultHandler;
 		string[] _buffer;
 		int _bufferPos;

@@ -9,6 +9,8 @@ public class Main : MonoBehaviour
 	[SerializeField]
 	UnityEngine.UI.Text _logText;
 
+	bool _onGuiDisabled;
+
 	void Start()
 	{
 		/*
@@ -21,7 +23,7 @@ public class Main : MonoBehaviour
 		var token = tokenFile.ReadToEnd();
 		tokenFile.Close();
 		// 初期化が必要
-		Kayac.SlackDebug.Create(
+		Kayac.DebugSlack.Create(
 			token,
 			"unity-debug",
 			"unity-debug");
@@ -29,9 +31,55 @@ public class Main : MonoBehaviour
 		Kayac.MemoryLogHandler.Create(lineCapacity: 100); // 最新N個のログを保存
 	}
 
+	void ReportError()
+	{
+		_onGuiDisabled = true;
+		var slack = Kayac.DebugSlack.instance;
+		StartCoroutine(slack.CoPostScreenshot(
+			"エラー報告",
+			() => _onGuiDisabled = false,
+			null,
+			channel: null,
+			waitFrameCount: 1)); // 次のフレームでOnGUIで何もしない状態にしてから撮影
+		var log = Kayac.MemoryLogHandler.instance.GetString();
+		var sb = new System.Text.StringBuilder();
+		sb.Append("----SystemInfo----\n");
+		sb.AppendFormat("[ErrorLog] {0}\n", System.DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss.fff"));
+		sb.AppendFormat("device: {0} {1} {2} Memory:{3}\n", SystemInfo.deviceModel, SystemInfo.deviceName, SystemInfo.deviceType, SystemInfo.systemMemorySize);
+		sb.AppendFormat("os: {0} {1}\n", SystemInfo.operatingSystem, SystemInfo.operatingSystemFamily);
+		sb.AppendFormat("graphics: {0} {1} {2} Memory:{3}\n", SystemInfo.graphicsDeviceName, SystemInfo.graphicsDeviceType, SystemInfo.graphicsDeviceVersion, SystemInfo.graphicsMemorySize);
+		sb.AppendFormat("processor: {0} core: {1} {2}MHz\n", SystemInfo.processorType, SystemInfo.processorCount, SystemInfo.processorFrequency);
+		sb.AppendFormat("battery: {0}% {1}\n", SystemInfo.batteryLevel * 100f, SystemInfo.batteryStatus);
+		sb.AppendFormat("shaderLevel: {0}\n", SystemInfo.graphicsShaderLevel);
+		sb.AppendFormat("maxTextureSize: {0}\n", SystemInfo.maxTextureSize);
+		sb.AppendFormat("nonPowerOfTwoSupport: {0}\n", SystemInfo.npotSupport);
+#if UNITY_2018_1_OR_NEWER
+		sb.AppendFormat("hasDynamicUniformArrayIndexingInFragmentShaders: {0}\n", SystemInfo.hasDynamicUniformArrayIndexingInFragmentShaders);
+		sb.AppendFormat("supports32bitsIndexBuffer: {0}\n", SystemInfo.supports32bitsIndexBuffer);
+#endif
+		sb.Append("----SceneInfo----\n");
+		for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+		{
+			sb.AppendFormat("{0}\n", UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).name);
+		}
+		sb.Append("----Log----\n");
+		var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString() + log);
+		StartCoroutine(slack.CoPostBinary(
+			bytes,
+			"errorLog" + System.DateTime.Now.ToString("yyyy_MM_dd__HH_mm_ss_fff") + ".txt"));
+	}
+
 	void OnGUI()
 	{
-		var slack = Kayac.SlackDebug.instance;
+		if (_onGuiDisabled)
+		{
+			return;
+		}
+		var slack = Kayac.DebugSlack.instance;
+		if (GUILayout.Button("バグ報告"))
+		{
+			ReportError();
+		}
 		if (GUILayout.Button("スクショ"))
 		{
 			StartCoroutine(slack.CoPostScreenshot(
@@ -101,7 +149,7 @@ public class Main : MonoBehaviour
 	}
 
 	void Update()
-	{	// 画面にログの最新部を表示
+	{	// 画面にログの最新部を表示。なお製品でこんなことをやると激遅いので注意。
 		_logText.text = Kayac.MemoryLogHandler.instance.Tail(10);
 	}
 }

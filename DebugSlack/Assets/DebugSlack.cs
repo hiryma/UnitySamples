@@ -4,7 +4,7 @@ using System.Collections;
 
 namespace Kayac
 {
-	public class SlackDebug
+	public class DebugSlack
 	{
 		// シングルトンにしているのは、不要な時(リリースビルド)等でインスタンスすら作りたくないという要求と、どこでも使いたいという要求の間の妥協
 		public static void Create(
@@ -12,12 +12,13 @@ namespace Kayac
 			string defaultScreenShotChannel,
 			string defaultMessageChannel)
 		{
-			instance = new SlackDebug(apiToken, defaultScreenShotChannel, defaultMessageChannel);
+			instance = new DebugSlack(apiToken, defaultScreenShotChannel, defaultMessageChannel);
 		}
 
-		public static SlackDebug instance { get; private set; }
+		public static DebugSlack instance { get; private set; }
 		public delegate void OnComplete(string errorMessage); // エラーがなく成功すればnull
 
+		// この関数だけはStartCoroutineで呼ばないと動かない
 		public IEnumerator CoPostScreenshot(
 			string message = null,
 			System.Action onImageCaptured = null, // 画像が取れた後で呼ぶコールバック(デバグUIを復活させるなど)
@@ -48,12 +49,7 @@ namespace Kayac
 
 			var now = System.DateTime.Now;
 			string filename = now.ToString("yyyyMMdd_HHmmss") + ".png";
-
-			var coPostBinary = CoPostBinary(pngBytes, filename, onComplete, channel, message);
-			while (coPostBinary.MoveNext())
-			{
-				yield return null;
-			}
+			yield return CoPostBinary(pngBytes, filename, onComplete, channel, message);
 		}
 
 		public IEnumerator CoPostTexture(
@@ -103,18 +99,15 @@ namespace Kayac
 			string channel = null) // チャネル名を変更したければここに与える
 		{
 			Debug.Assert(message != null);
-			var uri = new System.Uri(_baseUri + _postMessageUri).ToString();
-
-			var wwwForm = new WWWForm();
 			if (channel == null)
 			{
 				channel = _defaultMessageChannel;
 			}
-			wwwForm.AddField("channel", channel);
-			wwwForm.AddField("token", _apiToken);
-			wwwForm.AddField("text", message);
-
-			var coPost = CoPost(uri, wwwForm, onComplete);
+			var form = new WWWForm();
+			form.AddField("token", _apiToken);
+			form.AddField("channel", channel);
+			form.AddField("text", message);
+			var coPost = CoPost(_postMessageUri, form, onComplete);
 			while (coPost.MoveNext())
 			{
 				yield return null;
@@ -125,25 +118,23 @@ namespace Kayac
 			string message,
 			OnComplete onComplete = null, // 完了コールバック(ポップアップを出す、ログを出す、等々)
 			string channel = null,
-			string fileName = null)
+			string filename = null)
 		{
 			Debug.Assert(message != null);
-			var uri = new System.Uri(_baseUri + _fileUploadUri).ToString();
-
 			if (channel == null)
 			{
 				channel = _defaultMessageChannel;
 			}
-			var wwwForm = new WWWForm();
-			wwwForm.AddField("channels", channel);
-			wwwForm.AddField("token", _apiToken);
-			wwwForm.AddField("content", message);
-			if (!string.IsNullOrEmpty(fileName))
+			var form = new WWWForm();
+			form.AddField("token", _apiToken);
+			form.AddField("channels", channel);
+			form.AddField("content", message);
+			if (!string.IsNullOrEmpty(filename))
 			{
-				wwwForm.AddField("filename", fileName);
+				form.AddField("filename", filename);
 			}
 
-			var coPost = CoPost(uri, wwwForm, onComplete);
+			var coPost = CoPost(_fileUploadUri, form, onComplete);
 			while (coPost.MoveNext())
 			{
 				yield return null;
@@ -159,26 +150,22 @@ namespace Kayac
 		{
 			Debug.Assert(binary != null);
 			Debug.Assert(filename != null);
-			var uri = new System.Uri(_baseUri + _fileUploadUri).ToString();
-
-			var wwwForm = new WWWForm();
-
-			wwwForm.AddBinaryData("file", binary, filename);
-
 			if (channel == null)
 			{
 				channel = _defaultMessageChannel;
 			}
-			wwwForm.AddField("channels", channel);
-			wwwForm.AddField("token", _apiToken);
+			var form = new WWWForm();
+			form.AddField("token", _apiToken);
+			form.AddField("channels", channel);
+			form.AddBinaryData("file", binary, filename);
 
 			if (message == null)
 			{
 				message = GenerateDefaultMessage(filename);
 			}
-			wwwForm.AddField("initial_comment", message);
+			form.AddField("initial_comment", message);
 
-			var coPost = CoPost(uri, wwwForm, onComplete);
+			var coPost = CoPost(_fileUploadUri, form, onComplete);
 			while (coPost.MoveNext())
 			{
 				yield return null;
@@ -192,7 +179,7 @@ namespace Kayac
 			return filename + " " + SystemInfo.deviceModel + " " + SystemInfo.operatingSystem;
 		}
 
-		SlackDebug(
+		DebugSlack(
 			string apiToken,
 			string defaultScreenShotChannel,
 			string defaultMessageChannel)
@@ -226,7 +213,7 @@ namespace Kayac
 		readonly string _defaultScreenShotChannel;
 		readonly string _defaultMessageChannel;
 		const string _baseUri = "https://slack.com/api/";
-		const string _fileUploadUri = "files.upload";
-		const string _postMessageUri = "chat.postMessage";
+		const string _fileUploadUri = _baseUri + "files.upload";
+		const string _postMessageUri = _baseUri + "chat.postMessage";
 	}
 }
