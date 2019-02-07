@@ -46,8 +46,9 @@ public class Main : MonoBehaviour
 			waitFrameCount: 1)); // 次のフレームでOnGUIで何もしない状態にしてから撮影
 		var log = Kayac.MemoryLogHandler.instance.GetString();
 		var sb = new System.Text.StringBuilder();
+		var now = System.DateTime.Now;
 		sb.Append("----SystemInfo----\n");
-		sb.AppendFormat("[ErrorLog] {0}\n", System.DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss.fff"));
+		sb.AppendFormat("[ErrorLog] {0}\n", now.ToString("yyyy/MM/dd HH:mm:ss.fff"));
 		sb.AppendFormat("device: {0} {1} {2} Memory:{3}\n", SystemInfo.deviceModel, SystemInfo.deviceName, SystemInfo.deviceType, SystemInfo.systemMemorySize);
 		sb.AppendFormat("os: {0} {1}\n", SystemInfo.operatingSystem, SystemInfo.operatingSystemFamily);
 		sb.AppendFormat("graphics: {0} {1} {2} Memory:{3}\n", SystemInfo.graphicsDeviceName, SystemInfo.graphicsDeviceType, SystemInfo.graphicsDeviceVersion, SystemInfo.graphicsMemorySize);
@@ -69,7 +70,7 @@ public class Main : MonoBehaviour
 		var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString() + log);
 		StartCoroutine(slack.CoPostBinary(
 			bytes,
-			"errorLog" + System.DateTime.Now.ToString("yyyy_MM_dd__HH_mm_ss_fff") + ".txt",
+			"errorLog" + now.ToString("yyyy_MM_dd__HH_mm_ss_fff") + ".txt",
 			null,
 			null,
 			_errorReportChannel));
