@@ -146,6 +146,11 @@ public class Main : MonoBehaviour
 			Debug.LogError("ErrorButton pressed.");
 		}
 
+		if (GUILayout.Button("Assert"))
+		{
+			Debug.Assert(false, "Assertion failed.");
+		}
+
 		if (GUILayout.Button("Null例外"))
 		{
 			string a = null;

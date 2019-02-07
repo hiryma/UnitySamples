@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Kayac
 {
-	public class MemoryLogHandler : ILogHandler
+	public class MemoryLogHandler
 	{
 		public static void Create(int lineCapacity)
 		{
@@ -14,18 +14,14 @@ namespace Kayac
 				Destory();
 			}
 			instance = new MemoryLogHandler(lineCapacity);
-			instance._defaultHandler = Debug.unityLogger.logHandler;
-			Debug.unityLogger.logHandler = instance; // TODO: 危険
 			Application.logMessageReceived += instance.HandleLog;
 		}
 
-		// TODO: Create-Destroyの間に別の何かがDebug.unityLogger.logHandlerを触るとバグる。イケてない。
 		public static void Destory()
 		{
 			if (instance != null)
 			{
 				instance.Dispose();
-				Debug.unityLogger.logHandler = instance._defaultHandler; // TODO: 危険
 				Application.logMessageReceived -= instance.HandleLog;
 			}
 			instance = null;
@@ -74,21 +70,6 @@ namespace Kayac
 			return Tail(int.MaxValue);
 		}
 
-		public void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args)
-		{
-			var message = DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + logType.ToString() + " : " + string.Format(format, args);
-			Add(message);
-			_defaultHandler.LogFormat(logType, context, format, args);
-		}
-
-		public void LogException(Exception exception, UnityEngine.Object context)
-		{
-			// Debug.LogExceptionを自分で呼ばない限り来ないので、実質使い物にならない
-			var message = DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + exception.ToString() + " : " + exception.Message;
-			Add(message);
-			_defaultHandler.LogException(exception, context);
-		}
-
 		// ---- 以下private ----
 		MemoryLogHandler(int lineCapacity)
 		{
@@ -99,11 +80,13 @@ namespace Kayac
 
 		void HandleLog(string logString, string stackTrace, LogType type)
 		{
-			if (type == LogType.Exception)
+			var message = DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + type.ToString() + " : " + logString;
+			// コールスタックはError系でだけ吐くことにする。設定可能にしても良いかもしれない。
+			if ((type == LogType.Exception) || (type == LogType.Error) || (type == LogType.Assert))
 			{
-				var message = DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + type.ToString() + " : " + logString + "\n" + stackTrace;
-				Add(message);
+				message += "\n" + stackTrace;
 			}
+			Add(message);
 		}
 
 		void Add(string message)
@@ -118,13 +101,11 @@ namespace Kayac
 
 		void Dispose() // Destroy後の呼び出しで確実に死ぬようにまっさらにしておく
 		{
-			_defaultHandler = null;
 			_buffer = null;
 			_bufferPos = 0;
 			_tmpStringBuilder = null;
 		}
 
-		ILogHandler _defaultHandler;
 		string[] _buffer;
 		int _bufferPos;
 		System.Text.StringBuilder _tmpStringBuilder;
