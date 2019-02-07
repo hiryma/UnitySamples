@@ -19,8 +19,8 @@ namespace Kayac
 
 		// この関数だけはStartCoroutineで呼ばないと動かない
 		public IEnumerator CoPostScreenshot(
-			string message = null,
 			System.Action onImageCaptured = null, // 画像が取れた後で呼ぶコールバック(デバグUIを復活させるなど)
+			string message = null,
 			OnComplete onComplete = null,  // 完了コールバック(ポップアップを出す、ログを出す、等々)
 			string channel = null, // チャネル名を変更したければここに与える(与えなければdefaultChannel)
 			int waitFrameCount = 0) // デバグUIを消すなどがすぐに済まない場合、ここにフレーム数を指定

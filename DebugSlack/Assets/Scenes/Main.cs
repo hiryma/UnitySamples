@@ -39,8 +39,8 @@ public class Main : MonoBehaviour
 		_onGuiDisabled = true;
 		var slack = Kayac.DebugSlack.instance;
 		StartCoroutine(slack.CoPostScreenshot(
-			"エラー報告",
 			() => _onGuiDisabled = false,
+			"エラー報告",
 			null,
 			_errorReportChannel,
 			waitFrameCount: 1)); // 次のフレームでOnGUIで何もしない状態にしてから撮影
@@ -89,27 +89,23 @@ public class Main : MonoBehaviour
 		if (GUILayout.Button("スクショ"))
 		{
 			StartCoroutine(slack.CoPostScreenshot(
-				"スクショテスト",
 				() => Debug.Log("OnImageCaptured"),
-				(errorMessage) => Debug.Log("CoPostScreenshot OnComplete " + errorMessage),
-				channel: null,
-				waitFrameCount: 0));
+				"スクショテスト",
+				(errorMessage) => Debug.Log("CoPostScreenshot OnComplete " + errorMessage)));
 		}
 
 		if (GUILayout.Button("メッセージ"))
 		{
 			StartCoroutine(slack.CoPostMessage(
 				"メッセージテスト",
-				(errorMessage) => Debug.Log("CoPostMessage OnComplete " + errorMessage),
-				channel: null));
+				(errorMessage) => Debug.Log("CoPostMessage OnComplete " + errorMessage)));
 		}
 
 		if (GUILayout.Button("スニペット"))
 		{
 			StartCoroutine(slack.CoPostSnippet(
 				"スニペットテスト",
-				(errorMessage) => Debug.Log("CoPostSnippet OnComplete " + errorMessage),
-				channel: null));
+				(errorMessage) => Debug.Log("CoPostSnippet OnComplete " + errorMessage)));
 		}
 
 		if (GUILayout.Button("ログ投稿"))
@@ -118,8 +114,7 @@ public class Main : MonoBehaviour
 				Kayac.MemoryLogHandler.instance.GetBytes(),
 				"binaryTest.txt",
 				null,
-				(errorMessage) => Debug.Log("CoPostBinary OnComplete " + errorMessage),
-				null));
+				(errorMessage) => Debug.Log("CoPostBinary OnComplete " + errorMessage)));
 		}
 
 		if (GUILayout.Button("テクスチャ投稿"))
@@ -128,8 +123,7 @@ public class Main : MonoBehaviour
 				_testTex,
 				null,
 				null,
-				(errorMessage) => Debug.Log("CoPostTexture OnComplete " + errorMessage),
-				channel: null));
+				(errorMessage) => Debug.Log("CoPostTexture OnComplete " + errorMessage)));
 		}
 
 		if (GUILayout.Button("Log"))
