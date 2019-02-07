@@ -24,6 +24,7 @@ namespace Kayac
 		{
 			if (instance != null)
 			{
+				instance.Dispose();
 				Debug.unityLogger.logHandler = instance._defaultHandler; // TODO: 危険
 				Application.logMessageReceived -= instance.HandleLog;
 			}
@@ -113,6 +114,14 @@ namespace Kayac
 			{
 				_bufferPos = 0;
 			}
+		}
+
+		void Dispose() // Destroy後の呼び出しで確実に死ぬようにまっさらにしておく
+		{
+			_defaultHandler = null;
+			_buffer = null;
+			_bufferPos = 0;
+			_tmpStringBuilder = null;
 		}
 
 		ILogHandler _defaultHandler;
