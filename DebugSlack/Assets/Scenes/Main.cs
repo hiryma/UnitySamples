@@ -30,7 +30,6 @@ public class Main : MonoBehaviour
 		var tokenFile = new System.IO.StreamReader(tokenFilePath); // 暗号化しといた方がいいよ!
 		var token = tokenFile.ReadToEnd();
 		tokenFile.Close();
-		// 初期化が必要
 		_slack = new Kayac.DebugSlack(token, _defaultChannel);
 	}
 
