@@ -4,21 +4,23 @@ using UnityEngine;
 
 public class Main : MonoBehaviour
 {
+	// 以下2つは用途に合わせて書き換えてから動かしてみてください
+	const string _defaultChannel = "unity-debug";
+	const string _errorReportChannel = "unity-error-report";
+
 	[SerializeField]
 	Texture _testTex; // デバグで投げるためのテクスチャ
 	[SerializeField]
 	UnityEngine.UI.Text _logText;
 
 	bool _onGuiDisabled;
-
-	// 以下3つは用途に合わせて書き換えてから動かしてみてください
-	string _defaultChannel = "unity-debug";
-	string _errorReportChannel = "unity-error-report";
+	Kayac.DebugSlack _slack;
+	Kayac.MemoryLogHandler _logHandler;
 
 	void Start()
 	{
 		// ログ蓄積クラス初期化
-		Kayac.MemoryLogHandler.Create(lineCapacity: 100); // 最新N個のログを保存
+		_logHandler = new Kayac.MemoryLogHandler(lineCapacity: 100); // 最新N個のログを保存
 		/*
 		slackのtokenをコードに直打ちすると漏れそうで怖いですね。
 		実用にする場合はいろいろ考えておくのが良いと思います。
@@ -29,22 +31,19 @@ public class Main : MonoBehaviour
 		var token = tokenFile.ReadToEnd();
 		tokenFile.Close();
 		// 初期化が必要
-		Kayac.DebugSlack.Create(
-			token,
-			_defaultChannel);
+		_slack = new Kayac.DebugSlack(token, _defaultChannel);
 	}
 
 	void ReportError()
 	{
 		_onGuiDisabled = true;
-		var slack = Kayac.DebugSlack.instance;
-		StartCoroutine(slack.CoPostScreenshot(
+		StartCoroutine(_slack.CoPostScreenshot(
 			() => _onGuiDisabled = false,
 			"エラー報告",
 			null,
 			_errorReportChannel,
 			waitFrameCount: 1)); // 次のフレームでOnGUIで何もしない状態にしてから撮影
-		var log = Kayac.MemoryLogHandler.instance.GetString();
+		var log = _logHandler.GetString();
 		var sb = new System.Text.StringBuilder();
 		var now = System.DateTime.Now;
 		sb.Append("----SystemInfo----\n");
@@ -68,7 +67,7 @@ public class Main : MonoBehaviour
 		}
 		sb.Append("----Log----\n");
 		var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString() + log);
-		StartCoroutine(slack.CoPostBinary(
+		StartCoroutine(_slack.CoPostBinary(
 			bytes,
 			"errorLog" + now.ToString("yyyy_MM_dd__HH_mm_ss_fff") + ".txt",
 			null,
@@ -82,14 +81,13 @@ public class Main : MonoBehaviour
 		{
 			return;
 		}
-		var slack = Kayac.DebugSlack.instance;
 		if (GUILayout.Button("バグ報告"))
 		{
 			ReportError();
 		}
 		if (GUILayout.Button("スクショ"))
 		{
-			StartCoroutine(slack.CoPostScreenshot(
+			StartCoroutine(_slack.CoPostScreenshot(
 				() => Debug.Log("OnImageCaptured"),
 				"スクショテスト",
 				(errorMessage) => Debug.Log("CoPostScreenshot OnComplete " + errorMessage)));
@@ -97,22 +95,22 @@ public class Main : MonoBehaviour
 
 		if (GUILayout.Button("メッセージ"))
 		{
-			StartCoroutine(slack.CoPostMessage(
+			StartCoroutine(_slack.CoPostMessage(
 				"メッセージテスト",
 				(errorMessage) => Debug.Log("CoPostMessage OnComplete " + errorMessage)));
 		}
 
 		if (GUILayout.Button("スニペット"))
 		{
-			StartCoroutine(slack.CoPostSnippet(
+			StartCoroutine(_slack.CoPostSnippet(
 				"スニペットテスト",
 				(errorMessage) => Debug.Log("CoPostSnippet OnComplete " + errorMessage)));
 		}
 
 		if (GUILayout.Button("ログ投稿"))
 		{
-			StartCoroutine(slack.CoPostBinary(
-				Kayac.MemoryLogHandler.instance.GetBytes(),
+			StartCoroutine(_slack.CoPostBinary(
+				_logHandler.GetBytes(),
 				"binaryTest.txt",
 				null,
 				(errorMessage) => Debug.Log("CoPostBinary OnComplete " + errorMessage)));
@@ -120,7 +118,7 @@ public class Main : MonoBehaviour
 
 		if (GUILayout.Button("テクスチャ投稿"))
 		{
-			StartCoroutine(slack.CoPostTexture(
+			StartCoroutine(_slack.CoPostTexture(
 				_testTex,
 				null,
 				null,
@@ -157,6 +155,6 @@ public class Main : MonoBehaviour
 	void Update()
 	{
 		// 画面にログの最新部を表示。なお製品でこんなことをやると激遅いので注意。
-		_logText.text = Kayac.MemoryLogHandler.instance.Tail(10);
+		_logText.text = _logHandler.Tail(10);
 	}
 }

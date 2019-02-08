@@ -6,15 +6,13 @@ namespace Kayac
 {
 	public class DebugSlack
 	{
-		// シングルトンにしているのは、不要な時(リリースビルド)等でインスタンスすら作りたくないという要求と、どこでも使いたいという要求の間の妥協
-		public static void Create(
+		public DebugSlack(
 			string apiToken,
 			string defaultChannel)
 		{
-			instance = new DebugSlack(apiToken, defaultChannel);
+			_apiToken = apiToken;
+			_defaultChannel = defaultChannel;
 		}
-
-		public static DebugSlack instance { get; private set; }
 		public delegate void OnComplete(string errorMessage); // エラーがなく成功すればnull
 
 		// この関数だけはStartCoroutineで呼ばないと動かない
@@ -176,14 +174,6 @@ namespace Kayac
 		string GenerateDefaultMessage(string filename)
 		{
 			return filename + " " + SystemInfo.deviceModel + " " + SystemInfo.operatingSystem;
-		}
-
-		DebugSlack(
-			string apiToken,
-			string defaultChannel)
-		{
-			_apiToken = apiToken;
-			_defaultChannel = defaultChannel;
 		}
 
 		static IEnumerator CoPost(string uri, WWWForm form, OnComplete onComplete)

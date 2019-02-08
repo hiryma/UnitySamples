@@ -5,29 +5,23 @@ using UnityEngine;
 
 namespace Kayac
 {
-	public class MemoryLogHandler
+	public class MemoryLogHandler : IDisposable
 	{
-		public static void Create(int lineCapacity)
+		public MemoryLogHandler(int lineCapacity)
 		{
-			if (instance != null)
-			{
-				Destory();
-			}
-			instance = new MemoryLogHandler(lineCapacity);
-			Application.logMessageReceived += instance.HandleLog;
+			_buffer = new string[lineCapacity];
+			_bufferPos = 0;
+			_tmpStringBuilder = new System.Text.StringBuilder();
+			Application.logMessageReceived += HandleLog;
 		}
 
-		public static void Destory()
+		public void Dispose()
 		{
-			if (instance != null)
-			{
-				instance.Dispose();
-				Application.logMessageReceived -= instance.HandleLog;
-			}
-			instance = null;
+			_buffer = null;
+			_bufferPos = 0;
+			_tmpStringBuilder = null;
+			Application.logMessageReceived -= HandleLog;
 		}
-
-		public static MemoryLogHandler instance { get; private set; }
 
 		// 最新maxLines行を改行で連結して返す
 		public string Tail(int maxLines)
@@ -71,13 +65,6 @@ namespace Kayac
 		}
 
 		// ---- 以下private ----
-		MemoryLogHandler(int lineCapacity)
-		{
-			_buffer = new string[lineCapacity];
-			_bufferPos = 0;
-			_tmpStringBuilder = new System.Text.StringBuilder();
-		}
-
 		void HandleLog(string logString, string stackTrace, LogType type)
 		{
 			var message = DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + type.ToString() + " : " + logString;
@@ -97,13 +84,6 @@ namespace Kayac
 			{
 				_bufferPos = 0;
 			}
-		}
-
-		void Dispose() // Destroy後の呼び出しで確実に死ぬようにまっさらにしておく
-		{
-			_buffer = null;
-			_bufferPos = 0;
-			_tmpStringBuilder = null;
 		}
 
 		string[] _buffer;
