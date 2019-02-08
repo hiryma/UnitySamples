@@ -6,9 +6,7 @@ namespace Kayac
 {
 	public class DebugSlack
 	{
-		public DebugSlack(
-			string apiToken,
-			string defaultChannel)
+		public DebugSlack(string apiToken, string defaultChannel)
 		{
 			_apiToken = apiToken;
 			_defaultChannel = defaultChannel;
