@@ -55,10 +55,10 @@
 			half3 yuvToRgb(half3 yuv)
 			{
 				yuv.yz -= (128.0 / 255.0);
-				half3 rgb = half3(
-					dot(half3(1.0, 0.0, 1.402), yuv),
-					dot(half3(1.0, -0.344, -0.714), yuv),
-					dot(half3(1.0, 1.772, 0.0), yuv));
+				half3 rgb;
+				rgb.r = yuv.x + (1.402 * yuv.z);
+				rgb.g = yuv.x - (0.344 * yuv.y) - (0.714 * yuv.z);
+				rgb.b = yuv.x + (1.772 * yuv.y);
 				return saturate(rgb);
 			}
 

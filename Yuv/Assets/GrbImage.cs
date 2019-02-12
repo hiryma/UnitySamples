@@ -8,16 +8,14 @@ using UnityEditor;
 
 namespace Kayac
 {
-	public class YuvImage : MaskableGraphic
+	public class GrbImage : MaskableGraphic
 	{
 		[SerializeField]
 		Texture2D _mainTexture;
 		[SerializeField]
-		Texture2D _uvTexture;
+		Texture2D _rbTexture;
 		[SerializeField]
-		Texture2D _alphaTexture;
-		[SerializeField]
-		bool _hasAlpha;
+		Shader _shader;
 
 		Material _material;
 		public override Texture mainTexture { get { return _mainTexture; } }
@@ -35,34 +33,11 @@ namespace Kayac
 
 		void CreateMaterial()
 		{
-			Shader shader = null;
-			bool separateAlpha = false;
-			if (_uvTexture != null)
+			if ((_material == null) || (_material.shader.name != _shader.name))
 			{
-				shader = YuvImageShaderHolder.yuv;
-				if (_alphaTexture != null)
-				{
-					separateAlpha = true;
-				}
-			}
-			if (shader == null)
-			{
-				shader = YuvImageShaderHolder.dummy;
-			}
-			if (shader == null)
-			{
-				Debug.LogError("YuvImageShaderHolder not exists. can't render IndexedRawImage.");
-				return;
-			}
-			if ((_material == null) || (_material.shader.name != shader.name))
-			{
-				_material = new Material(shader);
+				_material = new Material(_shader);
 			}
 			SetTexturesToMaterial();
-			if (separateAlpha)
-			{
-				_material.EnableKeyword("HAS_ALPHA");
-			}
 		}
 
 		void OnTextureChange()
@@ -76,13 +51,9 @@ namespace Kayac
 		void SetTexturesToMaterial()
 		{
 			_material.mainTexture = _mainTexture;
-			if (_uvTexture != null)
+			if (_rbTexture != null)
 			{
-				_material.SetTexture("_UvTex", _uvTexture);
-			}
-			if (_alphaTexture != null)
-			{
-				_material.SetTexture("_AlphaTex", _alphaTexture);
+				_material.SetTexture("_RbTex", _rbTexture);
 			}
 		}
 
@@ -98,12 +69,12 @@ namespace Kayac
 
 #if UNITY_EDITOR
 
-		[CustomEditor(typeof(YuvImage), true)]
+		[CustomEditor(typeof(GrbImage), true)]
 		public class Inspector : Editor
 		{
 			public override void OnInspectorGUI()
 			{
-				var self = (YuvImage)target;
+				var self = (GrbImage)target;
 
 				EditorGUILayout.BeginHorizontal();
 				GUILayout.Label("MainTexture");
@@ -117,33 +88,22 @@ namespace Kayac
 				EditorGUILayout.EndHorizontal();
 
 				EditorGUILayout.BeginHorizontal();
-				GUILayout.Label("UvTexture");
-				var newUvTexture = (Texture2D)EditorGUILayout.ObjectField(self._uvTexture, typeof(Texture2D), false);
-				if (newUvTexture != self._uvTexture) // カスタムエディタだと勝手にOnValidateが呼ばれない
+				GUILayout.Label("rbTexture");
+				var newRbTexture = (Texture2D)EditorGUILayout.ObjectField(self._rbTexture, typeof(Texture2D), false);
+				if (newRbTexture != self._rbTexture) // カスタムエディタだと勝手にOnValidateが呼ばれない
 				{
-					self._uvTexture = newUvTexture;
-					self.CreateMaterial();
+					self._rbTexture = newRbTexture;
+					self.OnTextureChange();
 					self.SetMaterialDirty();
 				}
 				EditorGUILayout.EndHorizontal();
 
 				EditorGUILayout.BeginHorizontal();
-				GUILayout.Label("AlphaTexture");
-				var newAlphaTexture = (Texture2D)EditorGUILayout.ObjectField(self._alphaTexture, typeof(Texture2D), false);
-				if (newAlphaTexture != self._alphaTexture) // カスタムエディタだと勝手にOnValidateが呼ばれない
+				GUILayout.Label("shader");
+				var newShader = (Shader)EditorGUILayout.ObjectField(self._shader, typeof(Shader), false);
+				if (newShader != self._shader) // カスタムエディタだと勝手にOnValidateが呼ばれない
 				{
-					self._alphaTexture = newAlphaTexture;
-					self.CreateMaterial();
-					self.SetMaterialDirty();
-				}
-				EditorGUILayout.EndHorizontal();
-
-				EditorGUILayout.BeginHorizontal();
-				GUILayout.Label("HasAlpha");
-				var newHasAlpha = GUILayout.Toggle(self._hasAlpha, "");
-				if (newHasAlpha != self._hasAlpha)
-				{
-					self._hasAlpha = newHasAlpha;
+					self._shader = newShader;
 					self.CreateMaterial();
 					self.SetMaterialDirty();
 				}
