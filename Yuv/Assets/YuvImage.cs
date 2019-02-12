@@ -17,8 +17,6 @@ namespace Kayac
 		[SerializeField]
 		Texture2D _alphaTexture;
 		[SerializeField]
-		bool _bilinearFilter;
-		[SerializeField]
 		bool _hasAlpha;
 
 		Material _material;
@@ -41,32 +39,10 @@ namespace Kayac
 			bool separateAlpha = false;
 			if (_uvTexture != null)
 			{
-				shader = YuvImageShaderHolder.separate;
+				shader = YuvImageShaderHolder.yuv;
 				if (_alphaTexture != null)
 				{
 					separateAlpha = true;
-				}
-			}
-			else if (_bilinearFilter)
-			{
-				if (_hasAlpha)
-				{
-					shader = YuvImageShaderHolder.alphaBilinear;
-				}
-				else
-				{
-					shader = YuvImageShaderHolder.bilinear;
-				}
-			}
-			else
-			{
-				if (_hasAlpha)
-				{
-					shader = YuvImageShaderHolder.alphaPoint;
-				}
-				else
-				{
-					shader = YuvImageShaderHolder.point;
 				}
 			}
 			if (shader == null)
@@ -165,19 +141,7 @@ namespace Kayac
 				var newAlphaTexture = (Texture2D)EditorGUILayout.ObjectField(self._alphaTexture, typeof(Texture2D), false);
 				if (newAlphaTexture != self._alphaTexture) // カスタムエディタだと勝手にOnValidateが呼ばれない
 				{
-Debug.LogWarning("AAAAA");
 					self._alphaTexture = newAlphaTexture;
-					self.CreateMaterial();
-					self.SetMaterialDirty();
-				}
-				EditorGUILayout.EndHorizontal();
-
-				EditorGUILayout.BeginHorizontal();
-				GUILayout.Label("BilinearFilter");
-				var newBilinearFilter = GUILayout.Toggle(self._bilinearFilter, "");
-				if (newBilinearFilter != self._bilinearFilter)
-				{
-					self._bilinearFilter = newBilinearFilter;
 					self.CreateMaterial();
 					self.SetMaterialDirty();
 				}

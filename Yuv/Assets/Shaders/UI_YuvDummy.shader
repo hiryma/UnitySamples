@@ -1,8 +1,10 @@
-﻿Shader "UI/YuvDummy" // インターフェイスはUI/Yuv...と同じだが、単にMainTextureを返すだけ
+﻿Shader "UI/YuvDummy"
 {
 	Properties
 	{
 		_MainTex ("MainTexture", 2D) = "white" {}
+		_UvTex ("UvTexture", 2D) = "white" {}
+		_AlphaTex ("AlphaTexture", 2D) = "white" {}
 	}
 	SubShader
 	{
@@ -17,6 +19,7 @@
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
+			#pragma multi_compile _ HAS_ALPHA
 
 			#include "UnityCG.cginc"
 
