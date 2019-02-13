@@ -119,8 +119,8 @@ public class YuvImageImporter : AssetPostprocessor
 		float y = (yr * pixel.r) + (yg * pixel.g) + (yb * pixel.b);
 		float u = (pixel.b - y) * uScale; // [-127.5, 127.5]
 		float v = (pixel.r - y) * vScale; // [-127.5, 127.5]
-		u += 127.5f; // [0, 255]
-		v += 127.5f; // [0, 255]
+		u += 255f / 2f; // [0, 255]
+		v += 255f / 2f; // [0, 255]
 		// 0.5は四捨五入
 		pixel.r = (byte)(y + 0.5f);
 		pixel.g = (byte)(u + 0.5f);
