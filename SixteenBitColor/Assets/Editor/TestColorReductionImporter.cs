@@ -19,42 +19,24 @@ public class TestColorReductionImporter : AssetPostprocessor
 		importer.filterMode = FilterMode.Point; // 比較しやすくするためにポイント
 
 		var path = this.assetPath;
-		if (path.Contains("_4444.png")
-			|| path.Contains("_5650.png")
-			|| path.Contains("_4444D.png")
-			|| path.Contains("_5650D.png"))
-		{
-			importer.alphaIsTransparency = false; // 勝手にいじるな
-			// SetPlatformTextureSettingsした後に使い回して大丈夫かわからなので全部別インスタンスでやる
-			var settings = new TextureImporterPlatformSettings();
-			if (path.Contains("_5650.png") || path.Contains("_5650D"))
-			{
-				settings.format = TextureImporterFormat.RGB16;
-			}
-			else if (path.Contains("_4444.png") || path.Contains("_4444D.png"))
-			{
-				settings.format = TextureImporterFormat.ARGB16;
-			}
-			settings.overridden = true;
-			settings.maxTextureSize = importer.maxTextureSize;
-			SetPlatformSettingForIndex(importer, "Standalone", settings);
-			SetPlatformSettingForIndex(importer, "Android", settings);
-			SetPlatformSettingForIndex(importer, "iPhone", settings);
-			SetPlatformSettingForIndex(importer, "WebGL", settings);
-		}
-		else if (path.Contains(PathPattern4444)
-			|| path.Contains(PathPattern5650))
+		if (path.Contains(PathPattern4444)
+			|| path.Contains(PathPattern5650)
+			|| path.Contains(PathPattern4444D)
+			|| path.Contains(PathPattern5650D))
 		{
 			importer.alphaIsTransparency = false; // 勝手にいじられるのを避ける
 			importer.isReadable = true; // 読めないと何もできない
 			importer.textureCompression = TextureImporterCompression.Uncompressed;
+			importer.mipmapEnabled = false; // テスト用につき無効
 		}
 		else if (path.Contains(PathPattern4444Unity))
 		{
 			importer.alphaIsTransparency = false; // 勝手にいじるな
+			importer.mipmapEnabled = false; // テスト用につき無効
 			// SetPlatformTextureSettingsした後に使い回して大丈夫かわからなので全部別インスタンスでやる
 			var settings = new TextureImporterPlatformSettings();
 			settings.format = TextureImporterFormat.ARGB16;
+			settings.compressionQuality = 100;
 			settings.overridden = true;
 			settings.maxTextureSize = importer.maxTextureSize;
 			SetPlatformSettingForIndex(importer, "Standalone", settings);
@@ -75,13 +57,6 @@ public class TestColorReductionImporter : AssetPostprocessor
 	void OnPostprocessTexture(Texture2D texture)
 	{
 		var path = this.assetPath;
-		if (path.Contains("_4444.png")
-			|| path.Contains("_5650.png")
-			|| path.Contains("_4444D.png")
-			|| path.Contains("_5650D.png"))
-		{
-			return;
-		}
 		if (path.Contains(PathPattern4444))
 		{
 			CompressTo4444(texture, path, dither: false);
@@ -100,16 +75,15 @@ public class TestColorReductionImporter : AssetPostprocessor
 		}
 	}
 
-	void CompressTo4444(Texture2D srcTexture, string path, bool dither)
+	void CompressTo4444(Texture2D texture, string path, bool dither)
 	{
-		var pixels = srcTexture.GetPixels32();
-		var width = srcTexture.width;
-		var height = srcTexture.height;
+		var pixels = texture.GetPixels32();
+		var width = texture.width;
+		var height = texture.height;
 		string postfix;
 		if (dither)
 		{
 			ColorReductionUtil.FloydSteinberg(pixels, ColorReductionUtil.To4444, width, height);
-			postfix = "_4444D.png";
 		}
 		else
 		{
@@ -117,21 +91,20 @@ public class TestColorReductionImporter : AssetPostprocessor
 			{
 				pixels[i] = ColorReductionUtil.To4444(pixels[i]);
 			}
-			postfix = "_4444.png";
 		}
-		Save(pixels, width, height, (srcTexture.mipmapCount > 1), path, postfix);
+		texture.SetPixels32(pixels);
+		EditorUtility.CompressTexture(texture, TextureFormat.ARGB4444, quality: 100);
 	}
 
-	void CompressTo5650(Texture2D srcTexture, string path, bool dither)
+	void CompressTo5650(Texture2D texture, string path, bool dither)
 	{
-		var pixels = srcTexture.GetPixels32();
-		var width = srcTexture.width;
-		var height = srcTexture.height;
+		var pixels = texture.GetPixels32();
+		var width = texture.width;
+		var height = texture.height;
 		string postfix;
 		if (dither)
 		{
 			ColorReductionUtil.FloydSteinberg(pixels, ColorReductionUtil.To5650, width, height);
-			postfix = "_5650D.png";
 		}
 		else
 		{
@@ -139,26 +112,8 @@ public class TestColorReductionImporter : AssetPostprocessor
 			{
 				pixels[i] = ColorReductionUtil.To5650(pixels[i]);
 			}
-			postfix = "_5650.png";
 		}
-		Save(pixels, width, height, (srcTexture.mipmapCount > 1), path, postfix);
-	}
-
-	void Save(Color32[] pixels, int width, int height, bool hasMipmap, string originalPath, string postfix)
-	{
-		var dstTexture = new Texture2D(width, height, TextureFormat.RGBA32, hasMipmap);
-		dstTexture.SetPixels32(pixels);
-		if (hasMipmap)
-		{
-			dstTexture.Apply();
-		}
-		var lastPeriodPos = originalPath.LastIndexOf('.');
-		var outPathTrunk = originalPath.Substring(0, lastPeriodPos); // ピリオド以下を削除
-		var path = outPathTrunk + postfix;
-		var file = new FileStream(path, FileMode.Create, FileAccess.Write);
-		var pngImage = dstTexture.EncodeToPNG();
-		file.Write(pngImage, 0, pngImage.Length);
-		file.Close();
-		AssetDatabase.ImportAsset(path);
+		texture.SetPixels32(pixels);
+		EditorUtility.CompressTexture(texture, TextureFormat.RGB565, quality: 100);
 	}
 }
