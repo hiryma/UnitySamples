@@ -54,11 +54,16 @@
 
 			half3 yuvToRgb(half3 yuv)
 			{
-				yuv.yz -= (128.0 / 255.0);
+				const float yr = 0.299;
+				const float yb = 0.114;
+				const float uScale = 0.5 / (1.0 - yb);
+				const float vScale = 0.5 / (1.0 - yr);
+				const float yg = 1.0 - yr - yb;
+
 				half3 rgb;
-				rgb.r = yuv.x + (1.402 * yuv.z);
-				rgb.g = yuv.x - (0.344 * yuv.y) - (0.714 * yuv.z);
-				rgb.b = yuv.x + (1.772 * yuv.y);
+				rgb.b = ((yuv.g - 0.5) / uScale) + yuv.r;
+				rgb.r = ((yuv.b - 0.5) / vScale) + yuv.r;
+				rgb.g = (yuv.r - (yr * rgb.r) - (yb * rgb.b)) / yg;
 				return saturate(rgb);
 			}
 

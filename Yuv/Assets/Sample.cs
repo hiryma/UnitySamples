@@ -9,15 +9,6 @@ public class Sample : MonoBehaviour
 
 	void Start()
 	{
-for (int i = 0; i <= 255; i++)
-{
-	// [0,255] -> [0,3]
-	// i * 3 / 255 + 255/510
-	// ( i * 6 + 255 )/510
-	var r = (i * 6) + 255;
-//	r = Mathf.Clamp(r, 0, 31);
-Debug.LogWarning(i + " " + r + " " + r/510);
-}
 		_dragDetector.onDrag = (delta) =>
 		{
 			var pos = _rootTransform.anchoredPosition;
