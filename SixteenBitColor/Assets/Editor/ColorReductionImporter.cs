@@ -56,13 +56,15 @@ public class ColorReductionImporter : AssetPostprocessor
 		var format = (TextureFormat)int.MinValue; // 絶対不正値
 		if (hasAlpha)
 		{
-//			func = ColorReductionUtil.To1111;
+//			func = ColorReductionUtil.To1111; // デバグ用1bit化
+//			func = ColorReductionUtil.To3320; // デバグ用332bit化
 			func = ColorReductionUtil.To4444;
 			format = TextureFormat.ARGB4444;
 		}
 		else
 		{
-//			func = ColorReductionUtil.To1111;
+//			func = ColorReductionUtil.To1111; // デバグ用1bit化
+//			func = ColorReductionUtil.To3320; // デバグ用332bit化
 			func = ColorReductionUtil.To5650;
 			format = TextureFormat.RGB565;
 		}

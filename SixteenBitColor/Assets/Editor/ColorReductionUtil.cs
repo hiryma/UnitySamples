@@ -18,6 +18,18 @@ public static class ColorReductionUtil
 		return new Color32((byte)r, (byte)g, (byte)b, (byte)a);
 	}
 
+	// 実験用332。赤3bit、緑3bit、青2bitの計8bit!
+	public static Color32 To3320(Color32 x)
+	{
+		var r = ((x.r * 14) + 255) / 510;
+		var g = ((x.g * 14) + 255) / 510;
+		var b = ((x.b * 6) + 255) / 510;
+		r = (r << 5) | (r << 2) | (r >> 1);
+		g = (g << 5) | (g << 2) | (g >> 1);
+		b = (b << 6) | (b << 4) | (b << 2) | b;
+		return new Color32((byte)r, (byte)g, (byte)b, 0xff);
+	}
+
 	public static Color32 To4444(Color32 x)
 	{
 		var r = ((x.r * 30) + 255) / 510;
