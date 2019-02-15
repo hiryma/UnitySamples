@@ -12,7 +12,7 @@ namespace Kayac
 			_buffer = new string[lineCapacity];
 			_bufferPos = 0;
 			_tmpStringBuilder = new System.Text.StringBuilder();
-			Application.logMessageReceived += HandleLog;
+			Application.logMessageReceivedThreaded += HandleLog;
 		}
 
 		public void Dispose()
@@ -20,7 +20,7 @@ namespace Kayac
 			_buffer = null;
 			_bufferPos = 0;
 			_tmpStringBuilder = null;
-			Application.logMessageReceived -= HandleLog;
+			Application.logMessageReceivedThreaded -= HandleLog;
 		}
 
 		// 最新maxLines行を改行で連結して返す
@@ -78,11 +78,14 @@ namespace Kayac
 
 		void Add(string message)
 		{
-			_buffer[_bufferPos] = message;
-			_bufferPos++;
-			if (_bufferPos >= _buffer.Length)
+			lock (_buffer) // 別スレから来るのでロック
 			{
-				_bufferPos = 0;
+				_buffer[_bufferPos] = message;
+				_bufferPos++;
+				if (_bufferPos >= _buffer.Length)
+				{
+					_bufferPos = 0;
+				}
 			}
 		}
 

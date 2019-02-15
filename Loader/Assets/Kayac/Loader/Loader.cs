@@ -429,7 +429,6 @@ namespace Kayac
 			}
 		}
 
-
 		string _root;
 		Dictionary<string, AssetHandle> _loadingHandles;
 		Dictionary<string, AssetHandle> _completeHandles;
