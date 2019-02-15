@@ -7,11 +7,8 @@ namespace Kayac
 {
 	public class Loader
 	{
-		public class AssetHandle : IEnumerator
+		class AssetHandle
 		{
-			public bool MoveNext(){ return !isDone; }
-			public void Reset(){}
-			object IEnumerator.Current { get { return null; } }
 			public UnityEngine.Object asset{ get { return _asset; } }
 
 			public AssetHandle(AssetBundleHandle abHandle, string name, string dictionaryKey)
@@ -45,6 +42,21 @@ namespace Kayac
 				{
 					return false;
 				}
+			}
+
+			public void Dispose()
+			{
+				Debug.Assert(_referenceCount == 0, _dictionaryKey + " refCount is " + _referenceCount);
+				if (_abHandle != null)
+				{
+					_abHandle.DecrementReference();
+					_abHandle = null;
+				}
+				_req = null; // AssetBundle.Unloadで破棄するので、途中でも無視
+				_asset = null; //
+				_dictionaryKey = null;
+				ExecuteCallbacks(); // 残っているコールバックを実行して破棄
+				_callbacks = null;
 			}
 
 			public bool succeeded
@@ -91,9 +103,14 @@ namespace Kayac
 					return ret;
 				}
 			}
-			public void IncrementReference()
+			public void IncrementReferenceThreadSafe()
 			{
-				_referenceCount++;
+				System.Threading.Interlocked.Increment(ref _referenceCount);
+			}
+
+			public void DecrementReferenceThreadSafe()
+			{
+				System.Threading.Interlocked.Decrement(ref _referenceCount);
 			}
 			public void AddCallback(OnComplete callback)
 			{
@@ -111,11 +128,15 @@ namespace Kayac
 				}
 				for (int i = 0; i < _callbacks.Count; i++)
 				{
-					_callbacks[i](this);
+					_callbacks[i](_asset);
 				}
 				_callbacks.Clear();
 			}
-			public int referenceCount{ get{ return _referenceCount; } }
+			public int GetReferenceCountThreadSafe()
+			{
+				System.Threading.Interlocked.MemoryBarrier(); // 確実に現在値を読むためにバリア
+				return _referenceCount;
+			}
 			public AssetBundleHandle abHandle{ get{ return _abHandle; } }
 			public string dictionaryKey{ get{ return _dictionaryKey; } }
 			public int callbackCount{ get {return (_callbacks != null) ? _callbacks.Count : 0; } }
@@ -129,7 +150,7 @@ namespace Kayac
 			List<OnComplete> _callbacks;
 		}
 
-		public class AssetBundleHandle
+		class AssetBundleHandle
 		{
 			public AssetBundleHandle(string uri, CachedAssetBundle cachedAssetBundle, uint crc, string dictionaryKey)
 			{
@@ -214,7 +235,7 @@ namespace Kayac
 			string _dictionaryKey;
 		}
 
-		public delegate void OnComplete(AssetHandle handle);
+		public delegate void OnComplete(UnityEngine.Object asset);
 
 		public Loader(string root)
 		{
@@ -223,33 +244,24 @@ namespace Kayac
 			_loadingHandles = new Dictionary<string, AssetHandle>();
 			_completeHandles = new Dictionary<string, AssetHandle>();
 			_tmpHandleList = new List<AssetHandle>();
+			_unloadingAssetHandles = new List<AssetHandle>();
+			_lock = new object();
 		}
 
-		public void Unload(AssetHandle handle)
+		AssetHandle FindAssetHandleThreadSafe(string assetHandleDictionaryKey)
 		{
-			if (handle == null)
+			AssetHandle assetHandle = null;
+			lock (_lock)
 			{
-				return;
-			}
-			if (handle.referenceCount <= 0) // もうDisposeされている参照がどこかに残っていたケースなので無視
-			{
-				return;
-			}
-			var abHandle = handle.abHandle;
-			var handleDictionaryKey = handle.dictionaryKey;
-			if (handle.TryDispose())
-			{
-				_loadingHandles.Remove(handleDictionaryKey);
-				_completeHandles.Remove(handleDictionaryKey);
-				if (abHandle.referenceCount == 0)
+				if (!_completeHandles.TryGetValue(assetHandleDictionaryKey, out assetHandle))
 				{
-					_abHandles.Remove(abHandle.dictionaryKey);
-					abHandle.Dispose();
+					_loadingHandles.TryGetValue(assetHandleDictionaryKey, out assetHandle);
 				}
 			}
+			return assetHandle;
 		}
 
-		public AssetHandle Load(string path, OnComplete onComplete = null)
+		public LoadHandle Load(string path, OnComplete onComplete = null)
 		{
 			// TODO: 以下はデフォルト動作
 			var lastSlashPos = path.LastIndexOf('/');
@@ -257,47 +269,75 @@ namespace Kayac
 			var assetName = "Assets/Build/" + path; // TODO: これ渡せるようにしなきゃ
 
 			var uri = _root + abName;
+			var abHandleDictionaryKey = uri;
 			var cachedAssetBundle = new CachedAssetBundle();
 			cachedAssetBundle.hash = new Hash128(); // TODO:
 			cachedAssetBundle.name = abName; // TODO:
+			var assetHandleDictionaryKey = path;
 
-			AssetHandle handle = null;
-			// まず完了済みから探す
-			if (!_completeHandles.TryGetValue(path, out handle))
+			AssetHandle assetHandle = null;
+			lock (_lock)
 			{
-				// ロード中から探す
-				if (!_loadingHandles.TryGetValue(path, out handle))
+				// まず完了済みから探す
+				if (!_completeHandles.TryGetValue(assetHandleDictionaryKey, out assetHandle))
 				{
-					// ないのでハンドル生成が確定
-					AssetBundleHandle abHandle = null;
-					if (!_abHandles.TryGetValue(uri, out abHandle))
+					// ロード中から探す
+					if (!_loadingHandles.TryGetValue(assetHandleDictionaryKey, out assetHandle))
 					{
-						uint crc = 0;
-						abHandle = new AssetBundleHandle(uri, cachedAssetBundle, crc, uri);
-						_abHandles.Add(uri, abHandle);
+						// ないのでハンドル生成が確定
+						AssetBundleHandle abHandle = null;
+						if (!_abHandles.TryGetValue(abHandleDictionaryKey, out abHandle))
+						{
+							uint crc = 0;
+							abHandle = new AssetBundleHandle(uri, cachedAssetBundle, crc, uri);
+							_abHandles.Add(abHandleDictionaryKey, abHandle);
+						}
+						assetHandle = new AssetHandle(abHandle, assetName, path);
+						_loadingHandles.Add(assetHandleDictionaryKey, assetHandle);
 					}
-					handle = new AssetHandle(abHandle, assetName, path);
-					_loadingHandles.Add(path, handle);
 				}
 			}
 
 			if (onComplete != null)
 			{
-				if (handle.isDone)
+				if (assetHandle.isDone)
 				{
-					onComplete(handle);
+					onComplete(assetHandle.asset);
 				}
 				else
 				{
-					handle.AddCallback(onComplete);
+					assetHandle.AddCallback(onComplete);
 				}
 			}
-			handle.IncrementReference();
+			assetHandle.IncrementReferenceThreadSafe();
+
+			var handle = new LoadHandle(assetHandleDictionaryKey, this);
 			return handle;
 		}
 
 		public void Update()
 		{
+			// 破棄予定を破棄
+			for (int i = 0; i < _unloadingAssetHandles.Count; i++)
+			{
+				var assetHandle = _unloadingAssetHandles[i];
+				if (assetHandle.GetReferenceCountThreadSafe() == 0) // _unloadingAssetHandlesに入れた後にLoadで参照カウントが復活した場合は、スルー
+				{
+					var abHandle = assetHandle.abHandle;
+					var handleDictionaryKey = assetHandle.dictionaryKey;
+					_unloadingAssetHandles[i].Dispose();
+					_loadingHandles.Remove(handleDictionaryKey);
+					_completeHandles.Remove(handleDictionaryKey);
+					if (abHandle.referenceCount == 0)
+					{
+						_abHandles.Remove(abHandle.dictionaryKey);
+						abHandle.Dispose();
+					}
+				}
+			}
+			_unloadingAssetHandles.Clear();
+
+			// ロード状況更新
 			_tmpHandleList.Clear();
 			foreach (var handle in _loadingHandles.Values)
 			{
@@ -360,16 +400,42 @@ namespace Kayac
 					item.Key,
 					assetName,
 					handle.isDone ? "done" : "loading",
-					handle.referenceCount,
+					handle.GetReferenceCountThreadSafe(),
 					handle.callbackCount);
 				i++;
 			}
 		}
+
+		public void CheckLoadingThreadSafe(
+			out bool isDone,
+			out UnityEngine.Object asset,
+			string assetHandleDictionaryKey)
+		{
+			var assetHandle = FindAssetHandleThreadSafe(assetHandleDictionaryKey);
+			isDone = assetHandle.isDone;
+			asset = isDone ? assetHandle.asset : null;
+		}
+
+		public void UnloadThreadSafe(string assetHandleDictionaryKey)
+		{
+			var assetHandle = FindAssetHandleThreadSafe(assetHandleDictionaryKey);
+			assetHandle.DecrementReferenceThreadSafe();
+			lock (_lock)
+			{
+				if (assetHandle.GetReferenceCountThreadSafe() == 0)
+				{
+					_unloadingAssetHandles.Add(assetHandle);
+				}
+			}
+		}
+
 
 		string _root;
 		Dictionary<string, AssetHandle> _loadingHandles;
 		Dictionary<string, AssetHandle> _completeHandles;
 		Dictionary<string, AssetBundleHandle> _abHandles;
 		List<AssetHandle> _tmpHandleList; // loadingからcompleteに移す時に使うテンポラリ
+		List<AssetHandle> _unloadingAssetHandles;
+		object _lock;
 	}
 }

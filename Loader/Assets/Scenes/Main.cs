@@ -7,29 +7,40 @@ using UnityEngine;
 public class Main : MonoBehaviour
 {
 	[SerializeField]
-	UnityEngine.UI.Text[] _texts;
+	Transform _textRoot;
+	[SerializeField]
+	UnityEngine.UI.Text _textPrefab;
 	[SerializeField]
 	UnityEngine.UI.Text _dump;
 
+	UnityEngine.UI.Text[] _texts;
 	Kayac.Loader _loader;
-	const int HandleCount = 8;
-	Kayac.Loader.AssetHandle[] _handles;
+	const int HandleCount = 20;
+	Kayac.LoadHandle[] _handles;
 	System.IO.StreamWriter _log;
 
 	void Start()
 	{
 		var abRoot = "file:///" + Application.streamingAssetsPath + "/";
-		_handles = new Kayac.Loader.AssetHandle[HandleCount];
+		_handles = new Kayac.LoadHandle[HandleCount];
 		_loader = new Kayac.Loader(abRoot);
 		// ログファイルへ
 		_log = new System.IO.StreamWriter("log.txt");
-		Application.logMessageReceived += HandleLog;
+		_texts = new UnityEngine.UI.Text[HandleCount];
+		for (int i = 0; i < HandleCount; i++)
+		{
+			_texts[i] = Instantiate(_textPrefab, _textRoot, false);
+		}
+		Application.logMessageReceivedThreaded += HandleLog;
    	}
 
 	void HandleLog(string logString, string stackTrace, LogType type)
 	{
-		_log.WriteLine(logString);
-		_log.WriteLine(stackTrace);
+		lock (_log)
+		{
+			_log.WriteLine(logString);
+			_log.WriteLine(stackTrace);
+		}
 	}
 
 	void Update()
@@ -39,7 +50,6 @@ public class Main : MonoBehaviour
 		{
 			for (int i = 0; i < _handles.Length; i++)
 			{
-				_loader.Unload(_handles[i]);
 				_handles[i] = null;
 			}
 		}
@@ -51,12 +61,12 @@ public class Main : MonoBehaviour
 		}
 	}
 
-	void OnLoadComplete(Kayac.Loader.AssetHandle handle, int index)
+	void OnLoadComplete(UnityEngine.Object asset, int index)
 	{
-		var asset = handle.asset as TextAsset;
-		if (asset != null)
+		var textAsset = asset as TextAsset;
+		if (textAsset != null)
 		{
-			_texts[index].text = asset.text;
+			_texts[index].text = textAsset.text;
 		}
 	}
 
@@ -70,12 +80,11 @@ public class Main : MonoBehaviour
 			_texts[i].text = path + " loading...";
 
 #if USE_CALLBACK
-			_handles[i] = _loader.Load(path, (h) =>
+			_handles[i] = _loader.Load(path, asset =>
 			{
-				if (h.succeeded)
+				if (asset != null)
 				{
-					OnLoadComplete(h, i);
-					_handles[i] = h;
+					OnLoadComplete(asset, i);
 				}
 			});
 #elif USE_COROUTINE
@@ -103,7 +112,7 @@ public class Main : MonoBehaviour
 		}
 		if (_handles[i].succeeded)
 		{
-			OnLoadComplete(_handles[i], i);
+			OnLoadComplete(_handles[i].asset, i);
 		}
 	}
 }
