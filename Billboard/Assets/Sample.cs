@@ -21,6 +21,7 @@ public class Sample : MonoBehaviour
 	bool _rollEnabled;
 	bool _faceToCamera;
 	bool _randomArrangement;
+	bool _dolly = true;
 
 	void Start()
 	{
@@ -130,6 +131,7 @@ public class Sample : MonoBehaviour
 			_randomArrangement = newRandomArrangement;
 			ArrangeBillboards();
 		}
+		_dolly = GUILayout.Toggle(_dolly, "Dolly");
 
 	}
 
@@ -147,7 +149,10 @@ public class Sample : MonoBehaviour
 		}
 
 		_camera.transform.localRotation = Normalize(_cameraOrientation);
-		_camera.transform.localPosition = Transform(_cameraOrientation, new Vector3(0f, 0f, -1f));
+		if (_dolly)
+		{
+			_camera.transform.localPosition = Transform(_cameraOrientation, new Vector3(0f, 0f, -1f));
+		}
 	}
 
 	float SqNorm(Quaternion q)
