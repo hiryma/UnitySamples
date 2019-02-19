@@ -54,6 +54,7 @@
 
 			half3 yuvToRgb(half3 yuv)
 			{
+/*
 				const float yr = 0.299;
 				const float yb = 0.114;
 				const float uScale = 0.5 / (1.0 - yb);
@@ -64,6 +65,12 @@
 				rgb.b = ((yuv.g - 0.5) / uScale) + yuv.r;
 				rgb.r = ((yuv.b - 0.5) / vScale) + yuv.r;
 				rgb.g = (yuv.r - (yr * rgb.r) - (yb * rgb.b)) / yg;
+*/
+				// 以下の書き方の方が速いかもしれない。
+				half3 rgb;
+				rgb.r = yuv.r + (1.402 * yuv.b) - 0.701;
+				rgb.g = yuv.r - (0.344 * yuv.g) - (0.714 * yuv.b) + 0.529;
+				rgb.b = yuv.r + (1.772 * yuv.g) - 0.886;
 				return saturate(rgb);
 			}
 

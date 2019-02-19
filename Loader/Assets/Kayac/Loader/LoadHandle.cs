@@ -53,7 +53,6 @@ namespace Kayac
 			Dispose();
 		}
 
-
 		string _assetHandleDictionaryKey;
 		Loader _loader;
 		UnityEngine.Object _asset;

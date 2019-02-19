@@ -1,5 +1,8 @@
 ﻿#define USE_CALLBACK
 //#define USE_COROUTINE
+#if USE_CALLBACK
+#define USE_HANDLE_HOLDER
+#endif
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -15,43 +18,110 @@ public class Main : MonoBehaviour
 
 	UnityEngine.UI.Text[] _texts;
 	Kayac.Loader _loader;
-	const int HandleCount = 20;
+	const int HandleCount = 16;
+#if USE_HANDLE_HOLDER
+	GameObject _handleHolder;
+#else
 	Kayac.LoadHandle[] _handles;
-	System.IO.StreamWriter _log;
+#endif
+	Kayac.FileLogHandler _log;
+	bool _autoTest;
+
+	class AssetBundleDatabase : Kayac.Loader.IAssetBundleDatabase
+	{
+		public AssetBundleDatabase()
+		{
+			var manifestAssetBundle = AssetBundle.LoadFromFile(Application.streamingAssetsPath + "/StreamingAssets");
+			_manifest = manifestAssetBundle.LoadAsset<AssetBundleManifest>("AssetBundleManifest");
+		}
+
+		public void ParseIdentifier(
+			out string assetBundleName, // アセットバンドルのパス(Loaderに渡したrootからの相対)
+			out string assetName, // アセットのフルパス
+			string assetIdentifier)
+		{
+			var lastSlashPos = assetIdentifier.LastIndexOf('/');
+			assetBundleName = assetIdentifier.Substring(0, lastSlashPos);
+			assetName = "Assets/Build/" + assetIdentifier;
+		}
+		// キャッシュのファイル名から情報を得るコールバック(kuwata専用になるかもしれない)
+		public void GetStorageCacheMetaData(
+			out string assetBundleName,
+			out Hash128 hash,
+			out long lastAccessed,
+			string storageCachePath)
+		{
+			var separators = new string[1];
+			separators[0] = "___";
+			var fields = storageCachePath.Split(separators, 3, System.StringSplitOptions.None);
+			if (fields.Length == 3)
+			{
+				assetBundleName = fields[0];
+				hash = Hash128.Parse(fields[1]);
+				System.Int64.TryParse(fields[2], out lastAccessed);
+			}
+			else
+			{
+				assetBundleName = null;
+				hash = new Hash128();
+				lastAccessed = 0;
+			}
+		}
+		// アセットバンドル名+ハッシュ+最終アクセス時刻 → キャッシュフォルダ相対のパス
+		public string MakeStorageCachePath(
+			string assetBundleName,
+			ref Hash128 hash,
+			long lastAccessed)
+		{
+			return assetBundleName + "___" + hash.ToString() + "___" + lastAccessed;
+		}
+		// アセットバンドル名からhashとcrcを得る
+		public void GetAssetBundleMetaData(
+			out Hash128 hash,
+			out uint crc,
+			string assetBundleName)
+		{
+			hash = _manifest.GetAssetBundleHash(assetBundleName);
+			crc = 0;
+		}
+		AssetBundleManifest _manifest;
+	}
 
 	void Start()
 	{
-		var abRoot = "file:///" + Application.streamingAssetsPath + "/";
+		var database = new AssetBundleDatabase();
+
+		var downloadRoot = "file:///" + Application.streamingAssetsPath + "/";
+#if !USE_HANDLE_HOLDER
 		_handles = new Kayac.LoadHandle[HandleCount];
-		_loader = new Kayac.Loader(abRoot);
+#endif
+
+#if UNITY_EDITOR || UNITY_STANDALONE_OSX
+		var storageCacheRoot = Application.dataPath + "/..";
+#elif UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX
+		var storageCacheRoot = Application.dataPath;
+#else
+		var storageCacheRoot = Application.persistentDataPath;
+#endif
+		storageCacheRoot += "/AssetBundleCache/";
+		_loader = new Kayac.Loader(
+			downloadRoot,
+			storageCacheRoot,
+			database);
 		// ログファイルへ
-		_log = new System.IO.StreamWriter("log.txt");
+		_log = new Kayac.FileLogHandler("log.txt");
 		_texts = new UnityEngine.UI.Text[HandleCount];
 		for (int i = 0; i < HandleCount; i++)
 		{
 			_texts[i] = Instantiate(_textPrefab, _textRoot, false);
 		}
-		Application.logMessageReceivedThreaded += HandleLog;
-   	}
-
-	void HandleLog(string logString, string stackTrace, LogType type)
-	{
-		lock (_log)
-		{
-			_log.WriteLine(logString);
-			_log.WriteLine(stackTrace);
-		}
 	}
 
 	void Update()
 	{
-		if (UnityEngine.Random.Range(0, 100) < 10) // 1/100でまっさらに
-//		if (Input.anyKeyDown)
+		if (Input.GetKeyDown(KeyCode.F1))
 		{
-			for (int i = 0; i < _handles.Length; i++)
-			{
-				_handles[i] = null;
-			}
+			_autoTest = !_autoTest;
 		}
 
 		_loader.Update();
@@ -59,6 +129,63 @@ public class Main : MonoBehaviour
 		{
 			Update(i);
 		}
+
+		if (_autoTest)
+		{
+			if (UnityEngine.Random.Range(0f, 1f) < 0.01f)
+			{
+//				OnClickClearStorageCacheButton();
+			}
+			if (UnityEngine.Random.Range(0f, 1f) < 0.01f)
+			{
+//				OnClickForceUnloadAllButton();
+			}
+			if (UnityEngine.Random.Range(0f, 1f) < 0.01f)
+			{
+				OnClickPrefetchButton();
+			}
+			if (UnityEngine.Random.Range(0f, 1f) < 0.1f)
+			{
+				Release();
+			}
+		}
+	}
+
+	public void Release()
+	{
+#if USE_HANDLE_HOLDER
+			Destroy(_handleHolder);
+#else
+			for (int i = 0; i < _handles.Length; i++)
+			{
+				_handles[i] = null;
+			}
+#endif
+	}
+
+	public void OnClickPrefetchButton()
+	{
+		for (int i = 0; i < HandleCount; i++)
+		{
+			var path = MakeRandomAssetName();
+			_loader.DownloadToStorageCache(path);
+		}
+	}
+
+	public void OnClickClearStorageCacheButton()
+	{
+		var t0 = Time.realtimeSinceStartup;
+		bool result = _loader.ClearStorageCache();
+		var t1 = Time.realtimeSinceStartup;
+		Debug.Log("ClearCache : " + result + " " + (t1 - t0));
+	}
+
+	public void OnClickForceUnloadAllButton()
+	{
+		var t0 = Time.realtimeSinceStartup;
+		_loader.ForceUnloadAll();
+		var t1 = Time.realtimeSinceStartup;
+		Debug.Log("ForceUnloadAll : " + (t1 - t0));
 	}
 
 	void OnLoadComplete(UnityEngine.Object asset, int index)
@@ -66,20 +193,49 @@ public class Main : MonoBehaviour
 		var textAsset = asset as TextAsset;
 		if (textAsset != null)
 		{
-			_texts[index].text = textAsset.text;
+			_texts[index].text = textAsset.name + " size: " + textAsset.bytes.Length;
 		}
+		else
+		{
+			Debug.LogError("asset is null. " + index);
+		}
+	}
+
+	string MakeRandomAssetName()
+	{
+		int ab = UnityEngine.Random.Range(0, 1000);
+		int file = UnityEngine.Random.Range(0, 10);
+		var path = string.Format("{0}/{1}.txt", ab, file);
+		return path;
 	}
 
 	void Update(int i)
 	{
+#if USE_HANDLE_HOLDER
+		if ((_handleHolder == null) || (_handleHolder.GetComponent<Kayac.LoadHandleHolder>().handleCount < HandleCount))
+#else
 		if (_handles[i] == null)
+#endif
 		{
-			int ab = UnityEngine.Random.Range(0, 10);
-			int file = UnityEngine.Random.Range(0, 10);
-			var path = string.Format("{0}/{1}.txt", ab, file);
+			var path = MakeRandomAssetName();
 			_texts[i].text = path + " loading...";
 
 #if USE_CALLBACK
+#if USE_HANDLE_HOLDER
+			if (_handleHolder == null)
+			{
+				_handleHolder = new GameObject("HandleHolder");
+				_handleHolder.transform.SetParent(gameObject.transform, false);
+			}
+			_loader.Load(path, asset =>
+			{
+				if (asset != null)
+				{
+					OnLoadComplete(asset, i);
+				}
+			},
+			_handleHolder);
+#else
 			_handles[i] = _loader.Load(path, asset =>
 			{
 				if (asset != null)
@@ -87,6 +243,8 @@ public class Main : MonoBehaviour
 					OnLoadComplete(asset, i);
 				}
 			});
+
+#endif
 #elif USE_COROUTINE
 			StartCoroutine(CoLoad(i, path));
 #else
@@ -103,6 +261,7 @@ public class Main : MonoBehaviour
 		_dump.text = _loader.Dump();
 	}
 
+#if USE_COROUTINE
 	IEnumerator CoLoad(int i, string path)
 	{
 		_handles[i] = _loader.Load(path);
@@ -115,4 +274,5 @@ public class Main : MonoBehaviour
 			OnLoadComplete(_handles[i].asset, i);
 		}
 	}
+#endif
 }
