@@ -44,37 +44,7 @@ public class Main : MonoBehaviour
 			assetBundleName = assetIdentifier.Substring(0, lastSlashPos);
 			assetName = "Assets/Build/" + assetIdentifier;
 		}
-		// キャッシュのファイル名から情報を得るコールバック(kuwata専用になるかもしれない)
-		public void GetStorageCacheMetaData(
-			out string assetBundleName,
-			out Hash128 hash,
-			out long lastAccessed,
-			string storageCachePath)
-		{
-			var separators = new string[1];
-			separators[0] = "___";
-			var fields = storageCachePath.Split(separators, 3, System.StringSplitOptions.None);
-			if (fields.Length == 3)
-			{
-				assetBundleName = fields[0];
-				hash = Hash128.Parse(fields[1]);
-				System.Int64.TryParse(fields[2], out lastAccessed);
-			}
-			else
-			{
-				assetBundleName = null;
-				hash = new Hash128();
-				lastAccessed = 0;
-			}
-		}
-		// アセットバンドル名+ハッシュ+最終アクセス時刻 → キャッシュフォルダ相対のパス
-		public string MakeStorageCachePath(
-			string assetBundleName,
-			ref Hash128 hash,
-			long lastAccessed)
-		{
-			return assetBundleName + "___" + hash.ToString() + "___" + lastAccessed;
-		}
+
 		// アセットバンドル名からhashとcrcを得る
 		public void GetAssetBundleMetaData(
 			out Hash128 hash,
@@ -104,10 +74,7 @@ public class Main : MonoBehaviour
 		var storageCacheRoot = Application.persistentDataPath;
 #endif
 		storageCacheRoot += "/AssetBundleCache/";
-		_loader = new Kayac.Loader(
-			downloadRoot,
-			storageCacheRoot,
-			database);
+		_loader = new Kayac.Loader(downloadRoot, database);
 		// ログファイルへ
 		_log = new Kayac.FileLogHandler("log.txt");
 		_texts = new UnityEngine.UI.Text[HandleCount];
@@ -134,15 +101,7 @@ public class Main : MonoBehaviour
 		{
 			if (UnityEngine.Random.Range(0f, 1f) < 0.01f)
 			{
-//				OnClickClearStorageCacheButton();
-			}
-			if (UnityEngine.Random.Range(0f, 1f) < 0.01f)
-			{
-//				OnClickForceUnloadAllButton();
-			}
-			if (UnityEngine.Random.Range(0f, 1f) < 0.01f)
-			{
-				OnClickPrefetchButton();
+				OnClickClearStorageCacheButton();
 			}
 			if (UnityEngine.Random.Range(0f, 1f) < 0.1f)
 			{
@@ -163,29 +122,12 @@ public class Main : MonoBehaviour
 #endif
 	}
 
-	public void OnClickPrefetchButton()
-	{
-		for (int i = 0; i < HandleCount; i++)
-		{
-			var path = MakeRandomAssetName();
-			_loader.DownloadToStorageCache(path);
-		}
-	}
-
 	public void OnClickClearStorageCacheButton()
 	{
 		var t0 = Time.realtimeSinceStartup;
 		bool result = _loader.ClearStorageCache();
 		var t1 = Time.realtimeSinceStartup;
 		Debug.Log("ClearCache : " + result + " " + (t1 - t0));
-	}
-
-	public void OnClickForceUnloadAllButton()
-	{
-		var t0 = Time.realtimeSinceStartup;
-		_loader.ForceUnloadAll();
-		var t1 = Time.realtimeSinceStartup;
-		Debug.Log("ForceUnloadAll : " + (t1 - t0));
 	}
 
 	void OnLoadComplete(UnityEngine.Object asset, int index)
