@@ -194,6 +194,7 @@ namespace Kayac
 
 		public string Dump()
 		{
+			UnityEngine.Profiling.Profiler.BeginSample("Kayac.Loader.Dump");
 			if (_stringBuilderForDump == null)
 			{
 				_stringBuilderForDump = new System.Text.StringBuilder();
@@ -211,7 +212,7 @@ namespace Kayac
 				{
 					abName = ab.name;
 				}
-				sb.AppendFormat("{0}: {1} {2} {3} {4} ref:{5}\n",
+				sb.AppendFormat("{0}: {1} {2} {3} ref:{4}\n",
 					i,
 					item.Key,
 					abName,
@@ -223,11 +224,14 @@ namespace Kayac
 			DumpAssets(sb, _loadingHandles);
 			sb.AppendFormat("[LoadedAssets {0}]\n", _completeHandles.Count);
 			DumpAssets(sb, _completeHandles);
-			return sb.ToString();
+			var ret = sb.ToString();
+			UnityEngine.Profiling.Profiler.EndSample();
+			return ret;
 		}
 
 		void DumpAssets(System.Text.StringBuilder sb, Dictionary<string, AssetHandle> handles)
 		{
+			UnityEngine.Profiling.Profiler.BeginSample("Kayac.Loader.DumpAsset");
 			int i = 0;
 			foreach (var item in handles)
 			{
@@ -247,6 +251,7 @@ namespace Kayac
 					handle.callbackCount);
 				i++;
 			}
+			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
 		// 成功すればtrueを返す。一つでもメモリ内にAssetが存在していれば失敗する

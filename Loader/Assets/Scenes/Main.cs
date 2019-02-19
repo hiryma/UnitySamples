@@ -18,6 +18,9 @@ public class Main : MonoBehaviour
 
 	UnityEngine.UI.Text[] _texts;
 	Kayac.Loader _loader;
+
+	const int AbCount = 10;
+	const int FilesPerAb = 10;
 	const int HandleCount = 16;
 #if USE_HANDLE_HOLDER
 	GameObject _handleHolder;
@@ -66,14 +69,6 @@ public class Main : MonoBehaviour
 		_handles = new Kayac.LoadHandle[HandleCount];
 #endif
 
-#if UNITY_EDITOR || UNITY_STANDALONE_OSX
-		var storageCacheRoot = Application.dataPath + "/..";
-#elif UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX
-		var storageCacheRoot = Application.dataPath;
-#else
-		var storageCacheRoot = Application.persistentDataPath;
-#endif
-		storageCacheRoot += "/AssetBundleCache/";
 		_loader = new Kayac.Loader(downloadRoot, database);
 		// ログファイルへ
 		_log = new Kayac.FileLogHandler("log.txt");
@@ -145,8 +140,8 @@ public class Main : MonoBehaviour
 
 	string MakeRandomAssetName()
 	{
-		int ab = UnityEngine.Random.Range(0, 1000);
-		int file = UnityEngine.Random.Range(0, 10);
+		int ab = UnityEngine.Random.Range(0, AbCount);
+		int file = UnityEngine.Random.Range(0, FilesPerAb);
 		var path = string.Format("{0}/{1}.txt", ab, file);
 		return path;
 	}
