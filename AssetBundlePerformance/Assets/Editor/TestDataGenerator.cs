@@ -5,7 +5,9 @@ using UnityEditor;
 
 public class TestDataGenerator
 {
-	const int AbCount = 100;
+	const int AbCount = 1000;
+	const int AverageSize = 4 * 1024;
+	const float LogSigma = 3f;
 	[MenuItem("Test/GenerateData")]
 	static void GenerateData()
 	{
@@ -15,7 +17,7 @@ public class TestDataGenerator
 		{
 			var assetPath = "AssetBundleSource/" + i + ".txt";
 			var filePath = root + "/" + assetPath;
-			int size = GenerateExponentiallyDistributedNumber() * 100;
+			int size = GetRandomFilesize(AverageSize, LogSigma);
 			GenerateRandomContentFile(filePath, size);
 		}
 		AssetDatabase.Refresh();
@@ -50,13 +52,25 @@ public class TestDataGenerator
 			EditorUserBuildSettings.activeBuildTarget);
 	}
 
-	static int GenerateExponentiallyDistributedNumber() // 汎用化を今はあきらめた
+	static float GenerateNormalDistribution(float average, float sigma)
 	{
-		float min = Mathf.Log(4096f);
-		float max = Mathf.Log(3f * 1024f * 1024f);
-		var x = UnityEngine.Random.Range(0f, 1f);
-		var y = Mathf.Exp(min + (Mathf.Pow(x, 12f) * (max - min)));
-		return Mathf.CeilToInt(y);
+		float r0 = UnityEngine.Random.Range(0f, 1f);
+		float r1 = UnityEngine.Random.Range(0f, 1f);
+		float z = Mathf.Sqrt(-2f * Mathf.Log(r0)) * Mathf.Sin(2f * Mathf.PI * r1);
+		return average + (sigma * z);
+	}
+
+	static int GetRandomFilesize(int average, float logSigma)
+	{
+		float x = GenerateNormalDistribution(
+			Mathf.Log((float)average),
+			logSigma);
+		x = Mathf.Exp(x);
+		if (x >= (float)int.MaxValue)
+		{
+			x = (float)int.MaxValue;
+		}
+		return Mathf.CeilToInt(x);
 	}
 
 	static void GenerateRandomContentFile(string path, int size)

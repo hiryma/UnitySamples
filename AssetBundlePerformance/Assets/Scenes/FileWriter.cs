@@ -2,121 +2,202 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
-
-// TODO: ファイル開ける所その他も非同期化したければスレッドも検討せよ
-// サンプル用なので、書き込みで止めなければ良しよする
+using System.Threading;
 
 namespace Kayac
 {
-	public class FileWriter
+	public class FileWriter : System.IDisposable
 	{
-		public const int DefaultCapacity = 16 * 1024 * 1024;
-		// 第二引数は最大でキューに溜められるバイト数
-		public FileWriter(string root, int capacity = DefaultCapacity)
+		public class Handle
+		{
+			public Handle(string path)
+			{
+				this.path = path;
+			}
+			public string path { get; private set; }
+
+			public bool done
+			{
+				get
+				{
+					Thread.MemoryBarrier(); // 複数スレッドアクセスにつきバリア
+					return _done;
+				}
+			}
+
+			protected bool _done; // スレッドセーフである必要あり
+		}
+
+		public FileWriter(string root)
 		{
 			_requests = new Queue<Request>();
-			_capacity = capacity;
 			_root = root;
 			if (!_root.EndsWith("/"))
 			{
 				_root += '/';
 			}
+			_semaphore = new Semaphore(0, int.MaxValue);
+			_thread = new Thread(ThreadFunc);
+			_thread.Start();
 		}
 
-		public bool TryWrite(string path, byte[] data, int offset = 0, int length = int.MinValue)
+		public void Dispose()
 		{
-			TryEndWrite();
+			Enqueue(null, null, 0, 0);
+			_thread.Join();
+		}
+
+		public Handle Begin(string path)
+		{
+			Debug.Assert(path != null);
+			Debug.Assert(!path.Contains("/../"));
+			var handle = new HandleImpl(path);
+			Enqueue(handle, null, 0, 0);
+			return handle;
+		}
+
+		public void Write(Handle handle, byte[] data, int offset, int length)
+		{
+			Debug.Assert(handle != null);
+			Debug.Assert(!handle.done);
+			Debug.Assert(data != null);
 			if (length < 0) // 全量
 			{
 				length = data.Length - offset;
 			}
+			Enqueue(handle, data, offset, length);
+		}
 
-			if (_asyncResult == null)
+		public void End(Handle handle)
+		{
+			Debug.Assert(handle != null);
+			Debug.Assert(!handle.done);
+			Enqueue(handle, null, 0, 0);
+		}
+
+		public int queuedCount
+		{
+			get
 			{
-				_lengthInQueue += length;
-				BeginWrite(path, data, offset, length);
+				var ret = 0;
+				lock (_requests)
+				{
+					ret = _requests.Count;
+				}
+				return ret;
 			}
-			else if ((_lengthInQueue + length) > _capacity) // キューが空でない場合、容量チェック
+		}
+		public int restBytes
+		{
+			get
 			{
-				return false;
+				Thread.MemoryBarrier();
+				return _restBytes;
 			}
-			else
+		}
+
+		void Enqueue(Handle handle, byte[] data, int offset, int length)
+		{
+			Request req;
+			req.handle = handle as HandleImpl;
+			Debug.Assert(req.handle != null); // ありえない
+			req.data = data;
+			req.offset = offset;
+			req.length = length;
+			lock (_requests)
 			{
-				Request req;
-				req.path = path;
-				req.data = data;
-				req.offset = offset;
-				req.length = length;
+				Interlocked.Add(ref _restBytes, length);
 				_requests.Enqueue(req);
-				_lengthInQueue += length;
 			}
-			return true;
+			_semaphore.Release();
 		}
 
-		public void Update()
+		void ThreadFunc()
 		{
-			TryEndWrite();
-			if (_asyncResult == null)
+			Request req;
+			while (true)
 			{
-				if (_requests.Count > 0)
+				_semaphore.WaitOne();
+				lock (_requests)
 				{
-					var req = _requests.Dequeue();
-					BeginWrite(req.path, req.data, req.offset, req.length);
+					Debug.Assert(_requests.Count > 0);
+					req = _requests.Dequeue();
 				}
-			}
-		}
-
-		public int queuedCount{ get{ return _requests.Count; } }
-		public int lengthInQUeue{ get{ return _lengthInQueue; } }
-
-		void BeginWrite(string path, byte[] data, int offset, int length)
-		{
-			try
-			{
-				Debug.Assert(_file == null);
-				Debug.Assert(_asyncResult == null);
-				Debug.Assert(_writingLength == 0);
-				_writingLength = length;
-				_file = new FileStream(_root + path, FileMode.Create, FileAccess.Write);
-				_asyncResult = _file.BeginWrite(data, offset, length, null, null);
-			}
-			catch (System.Exception e)
-			{
-				Debug.LogException(e);
-			}
-		}
-
-		void TryEndWrite()
-		{
-			if (_asyncResult != null)
-			{
-				if (_asyncResult.IsCompleted)
+				if (req.handle == null) // dummy job
 				{
-					Debug.Assert(_file != null);
-					_file.EndWrite(_asyncResult);
-					_asyncResult = null;
-					_file.Close();
-					_file = null;
-					_lengthInQueue -= _writingLength;
-					_writingLength = 0;
+					break;
 				}
+				req.Execute(_root, ref _restBytes);
 			}
 		}
 
 		struct Request
 		{
-			public string path;
+			public void Execute(string root, ref int restBytesRef)
+			{
+				try
+				{
+					if (handle.done) // もう終わってるのに来てるのは不正
+					{
+						Debug.Assert(false);
+					}
+					else if (!handle.opened) // 開いてない。開ける要求と解釈する
+					{
+						handle.Open(root);
+					}
+					else if (data == null) // 書き込むものがない。閉じる要求と解釈する
+					{
+						handle.Close();
+					}
+					else // 開いていて書きこむ
+					{
+						handle.Write(data, offset, length);
+						Interlocked.Add(ref restBytesRef, -length);
+					}
+				}
+				catch (System.Exception e)
+				{
+					handle.Close(); // 何かしくじったら閉じて終わらせる TODO: 真面目なエラー処理
+					Debug.LogException(e);
+				}
+			}
+			public HandleImpl handle;
 			public byte[] data;
 			public int offset;
 			public int length;
 		}
 
-		Queue<Request> _requests;
-		System.IAsyncResult _asyncResult;
-		FileStream _file;
+		class HandleImpl : Handle
+		{
+			public HandleImpl(string path) : base(path){}
+			public void Open(string root)
+			{
+				_file = new FileStream(root + this.path, FileMode.Create, FileAccess.Write);
+			}
+
+			public void Close()
+			{
+				if (_file != null)
+				{
+					_file.Close();
+				}
+				_done = true;
+			}
+
+			public void Write(byte[] data, int offset, int length)
+			{
+				_file.Write(data, offset, length);
+			}
+
+			public bool opened { get { return _file != null; } }
+
+			FileStream _file; // ロードスレッドからしか触らない
+		}
+
+		Thread _thread;
+		Queue<Request> _requests; // スレッドセーフの必要性
+		Semaphore _semaphore;
 		string _root;
-		int _capacity;
-		int _lengthInQueue;
-		int _writingLength;
+		int _restBytes; // Interlockedで保護
 	}
 }

@@ -200,7 +200,7 @@ namespace Kayac
 				_stringBuilderForDump = new System.Text.StringBuilder();
 			}
 			var sb = _stringBuilderForDump;
-			sb.Clear();
+			sb.Length = 0;
 			sb.AppendLine("[AssetBundles]");
 			int i = 0;
 			foreach (var item in _abHandles)
@@ -426,7 +426,7 @@ namespace Kayac
 
 			public int GetReferenceCountThreadSafe()
 			{
-				System.Threading.Interlocked.MemoryBarrier(); // 確実に現在値を読むためにバリア
+				System.Threading.Thread.MemoryBarrier(); // 確実に現在値を読むためにバリア
 				return _referenceCount;
 			}
 			public AssetBundleHandle abHandle { get; private set; }
@@ -492,7 +492,11 @@ namespace Kayac
 				}
 				else if (Caching.ready)
 				{
+#if UNITY_2018_3_OR_NEWER
 					_webRequest = UnityWebRequestAssetBundle.GetAssetBundle(_path, _cachedAssetBundle, _crc);
+#else
+					_webRequest = UnityWebRequest.GetAssetBundle(_path, _cachedAssetBundle, _crc);
+#endif
 					_webRequest.SendWebRequest();
 				}
 			}
