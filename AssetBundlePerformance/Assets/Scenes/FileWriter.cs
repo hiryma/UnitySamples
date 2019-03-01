@@ -28,14 +28,16 @@ namespace Kayac
 			protected bool _done; // スレッドセーフである必要あり
 		}
 
-		public FileWriter(string root)
+		public FileWriter(string root, int bufferSize)
 		{
-			_requests = new Queue<Request>();
 			_root = root;
 			if (!_root.EndsWith("/"))
 			{
 				_root += '/';
 			}
+			_buffer = new byte[bufferSize];
+			_writePos = _readPos = 0;
+			_requestQueue = new Queue<Request>();
 			_semaphore = new Semaphore(0, int.MaxValue);
 			_thread = new Thread(ThreadFunc);
 			_thread.Start();
@@ -43,7 +45,7 @@ namespace Kayac
 
 		public void Dispose()
 		{
-			Enqueue(null, null, 0, 0);
+			Enqueue(null, 0, 0);
 			_thread.Join();
 		}
 
@@ -52,62 +54,83 @@ namespace Kayac
 			Debug.Assert(path != null);
 			Debug.Assert(!path.Contains("/../"));
 			var handle = new HandleImpl(path);
-			Enqueue(handle, null, 0, 0);
+			Enqueue(handle, 0, 0);
 			return handle;
 		}
 
-		public void Write(Handle handle, byte[] data, int offset, int length)
+		/// 書きこみに成功したサイズを引数に返す。dataからのコピーは済んでいるので好きに書き換えて良い
+		public void Write(out int writtenLength, Handle handle, byte[] data, int srcOffset, int length)
 		{
 			Debug.Assert(handle != null);
 			Debug.Assert(!handle.done);
 			Debug.Assert(data != null);
-			if (length < 0) // 全量
+			// コピーする範囲を決定。
+			Thread.MemoryBarrier(); // 別のスレッドから書き込まれている可能性があることを明示。合ってるかは不明。
+			int wp = _writePos;
+			int rp = _readPos; // この後で別スレッドからrpが進められてもかまわない。書く量が減るだけで誤作動はしない。
+			int maxLength = rp - wp - 1; // 最大書き込めるのはこれだけ。readに並ぶ1バイト前まで
+			if (maxLength < 0) //r < wの場合一周追加
 			{
-				length = data.Length - offset;
+				maxLength += _buffer.Length;
 			}
-			Enqueue(handle, data, offset, length);
+			writtenLength = Mathf.Min(maxLength, length);
+			if (writtenLength > 0)
+			{
+				int length0 = Mathf.Min(_buffer.Length - wp, writtenLength);
+				var dstOffset = wp;
+				// コピー
+				if (length0 > 0)
+				{
+					System.Buffer.BlockCopy(data, srcOffset, _buffer, dstOffset, length0);
+					int length1 = writtenLength - length0;
+					if (length1 > 0)
+					{
+						System.Buffer.BlockCopy(data, srcOffset + length0, _buffer, 0, length1);
+					}
+				}
+
+				// コピー完了後にポインタ移動
+				wp += writtenLength;
+				if (wp >= _buffer.Length)
+				{
+					wp -= _buffer.Length;
+				}
+				Interlocked.Exchange(ref _writePos, wp);
+				Enqueue(handle, dstOffset, writtenLength);
+			}
 		}
 
 		public void End(Handle handle)
 		{
 			Debug.Assert(handle != null);
 			Debug.Assert(!handle.done);
-			Enqueue(handle, null, 0, 0);
+			Enqueue(handle, 0, 0);
 		}
 
-		public int queuedCount
-		{
-			get
-			{
-				var ret = 0;
-				lock (_requests)
-				{
-					ret = _requests.Count;
-				}
-				return ret;
-			}
-		}
 		public int restBytes
 		{
 			get
 			{
-				Thread.MemoryBarrier();
-				return _restBytes;
+				int ret = 0;
+				Thread.MemoryBarrier(); // メモリから読みたい
+				ret = _writePos - _readPos;
+				if (ret < 0)
+				{
+					ret += _buffer.Length;
+				}
+				return ret;
 			}
 		}
 
-		void Enqueue(Handle handle, byte[] data, int offset, int length)
+		void Enqueue(Handle handle, int offset, int length)
 		{
 			Request req;
 			req.handle = handle as HandleImpl;
-			Debug.Assert(req.handle != null); // ありえない
-			req.data = data;
 			req.offset = offset;
 			req.length = length;
-			lock (_requests)
+			lock (_thread) // ロック消したい
 			{
-				Interlocked.Add(ref _restBytes, length);
-				_requests.Enqueue(req);
+				_requestQueue.Enqueue(req);
 			}
 			_semaphore.Release();
 		}
@@ -117,52 +140,65 @@ namespace Kayac
 			Request req;
 			while (true)
 			{
-				_semaphore.WaitOne();
-				lock (_requests)
+				_semaphore.WaitOne(); // 何か投入されるまで待つ
+				lock (_thread)
 				{
-					Debug.Assert(_requests.Count > 0);
-					req = _requests.Dequeue();
+					req = _requestQueue.Dequeue();
 				}
-				if (req.handle == null) // dummy job
+				if (req.handle == null) // ダミージョブにつき抜ける
 				{
 					break;
 				}
-				req.Execute(_root, ref _restBytes);
+				Execute(ref req);
+			}
+		}
+
+		void Execute(ref Request req)
+		{
+			HandleImpl handle = req.handle;
+			try
+			{
+				if (handle.done) // もう終わってるのに来てるのは不正
+				{
+					Debug.Assert(false);
+				}
+				else if (!handle.opened) // 開いてない。開ける要求と解釈する
+				{
+					handle.Open(_root);
+				}
+				else if (req.length == 0) // 書き込むものがない。閉じる要求と解釈する
+				{
+					handle.Close();
+				}
+				else // 開いていて書きこむ
+				{
+					int length0 = Mathf.Min(_buffer.Length - req.offset, req.length);
+					handle.Write(_buffer, req.offset, length0);
+					int length1 = req.length - length0;
+					if (length1 > 0)
+					{
+						handle.Write(_buffer, 0, length1);
+					}
+					int rp = _readPos;
+					rp += req.length;
+					if (rp >= _buffer.Length)
+					{
+						rp -= _buffer.Length;
+					}
+					Interlocked.Exchange(ref _readPos, rp);
+//Debug.Log("Read: " + req.handle.path + " " + _buffer.Length + " " + _writePos + " " + _readPos + " " + req.offset + " " + req.length + " -> " + length0 + " " + length1);
+				}
+			}
+			catch (System.Exception e)
+			{
+				handle.Close(); // 何かしくじったら閉じて終わらせる TODO: 真面目なエラー処理
+				Debug.LogException(e);
 			}
 		}
 
 		struct Request
 		{
-			public void Execute(string root, ref int restBytesRef)
-			{
-				try
-				{
-					if (handle.done) // もう終わってるのに来てるのは不正
-					{
-						Debug.Assert(false);
-					}
-					else if (!handle.opened) // 開いてない。開ける要求と解釈する
-					{
-						handle.Open(root);
-					}
-					else if (data == null) // 書き込むものがない。閉じる要求と解釈する
-					{
-						handle.Close();
-					}
-					else // 開いていて書きこむ
-					{
-						handle.Write(data, offset, length);
-						Interlocked.Add(ref restBytesRef, -length);
-					}
-				}
-				catch (System.Exception e)
-				{
-					handle.Close(); // 何かしくじったら閉じて終わらせる TODO: 真面目なエラー処理
-					Debug.LogException(e);
-				}
-			}
 			public HandleImpl handle;
-			public byte[] data;
 			public int offset;
 			public int length;
 		}
@@ -190,14 +226,15 @@ namespace Kayac
 			}
 
 			public bool opened { get { return _file != null; } }
-
 			FileStream _file; // ロードスレッドからしか触らない
 		}
 
 		Thread _thread;
-		Queue<Request> _requests; // スレッドセーフの必要性
 		Semaphore _semaphore;
 		string _root;
-		int _restBytes; // Interlockedで保護
+		Queue<Request> _requestQueue; // スレッドセーフ必要
+		byte[] _buffer;
+		int _writePos; // ユーザが次に書きこむ位置(バッファから見てwrite)
+		int _readPos; // 次に読み出してファイルに送る位置(バッファから見てread)
 	}
 }

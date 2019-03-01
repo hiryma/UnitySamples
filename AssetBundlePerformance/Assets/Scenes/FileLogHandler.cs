@@ -22,15 +22,20 @@ namespace Kayac
 
 		public void Write(string logString)
 		{
-			var message = Time.frameCount + "\t" + DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + logString;
+			var message = _frameCountCopy + "\t" + DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + logString;
 			_writer.WriteLine(message);
 			_writer.Flush();
+		}
+
+		public void Update()
+		{
+			_frameCountCopy = Time.frameCount;
 		}
 
 		// ---- 以下private ----
 		void HandleLog(string logString, string stackTrace, LogType type)
 		{
-			var message = Time.frameCount + "\t" + DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + type.ToString() + " : " + logString;
+			var message = _frameCountCopy + "\t" + DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + type.ToString() + " : " + logString;
 			// コールスタックはError系でだけ吐くことにする。設定可能にしても良いかもしれない。
 			if ((type == LogType.Exception) || (type == LogType.Error) || (type == LogType.Assert))
 			{
@@ -41,5 +46,6 @@ namespace Kayac
 		}
 
 		System.IO.StreamWriter _writer;
+		int _frameCountCopy; // メインスレッドでしかTime.frameCountにアクセスできないため
 	}
 }

@@ -12,14 +12,15 @@ public class Main : MonoBehaviour
 	public Text _stateText;
 	public Dropdown _modeDropdown;
 	public InputField _parallelCountInputField;
-	public InputField _bufferSizeInputField;
+	public InputField _inputBufferSizeInputField;
+	public InputField _writerBufferSizeInputField;
+	public Toggle _shuffleToggle;
 	public Button _button;
 	enum Mode
 	{
 		WwwSyncWrite,
 		UwrSyncWrite,
 		UwrAsyncWrite,
-		UwrDivAsyncWrite,
 		UwrDownloadHandlerFile,
 		UnityWebRequestAssetBundle,
 	};
@@ -31,12 +32,14 @@ public class Main : MonoBehaviour
 	int _maxSpike;
 	float _time;
 	int _maxMemory;
+	bool _testing;
 	IEnumerator _enumerator;
-	Kayac.FileWriter _fileWriter;
 	Kayac.FrameTimeWatcher _frametimeWatcher;
-	string[] _files;
+	Kayac.AssetBundleMetaData[] _metaData;
+	Kayac.AssetBundleMetaData[] _shuffledMetaData;
 	Kayac.FileLogHandler _log;
 	Kayac.FileLogHandler _appendLog;
+	Kayac.FileWriter _writer;
 
 	void Start()
 	{
@@ -49,16 +52,19 @@ public class Main : MonoBehaviour
 #endif
 		_cachePath += "/AssetBundleCache";
 
-		var ab = AssetBundle.LoadFromFile(Application.streamingAssetsPath + "/AssetBundleBuild");
-		var manifest = ab.LoadAsset<AssetBundleManifest>("AssetBundleManifest");
-		_files = manifest.GetAllAssetBundles();
+		var metaDataJson = File.ReadAllText(Application.streamingAssetsPath + "/assetbundle_metadata.json");
+		var metaDataContainer = JsonUtility.FromJson<Kayac.AssetBundleMetaDataContainer>(metaDataJson);
+		_metaData = metaDataContainer.items;
+		_shuffledMetaData = new Kayac.AssetBundleMetaData[_metaData.Length];
+		Array.Copy(_metaData, _shuffledMetaData, _metaData.Length);
+		Shuffle(_shuffledMetaData);
 
-#if true
-		_root = "file://" + Application.dataPath + "/../AssetBundleBuild/"; // ファイル
-#elif false
-		_root = "http://localhost/~hirayama-takashi/AssetBundlePerformanceTestData/"; // ローカルサーバ
-#else
-		_root = "https://hiryma.github.io/AssetBundlePerformanceTestData/"; // 遠隔サーバ
+#if false // 単純FileIO。最速なので、書き込み側オーバーヘッドの測定に用いる。
+		_root = "file://" + Application.dataPath + "/../AssetBundleBuild/";
+#elif false // ローカルからのダウンロード。一応httpを経由させたい範囲で速度が欲しい時、簡易的に用いる。
+		_root = "http://localhost/~hirayama-takashi/AssetBundlePerformanceTestData/";
+#else // 遠隔からのダウンロード。準備が必要。
+		_root = "https://hiryma.github.io/AssetBundlePerformanceTestData/";
 #endif
 
 		// 落とすサーバとファイルリストを上書き
@@ -78,7 +84,13 @@ public class Main : MonoBehaviour
 						tmpList.Add(line + ".unity3d"); // リストに拡張子がついてるなら、あるいは拡張子なしなら抜いてください
 					}
 				}
-				_files = tmpList.ToArray();
+				_metaData = new Kayac.AssetBundleMetaData[tmpList.Count];
+				for (int i = 0; i < tmpList.Count; i++)
+				{
+					_metaData[i].name = tmpList[i];
+					_metaData[i].hash = null;
+					_metaData[i].size = 0; // 不明
+				}
 			}
 		}
 		catch
@@ -100,35 +112,59 @@ public class Main : MonoBehaviour
 		_modeDropdown.captionText.text = modeNames[0];
 
 		_frametimeWatcher = new Kayac.FrameTimeWatcher();
-		_fileWriter = new Kayac.FileWriter(_cachePath);
 	}
 
 	void Update()
 	{
+		_log.Update();
+		_appendLog.Update();
 		_frametimeWatcher.Update();
-		_maxMemory = Mathf.Max(_maxMemory, (int)UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong());
-		_maxSpike = Mathf.Max(_maxSpike, _frametimeWatcher.maxFrameTime);
+		if (_testing)
+		{
+			_maxMemory = Mathf.Max(_maxMemory, (int)UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong());
+			_maxSpike = Mathf.Max(_maxSpike, _frametimeWatcher.maxFrameTime);
+		}
+		var mode = (Mode)_modeDropdown.value;
 		if (_enumerator != null)
 		{
 			if (!_enumerator.MoveNext())
 			{
 				_enumerator = null;
-				var mode = (Mode)_modeDropdown.value;
-				int slotCount;
-				int.TryParse(_parallelCountInputField.text, out slotCount);
-				slotCount = Mathf.Max(slotCount, 1);
-				int bufferSizeTotal;
-				int.TryParse(_bufferSizeInputField.text, out bufferSizeTotal);
-				bufferSizeTotal = Mathf.Max(bufferSizeTotal, 1);
-				bufferSizeTotal *= 1024 * 1024;
 
-				Debug.Log(mode + " : " + _time.ToString("F2") + " Parallel: " + slotCount + " BufferSize: " + bufferSizeTotal + " MaxSpike: " + _maxSpike + " MaxMem: " + (_maxMemory / (1024 * 1024)));
+				string msg = mode + " : " + _time.ToString("F2");
+				if (mode != Mode.WwwSyncWrite)
+				{
+					int slotCount;
+					int.TryParse(_parallelCountInputField.text, out slotCount);
+					slotCount = Mathf.Max(slotCount, 1);
+					msg += " Parallel: " + slotCount;
+					msg += " Shuffle: " + _shuffleToggle.isOn;
+					msg += " MaxSpike: " + _maxSpike;
+					msg += " MaxMem: " + (_maxMemory / (1024 * 1024));
+				}
+				if (mode == Mode.UwrAsyncWrite)
+				{
+					int writerBufferSize;
+					int.TryParse(_writerBufferSizeInputField.text, out writerBufferSize);
+					writerBufferSize = Mathf.Max(writerBufferSize, 1);
+					writerBufferSize *= 1024;
+					int inputBufferSize;
+					int.TryParse(_inputBufferSizeInputField.text, out inputBufferSize);
+					inputBufferSize = Mathf.Max(inputBufferSize, 1);
+					inputBufferSize *= 1024;
+					msg += " WriterBufferSize: " + writerBufferSize;
+					msg += " InputBufferSize: " + inputBufferSize;
+				}
+				Debug.Log(msg);
 			}
 		}
 
 		_fpsText.text = _frametimeWatcher.averageFrameTime.ToString() + " MaxSpike: " + _maxSpike.ToString() + " Time: " + _time.ToString("F2") + " MaxMem: " + (_maxMemory / (1024 * 1024));
-		_stateText.text = string.Format("FileCount:{0}/{1} Read:{2} RestWrite:{3}", _doneFileCount, _totalFileCount, _doneBytes, _fileWriter.restBytes);
+		var restBytes = (_writer != null) ? _writer.restBytes : 0;
+		_stateText.text = string.Format("FileCount:{0}/{1} Read:{2} RestWrite:{3}", _doneFileCount, _totalFileCount, _doneBytes, restBytes);
 		_button.interactable = (_enumerator == null);
+		_inputBufferSizeInputField.interactable = (mode == Mode.UwrAsyncWrite);
+		_writerBufferSizeInputField.interactable = (mode == Mode.UwrAsyncWrite);
 	}
 
 	public void OnClickStart()
@@ -144,7 +180,6 @@ public class Main : MonoBehaviour
 				break;
 			case Mode.UwrSyncWrite:
 			case Mode.UwrAsyncWrite:
-			case Mode.UwrDivAsyncWrite:
 			case Mode.UwrDownloadHandlerFile:
 			case Mode.UnityWebRequestAssetBundle:
 				_enumerator = CoUwr(_cachePath, slotCount, mode);
@@ -169,6 +204,15 @@ public class Main : MonoBehaviour
 
 	IEnumerator CoPrepare(Mode mode)
 	{
+		if (_writer != null)
+		{
+			while (_writer.restBytes > 0) // 書き込み待ち
+			{
+				yield return null;
+			}
+			_writer.Dispose();
+			_writer = null;
+		}
 		var cache = Caching.GetCacheByPath(_cachePath);
 		if (cache.valid)
 		{
@@ -198,7 +242,7 @@ public class Main : MonoBehaviour
 			yield return null;
 		}
 
-		_totalFileCount = _files.Length;
+		_totalFileCount = _metaData.Length;
 		_doneFileCount = 0;
 		_doneBytes = 0;
 		_maxSpike = 0;
@@ -213,12 +257,17 @@ public class Main : MonoBehaviour
 		{
 			yield return null;
 		}
-		var startTime = System.DateTime.Now;
 
-		for (int i = 0; i < _files.Length; i++)
+		var startTime = System.DateTime.Now;
+		_testing = true;
+
+		var metaData = _shuffleToggle.isOn ? _shuffledMetaData : _metaData;
+		for (int i = 0; i < metaData.Length; i++)
 		{
+			var meta = metaData[i];
+			var name = meta.name;
 			var prevBytes = 0;
-			var srcPath = _root + _files[i];
+			var srcPath = _root + name;
 			var req = new WWW(srcPath);
 //			_log.Write("Begin: " + _files[i]);
 			while (!req.isDone)
@@ -234,16 +283,17 @@ public class Main : MonoBehaviour
 			}
 			else
 			{
-				System.IO.File.WriteAllBytes(cachePath + "/" + _files[i], req.bytes);
+				System.IO.File.WriteAllBytes(cachePath + "/" + name, req.bytes);
 			}
 			req.Dispose();
 			_doneFileCount++;
-//			_log.Write("End: " + _files[i]);
+//			_log.Write("End: " + file);
 		}
 		_time = (float)((System.DateTime.Now - startTime).TotalSeconds);
+		_testing = false;
 
-		var coTest = CoTest(Mode.WwwSyncWrite);
-		while (coTest.MoveNext())
+		var coVerify = CoVerify(Mode.WwwSyncWrite);
+		while (coVerify.MoveNext())
 		{
 			yield return null;
 		}
@@ -252,7 +302,6 @@ public class Main : MonoBehaviour
 	class Slot
 	{
 		public void Update(
-			Kayac.FileWriter writer,
 			Mode mode,
 			Kayac.FileLogHandler log,
 			ref int doneBytes,
@@ -277,13 +326,6 @@ public class Main : MonoBehaviour
 					{
 //						log.Write("Write: " + path);
 						System.IO.File.WriteAllBytes(cachePath + "/" + path, req.downloadHandler.data);
-					}
-					else if (mode == Mode.UwrAsyncWrite)
-					{
-//						log.Write("Write: " + path);
-						var data = req.downloadHandler.data;
-						writer.Write(writerHandle, data, 0, data.Length);
-						writer.End(writerHandle);
 					}
 					else if (mode == Mode.UnityWebRequestAssetBundle)
 					{
@@ -339,7 +381,6 @@ public class Main : MonoBehaviour
 		public string path;
 		public string cachePath;
 		public byte[] inputBuffer;
-		public byte[] outputBuffer;
 		public int prevBytes;
 		public Kayac.FileWriter.Handle writerHandle;
 	}
@@ -352,6 +393,7 @@ public class Main : MonoBehaviour
 			yield return null;
 		}
 		var startTime = System.DateTime.Now;
+		_testing = true;
 
 		var slots = new Slot[slotCount];
 		for (int i = 0; i < slots.Length; i++)
@@ -361,31 +403,41 @@ public class Main : MonoBehaviour
 			slots[i].prevBytes = 0;
 		}
 
-		if (mode == Mode.UwrDivAsyncWrite)
+		if (mode == Mode.UwrAsyncWrite)
 		{
 			UnityEngine.Profiling.Profiler.BeginSample("CoUwr.BufferAllocation");
-			int bufferSizeTotal;
-			int.TryParse(_bufferSizeInputField.text, out bufferSizeTotal);
-			bufferSizeTotal = Mathf.Max(bufferSizeTotal, 1);
-			bufferSizeTotal *= 1024 * 1024;
-			// input,outputで2分、さらにslotCountで割った値を個別に設定する
+
+			int writerBufferSize;
+			int.TryParse(_writerBufferSizeInputField.text, out writerBufferSize);
+			writerBufferSize = Mathf.Max(writerBufferSize, 1);
+			writerBufferSize *= 1024;
+
+			int inputBufferSize;
+			int.TryParse(_inputBufferSizeInputField.text, out inputBufferSize);
+			inputBufferSize = Mathf.Max(inputBufferSize, 1);
+			inputBufferSize *= 1024;
+
+			_writer = new Kayac.FileWriter(_cachePath, writerBufferSize);
+
 			for (int i = 0; i < slots.Length; i++)
 			{
-				slots[i].inputBuffer = new byte[bufferSizeTotal / slotCount / 2];
-				slots[i].outputBuffer = new byte[bufferSizeTotal / slotCount / 2];
+				slots[i].inputBuffer = new byte[inputBufferSize];
 			}
 			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
 		int fileIndex = 0;
 		int slotIndex = 0;
+		var metaData = _shuffleToggle.isOn ? _shuffledMetaData : _metaData;
 		while (true)
 		{
-			slots[slotIndex].Update(_fileWriter, mode, _log, ref _doneBytes, ref _doneFileCount);
+			slots[slotIndex].Update(mode, _log, ref _doneBytes, ref _doneFileCount);
 			if (slots[slotIndex].isDone)
 			{
+				UnityEngine.Profiling.Profiler.BeginSample("Main.CoUwr: createUnityWebRequest");
 				var slot = slots[slotIndex];
-				slot.path = _files[fileIndex];
+				var meta = metaData[fileIndex];
+				slot.path = meta.name;
 				// モードごとにdownloadHandlerを差し、書き込み準備をする
 				slot.req = new UnityWebRequest(_root + slot.path);
 				if (mode == Mode.UwrSyncWrite)
@@ -394,17 +446,11 @@ public class Main : MonoBehaviour
 				}
 				else if (mode == Mode.UwrAsyncWrite)
 				{
-					slot.req.downloadHandler = new DownloadHandlerBuffer();
-					slot.writerHandle = _fileWriter.Begin(slot.path);
-				}
-				else if (mode == Mode.UwrDivAsyncWrite)
-				{
-					slot.writerHandle = _fileWriter.Begin(slot.path);
-					slot.req.downloadHandler = new Kayac.DownloadHandlerAsyncFile(
-						_fileWriter,
+					slot.writerHandle = _writer.Begin(slot.path);
+					slot.req.downloadHandler = new Kayac.DownloadHandlerFileWriter(
+						_writer,
 						slot.writerHandle,
-						slot.inputBuffer,
-						slot.outputBuffer);
+						slot.inputBuffer);
 				}
 				else if (mode == Mode.UwrDownloadHandlerFile)
 				{
@@ -412,7 +458,10 @@ public class Main : MonoBehaviour
 				}
 				else if (mode == Mode.UnityWebRequestAssetBundle)
 				{
-					slot.req.downloadHandler = new DownloadHandlerAssetBundle(_root + slot.path, new Hash128(), crc: 0);
+					slot.req.downloadHandler = new DownloadHandlerAssetBundle(
+						_root + slot.path,
+						meta.GenerateHash128(),
+						crc: 0);
 				}
 				else
 				{
@@ -420,7 +469,8 @@ public class Main : MonoBehaviour
 				}
 				slot.req.SendWebRequest();
 				fileIndex++; // 最後までやったので終わる
-				if (fileIndex == _files.Length)
+				UnityEngine.Profiling.Profiler.EndSample();
+				if (fileIndex == metaData.Length)
 				{
 					break;
 				}
@@ -438,7 +488,7 @@ public class Main : MonoBehaviour
 		while (slotIndex < slots.Length)
 		{
 			var slot = slots[slotIndex];
-			slot.Update(_fileWriter, mode, _log, ref _doneBytes, ref _doneFileCount);
+			slot.Update(mode, _log, ref _doneBytes, ref _doneFileCount);
 			if (slot.isDone) // 終わってれば次へ
 			{
 				slotIndex++;
@@ -449,24 +499,30 @@ public class Main : MonoBehaviour
 			}
 		}
 		_time = (float)((System.DateTime.Now - startTime).TotalSeconds);
+		_testing = false;
 
-		var coTest = CoTest(mode);
-		while (coTest.MoveNext())
+		var coVerify = CoVerify(mode);
+		while (coVerify.MoveNext())
 		{
 			yield return null;
 		}
 	}
 
-	IEnumerator CoTest(Mode mode)
+	IEnumerator CoVerify(Mode mode)
 	{
 		_doneFileCount = 0;
-		for (int i = 0; i < _files.Length; i++)
+		for (int i = 0; i < _metaData.Length; i++)
 		{
+			var meta = _metaData[i];
+			var name = meta.name;
 			AssetBundle ab = null;
 			if (mode == Mode.UnityWebRequestAssetBundle)
 			{
-				var req = new UnityWebRequest(_root + _files[i]);
-				req.downloadHandler = new DownloadHandlerAssetBundle(_root + _files[i], new Hash128(), crc: 0);
+				var req = new UnityWebRequest(_root + _metaData[i].name);
+				req.downloadHandler = new DownloadHandlerAssetBundle(
+					_root + name,
+					meta.GenerateHash128(),
+					crc: 0);
 				req.SendWebRequest();
 				while (!req.isDone)
 				{
@@ -476,17 +532,32 @@ public class Main : MonoBehaviour
 			}
 			else
 			{
-				ab = AssetBundle.LoadFromFile(_cachePath + "/" + _files[i]);
+				ab = AssetBundle.LoadFromFile(_cachePath + "/" + name);
 			}
 			if (ab == null)
 			{
-				Debug.LogError("Load Failed: " + _files[i]);
+				Debug.LogError("Load Failed: " + name);
 			}
 			else
 			{
 				ab.Unload(true);
 			}
 			_doneFileCount++;
+		}
+	}
+
+	// 第2引数はnullならUnityのrandomを使う
+	static void Shuffle<T>(T[] a) // Fisher-Yates shuffle.
+	{
+		Debug.Assert(a != null);
+		var n = a.Length;
+		for (int i = 0; i < n; i++)
+		{
+			int srcIndex = 0;
+			srcIndex = UnityEngine.Random.Range(i, n);
+			var tmp = a[srcIndex];
+			a[srcIndex] = a[i];
+			a[i] = tmp; // これでi番は確定
 		}
 	}
 }
