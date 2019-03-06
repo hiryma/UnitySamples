@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Kayac
+namespace Kayac.LoaderImpl
 {
 	public class LoadHandleHolder : MonoBehaviour
 	{

@@ -4,8 +4,10 @@ using UnityEngine;
 
 namespace Kayac
 {
+	using LoaderImpl;
 	public class LoadHandle : IEnumerator, System.IDisposable
 	{
+		// isDoneをポーリングしていれば、同フレーム内であってもいずれロードが終わることを保証する
 		public bool isDone
 		{
 			get
@@ -14,37 +16,29 @@ namespace Kayac
 			}
 		}
 
-		public bool succeeded
-		{
-			get
-			{
-				return isDone && (_asset != null);
-			}
-		}
-
 		public void Dispose()
 		{
-			_loader.UnloadThreadSafe(_assetHandleDictionaryKey);
-			_assetHandleDictionaryKey = null;
-			_loader = null;
-			_asset = null;
+			if (_loader != null)
+			{
+				_loader.UnloadThreadSafe(_handle);
+				_handle = null;
+				_loader = null;
+			}
 		}
-
 
 		/// yieldで完了を待てる
 		public bool MoveNext()
 		{
-			bool isDone;
-			_loader.CheckLoadingThreadSafe(out isDone, out _asset, _assetHandleDictionaryKey);
-			return !isDone;
+			_handle.Update(selfOnly: false); // 下流含めて更新する
+			return !_handle.isDone;
 		}
 		public void Reset(){}
 		object IEnumerator.Current { get { return null; } }
-		public UnityEngine.Object asset{ get { return _asset; } }
+		public UnityEngine.Object asset{ get { return (_handle != null) ? _handle.asset : null; } }
 
-		public LoadHandle(string assetHandleDictionaryKey, Loader loader)
+		public LoadHandle(AssetHandle handle, Loader loader)
 		{
-			_assetHandleDictionaryKey = assetHandleDictionaryKey;
+			_handle = handle;
 			_loader = loader;
 		}
 
@@ -53,8 +47,7 @@ namespace Kayac
 			Dispose();
 		}
 
-		string _assetHandleDictionaryKey;
+		AssetHandle _handle;
 		Loader _loader;
-		UnityEngine.Object _asset;
 	}
 }

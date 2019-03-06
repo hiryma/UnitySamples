@@ -60,33 +60,100 @@ $(document).ready(function(){initNavTree('class_kayac_1_1_loader.html','');});
 <div class="header">
   <div class="summary">
 <a href="#nested-classes">Classes</a> &#124;
+<a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="#properties">Properties</a> &#124;
 <a href="class_kayac_1_1_loader-members.html">List of all members</a>  </div>
   <div class="headertitle">
 <div class="title">Kayac.Loader Class Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
 <table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="nested-classes"></a>
+Classes</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">interface &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="interface_kayac_1_1_loader_1_1_i_asset_file_database.html">IAssetFileDatabase</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-types"></a>
+Public Types</h2></td></tr>
+<tr class="memitem:a0b9536e88e68c3d9e2629380259d3fcc"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fcc">Error</a> { <br />
+&#160;&#160;<a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fccaeec89088ee408b80387155272b113256">Error.Network</a>, 
+<a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fcca02a01d0e409bc0eace1f9a55dce21dbf">Error.CantWriteStorageCache</a>, 
+<a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fcca76a5238c1d5ab7283632e74905271f3d">Error.CantLoadAssetBundle</a>, 
+<a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fcca016706f9ef0405c1a09f3933380b9e95">Error.CantLoadStorageCache</a>, 
+<br />
+&#160;&#160;<a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fcca59bec5488e8350635c86070aae47fb0d">Error.NoAssetInAssetBundle</a>, 
+<a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fcca27eeff1cf993d6721f3af8e609c3fc2c">Error.AssetTypeMismatch</a>, 
+<a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fccaf0a89bea2890250b79f62bd4546e5260">Error.CantLoadAsset</a>
+<br />
+ }</td></tr>
+<tr class="separator:a0b9536e88e68c3d9e2629380259d3fcc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:af0204d74c16767ef17d662f8a611a1ce"><td class="memItemLeft" align="right" valign="top">delegate void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#af0204d74c16767ef17d662f8a611a1ce">OnComplete</a> (UnityEngine.Object asset)</td></tr>
 <tr class="separator:af0204d74c16767ef17d662f8a611a1ce"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a977417c48a28e519c748ba419c8ec321"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a977417c48a28e519c748ba419c8ec321">Loader</a> (string root)</td></tr>
-<tr class="separator:a977417c48a28e519c748ba419c8ec321"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0cdd7c91c7e8ebc5baa25b74c693ca46"><td class="memItemLeft" align="right" valign="top"><a class="el" href="class_kayac_1_1_load_handle.html">LoadHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a0cdd7c91c7e8ebc5baa25b74c693ca46">Load</a> (string path, <a class="el" href="class_kayac_1_1_loader.html#af0204d74c16767ef17d662f8a611a1ce">OnComplete</a> onComplete=null)</td></tr>
-<tr class="separator:a0cdd7c91c7e8ebc5baa25b74c693ca46"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a05000773aeccb12a6cc62e695faddce5"><td class="memItemLeft" align="right" valign="top">delegate void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a05000773aeccb12a6cc62e695faddce5">OnError</a> (<a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fcc">Error</a> errorType, string fileOrAssetName, string message)</td></tr>
+<tr class="separator:a05000773aeccb12a6cc62e695faddce5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1d6ec3909d21cb00888f88cf5591edf0"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a1d6ec3909d21cb00888f88cf5591edf0">Loader</a> (string downloadRoot, string storageCacheRoot, <a class="el" href="interface_kayac_1_1_loader_1_1_i_asset_file_database.html">IAssetFileDatabase</a> database, int parallelDownloadCount=16, int downloadRetryCount=3, int timeoutSeconds=30, int fileWriteBufferSize=16 *1024 *1024, int downloadHandlerBufferSize=16 *1024)</td></tr>
+<tr class="separator:a1d6ec3909d21cb00888f88cf5591edf0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a99b9fdbc1f7f063f1ce70f71aec7b5cf"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a99b9fdbc1f7f063f1ce70f71aec7b5cf">Download</a> (string fileName, <a class="el" href="class_kayac_1_1_loader.html#a05000773aeccb12a6cc62e695faddce5">OnError</a> onError)</td></tr>
+<tr class="separator:a99b9fdbc1f7f063f1ce70f71aec7b5cf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a68a0ca08ddca3a3ac535b0e14191fee1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a68a0ca08ddca3a3ac535b0e14191fee1">ClearDownloadedBytes</a> ()</td></tr>
+<tr class="separator:a68a0ca08ddca3a3ac535b0e14191fee1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a09f7c7e8c8e8c011ec680a9e84ae2a86"><td class="memItemLeft" align="right" valign="top"><a class="el" href="class_kayac_1_1_load_handle.html">LoadHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a09f7c7e8c8e8c011ec680a9e84ae2a86">Load</a> (string identifier, Type type, <a class="el" href="class_kayac_1_1_loader.html#a05000773aeccb12a6cc62e695faddce5">OnError</a> onError, <a class="el" href="class_kayac_1_1_loader.html#af0204d74c16767ef17d662f8a611a1ce">OnComplete</a> onComplete=null, GameObject holderGameObject=null)</td></tr>
+<tr class="separator:a09f7c7e8c8e8c011ec680a9e84ae2a86"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab692a3cf0602c8d3f953e2324c3780c3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#ab692a3cf0602c8d3f953e2324c3780c3">Update</a> ()</td></tr>
 <tr class="separator:ab692a3cf0602c8d3f953e2324c3780c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aec487ee93afc77558aa3e1132df12f7d"><td class="memItemLeft" align="right" valign="top">string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#aec487ee93afc77558aa3e1132df12f7d">Dump</a> ()</td></tr>
-<tr class="separator:aec487ee93afc77558aa3e1132df12f7d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad0def34958c8f1538bad700387117a29"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#ad0def34958c8f1538bad700387117a29">CheckLoadingThreadSafe</a> (out bool isDone, out UnityEngine.Object asset, string assetHandleDictionaryKey)</td></tr>
-<tr class="separator:ad0def34958c8f1538bad700387117a29"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1f1e4203520c8edc49dcf0d8fc834ee1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a1f1e4203520c8edc49dcf0d8fc834ee1">UnloadThreadSafe</a> (string assetHandleDictionaryKey)</td></tr>
-<tr class="separator:a1f1e4203520c8edc49dcf0d8fc834ee1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a105a5a121773e535225e57ca381ae892"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a105a5a121773e535225e57ca381ae892">Dump</a> (System.Text.StringBuilder stringBuilderToAppend, bool summaryOnly=false)</td></tr>
+<tr class="separator:a105a5a121773e535225e57ca381ae892"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab2dcabd55c410a05b6673d08b75095e7"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#ab2dcabd55c410a05b6673d08b75095e7">ClearStorageCache</a> ()</td></tr>
+<tr class="separator:ab2dcabd55c410a05b6673d08b75095e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa0fa15b32cb954e442897f9e5022fd53"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#aa0fa15b32cb954e442897f9e5022fd53">UnloadThreadSafe</a> (<a class="el" href="class_kayac_1_1_loader_impl_1_1_asset_handle.html">AssetHandle</a> assetHandle)</td></tr>
+<tr class="separator:aa0fa15b32cb954e442897f9e5022fd53"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="properties"></a>
+Properties</h2></td></tr>
+<tr class="memitem:a2afe4643bac444fcb581fecf05fb8337"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a2afe4643bac444fcb581fecf05fb8337">downloadingCount</a><code> [get]</code></td></tr>
+<tr class="separator:a2afe4643bac444fcb581fecf05fb8337"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7b4b33479bb9a6761e43605b97e43ea7"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_kayac_1_1_loader.html#a7b4b33479bb9a6761e43605b97e43ea7">downloadedBytes</a><code> [get]</code></td></tr>
+<tr class="separator:a7b4b33479bb9a6761e43605b97e43ea7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Member Enumeration Documentation</h2>
+<a id="a0b9536e88e68c3d9e2629380259d3fcc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0b9536e88e68c3d9e2629380259d3fcc">&sect;&nbsp;</a></span>Error</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">enum <a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fcc">Kayac.Loader.Error</a></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">strong</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<table class="fieldtable">
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="a0b9536e88e68c3d9e2629380259d3fccaeec89088ee408b80387155272b113256"></a>Network&#160;</td><td class="fielddoc"></td></tr>
+<tr><td class="fieldname"><a id="a0b9536e88e68c3d9e2629380259d3fcca02a01d0e409bc0eace1f9a55dce21dbf"></a>CantWriteStorageCache&#160;</td><td class="fielddoc"></td></tr>
+<tr><td class="fieldname"><a id="a0b9536e88e68c3d9e2629380259d3fcca76a5238c1d5ab7283632e74905271f3d"></a>CantLoadAssetBundle&#160;</td><td class="fielddoc"></td></tr>
+<tr><td class="fieldname"><a id="a0b9536e88e68c3d9e2629380259d3fcca016706f9ef0405c1a09f3933380b9e95"></a>CantLoadStorageCache&#160;</td><td class="fielddoc"></td></tr>
+<tr><td class="fieldname"><a id="a0b9536e88e68c3d9e2629380259d3fcca59bec5488e8350635c86070aae47fb0d"></a>NoAssetInAssetBundle&#160;</td><td class="fielddoc"></td></tr>
+<tr><td class="fieldname"><a id="a0b9536e88e68c3d9e2629380259d3fcca27eeff1cf993d6721f3af8e609c3fc2c"></a>AssetTypeMismatch&#160;</td><td class="fielddoc"></td></tr>
+<tr><td class="fieldname"><a id="a0b9536e88e68c3d9e2629380259d3fccaf0a89bea2890250b79f62bd4546e5260"></a>CantLoadAsset&#160;</td><td class="fielddoc"></td></tr>
+</table>
+
+</div>
+</div>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
-<a id="a977417c48a28e519c748ba419c8ec321"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a977417c48a28e519c748ba419c8ec321">&sect;&nbsp;</a></span>Loader()</h2>
+<a id="a1d6ec3909d21cb00888f88cf5591edf0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1d6ec3909d21cb00888f88cf5591edf0">&sect;&nbsp;</a></span>Loader()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -95,38 +162,49 @@ Public Member Functions</h2></td></tr>
           <td class="memname">Kayac.Loader.Loader </td>
           <td>(</td>
           <td class="paramtype">string&#160;</td>
-          <td class="paramname"><em>root</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<h2 class="groupheader">Member Function Documentation</h2>
-<a id="ad0def34958c8f1538bad700387117a29"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad0def34958c8f1538bad700387117a29">&sect;&nbsp;</a></span>CheckLoadingThreadSafe()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void Kayac.Loader.CheckLoadingThreadSafe </td>
-          <td>(</td>
-          <td class="paramtype">out bool&#160;</td>
-          <td class="paramname"><em>isDone</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">out UnityEngine.Object&#160;</td>
-          <td class="paramname"><em>asset</em>, </td>
+          <td class="paramname"><em>downloadRoot</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">string&#160;</td>
-          <td class="paramname"><em>assetHandleDictionaryKey</em>&#160;</td>
+          <td class="paramname"><em>storageCacheRoot</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="interface_kayac_1_1_loader_1_1_i_asset_file_database.html">IAssetFileDatabase</a>&#160;</td>
+          <td class="paramname"><em>database</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>parallelDownloadCount</em> = <code>16</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>downloadRetryCount</em> = <code>3</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>timeoutSeconds</em> = <code>30</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>fileWriteBufferSize</em> = <code>16&#160;*&#160;1024&#160;*&#160;1024</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>downloadHandlerBufferSize</em> = <code>16&#160;*&#160;1024</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -138,14 +216,15 @@ Public Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="aec487ee93afc77558aa3e1132df12f7d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aec487ee93afc77558aa3e1132df12f7d">&sect;&nbsp;</a></span>Dump()</h2>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="a68a0ca08ddca3a3ac535b0e14191fee1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a68a0ca08ddca3a3ac535b0e14191fee1">&sect;&nbsp;</a></span>ClearDownloadedBytes()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">string Kayac.Loader.Dump </td>
+          <td class="memname">void Kayac.Loader.ClearDownloadedBytes </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -155,8 +234,81 @@ Public Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a0cdd7c91c7e8ebc5baa25b74c693ca46"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a0cdd7c91c7e8ebc5baa25b74c693ca46">&sect;&nbsp;</a></span>Load()</h2>
+<a id="ab2dcabd55c410a05b6673d08b75095e7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab2dcabd55c410a05b6673d08b75095e7">&sect;&nbsp;</a></span>ClearStorageCache()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Kayac.Loader.ClearStorageCache </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a99b9fdbc1f7f063f1ce70f71aec7b5cf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a99b9fdbc1f7f063f1ce70f71aec7b5cf">&sect;&nbsp;</a></span>Download()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Kayac.Loader.Download </td>
+          <td>(</td>
+          <td class="paramtype">string&#160;</td>
+          <td class="paramname"><em>fileName</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="class_kayac_1_1_loader.html#a05000773aeccb12a6cc62e695faddce5">OnError</a>&#160;</td>
+          <td class="paramname"><em>onError</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a105a5a121773e535225e57ca381ae892"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a105a5a121773e535225e57ca381ae892">&sect;&nbsp;</a></span>Dump()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Kayac.Loader.Dump </td>
+          <td>(</td>
+          <td class="paramtype">System.Text.StringBuilder&#160;</td>
+          <td class="paramname"><em>stringBuilderToAppend</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>summaryOnly</em> = <code>false</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a09f7c7e8c8e8c011ec680a9e84ae2a86"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a09f7c7e8c8e8c011ec680a9e84ae2a86">&sect;&nbsp;</a></span>Load()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -165,13 +317,31 @@ Public Member Functions</h2></td></tr>
           <td class="memname"><a class="el" href="class_kayac_1_1_load_handle.html">LoadHandle</a> Kayac.Loader.Load </td>
           <td>(</td>
           <td class="paramtype">string&#160;</td>
-          <td class="paramname"><em>path</em>, </td>
+          <td class="paramname"><em>identifier</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Type&#160;</td>
+          <td class="paramname"><em>type</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="class_kayac_1_1_loader.html#a05000773aeccb12a6cc62e695faddce5">OnError</a>&#160;</td>
+          <td class="paramname"><em>onError</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype"><a class="el" href="class_kayac_1_1_loader.html#af0204d74c16767ef17d662f8a611a1ce">OnComplete</a>&#160;</td>
-          <td class="paramname"><em>onComplete</em> = <code>null</code>&#160;</td>
+          <td class="paramname"><em>onComplete</em> = <code>null</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">GameObject&#160;</td>
+          <td class="paramname"><em>holderGameObject</em> = <code>null</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -201,8 +371,42 @@ Public Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a1f1e4203520c8edc49dcf0d8fc834ee1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1f1e4203520c8edc49dcf0d8fc834ee1">&sect;&nbsp;</a></span>UnloadThreadSafe()</h2>
+<a id="a05000773aeccb12a6cc62e695faddce5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a05000773aeccb12a6cc62e695faddce5">&sect;&nbsp;</a></span>OnError()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">delegate void Kayac.Loader.OnError </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="class_kayac_1_1_loader.html#a0b9536e88e68c3d9e2629380259d3fcc">Error</a>&#160;</td>
+          <td class="paramname"><em>errorType</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">string&#160;</td>
+          <td class="paramname"><em>fileOrAssetName</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">string&#160;</td>
+          <td class="paramname"><em>message</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="aa0fa15b32cb954e442897f9e5022fd53"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa0fa15b32cb954e442897f9e5022fd53">&sect;&nbsp;</a></span>UnloadThreadSafe()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -210,8 +414,8 @@ Public Member Functions</h2></td></tr>
         <tr>
           <td class="memname">void Kayac.Loader.UnloadThreadSafe </td>
           <td>(</td>
-          <td class="paramtype">string&#160;</td>
-          <td class="paramname"><em>assetHandleDictionaryKey</em></td><td>)</td>
+          <td class="paramtype"><a class="el" href="class_kayac_1_1_loader_impl_1_1_asset_handle.html">AssetHandle</a>&#160;</td>
+          <td class="paramname"><em>assetHandle</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -232,6 +436,51 @@ Public Member Functions</h2></td></tr>
           <td></td>
         </tr>
       </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<h2 class="groupheader">Property Documentation</h2>
+<a id="a7b4b33479bb9a6761e43605b97e43ea7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7b4b33479bb9a6761e43605b97e43ea7">&sect;&nbsp;</a></span>downloadedBytes</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">int Kayac.Loader.downloadedBytes</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">get</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a2afe4643bac444fcb581fecf05fb8337"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2afe4643bac444fcb581fecf05fb8337">&sect;&nbsp;</a></span>downloadingCount</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">int Kayac.Loader.downloadingCount</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">get</span></span>  </td>
+  </tr>
+</table>
 </div><div class="memdoc">
 
 </div>

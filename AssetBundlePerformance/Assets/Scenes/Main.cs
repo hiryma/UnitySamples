@@ -16,6 +16,7 @@ public class Main : MonoBehaviour
 	public InputField _writerBufferSizeInputField;
 	public Toggle _shuffleToggle;
 	public Button _button;
+	public Text _errorText;
 	enum Mode
 	{
 		WwwSyncWrite,
@@ -44,24 +45,18 @@ public class Main : MonoBehaviour
 	void Start()
 	{
 		// 設定。環境に合わせていじっていい
-		_cachePath = Application.dataPath;
-#if !UNITY_EDITOR && UNITY_STANDALONE_OSX
-		_cachePath += "/../.."; //MACはContentsの外まで戻す
+#if UNITY_EDITOR
+		_cachePath = Application.dataPath + "/../AssetBundleCache";
 #else
-		_cachePath += "/.."; //Assetの横でいい
+		_cachePath = Application.persistentDataPath + "/AssetBundleCache";
 #endif
-		_cachePath += "/AssetBundleCache";
 
 		var metaDataJson = File.ReadAllText(Application.streamingAssetsPath + "/assetbundle_metadata.json");
 		var metaDataContainer = JsonUtility.FromJson<Kayac.AssetBundleMetaDataContainer>(metaDataJson);
 		_metaData = metaDataContainer.items;
-		_shuffledMetaData = new Kayac.AssetBundleMetaData[_metaData.Length];
-		Array.Copy(_metaData, _shuffledMetaData, _metaData.Length);
-		Shuffle(_shuffledMetaData);
-
 #if false // 単純FileIO。最速なので、書き込み側オーバーヘッドの測定に用いる。
-		_root = "file://" + Application.dataPath + "/../AssetBundleBuild/";
-#elif false // ローカルからのダウンロード。一応httpを経由させたい範囲で速度が欲しい時、簡易的に用いる。
+		_root = "file://" + appPath + "/../AssetBundleBuild/";
+#elif true // ローカルからのダウンロード。一応httpを経由させたい範囲で速度が欲しい時、簡易的に用いる。
 		_root = "http://localhost/~hirayama-takashi/AssetBundlePerformanceTestData/";
 #else // 遠隔からのダウンロード。準備が必要。
 		_root = "https://hiryma.github.io/AssetBundlePerformanceTestData/";
@@ -70,9 +65,10 @@ public class Main : MonoBehaviour
 		// 落とすサーバとファイルリストを上書き
 		try
 		{
-			var customListPath = Application.streamingAssetsPath + "/list.txt";
+			var customListPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "/asset_bundle_performance_list.txt";
 			if (System.IO.File.Exists(customListPath))
 			{
+				_errorText.text += "list file exists. path:" + customListPath;
 				var file = new StreamReader(customListPath);
 				_root = file.ReadLine(); // 1行目がサーバ。例えばhttp://localhost/~hirayama-takashi/hoge/"
 				var tmpList = new List<string>();
@@ -87,31 +83,47 @@ public class Main : MonoBehaviour
 				_metaData = new Kayac.AssetBundleMetaData[tmpList.Count];
 				for (int i = 0; i < tmpList.Count; i++)
 				{
+					_metaData[i] = new Kayac.AssetBundleMetaData();
 					_metaData[i].name = tmpList[i];
 					_metaData[i].hash = null;
 					_metaData[i].size = 0; // 不明
 				}
 			}
+			else
+			{
+				_errorText.text += "no list file. path:" + customListPath;
+			}
 		}
-		catch
+		catch (System.Exception e)
 		{
+			_errorText.text += "error1: " + e.GetType();
 		}
 
-		// 以下は初期化実コード
-		_log = new Kayac.FileLogHandler("log.txt");
-		_appendLog = new Kayac.FileLogHandler("appendLog.txt", append: true);
-		_modeDropdown.ClearOptions();
-		var modeNames = System.Enum.GetNames(typeof(Mode));
-		foreach (var mode in modeNames)
+		try
 		{
-			var option = new Dropdown.OptionData();
-			option.text = mode;
-			_modeDropdown.options.Add(option);
-		}
-		_modeDropdown.value = 0;
-		_modeDropdown.captionText.text = modeNames[0];
+			_shuffledMetaData = new Kayac.AssetBundleMetaData[_metaData.Length];
+			Array.Copy(_metaData, _shuffledMetaData, _metaData.Length);
+			Shuffle(_shuffledMetaData);
 
-		_frametimeWatcher = new Kayac.FrameTimeWatcher();
+			_log = new Kayac.FileLogHandler("log.txt");
+			_appendLog = new Kayac.FileLogHandler("appendLog.txt", append: true);
+			_modeDropdown.ClearOptions();
+			var modeNames = System.Enum.GetNames(typeof(Mode));
+			foreach (var mode in modeNames)
+			{
+				var option = new Dropdown.OptionData();
+				option.text = mode;
+				_modeDropdown.options.Add(option);
+			}
+			_modeDropdown.value = 0;
+			_modeDropdown.captionText.text = modeNames[0];
+
+			_frametimeWatcher = new Kayac.FrameTimeWatcher();
+		}
+		catch (System.Exception e)
+		{
+			_errorText.text += "error2: " + e.GetType();
+		}
 	}
 
 	void Update()
@@ -454,7 +466,9 @@ public class Main : MonoBehaviour
 				}
 				else if (mode == Mode.UwrDownloadHandlerFile)
 				{
-					slot.req.downloadHandler = new DownloadHandlerFile(cachePath + "/" + slot.path);
+					var handler = new DownloadHandlerFile(cachePath + "/" + slot.path);
+					handler.removeFileOnAbort = true; // ゴミを残さない
+					slot.req.downloadHandler = handler;
 				}
 				else if (mode == Mode.UnityWebRequestAssetBundle)
 				{
