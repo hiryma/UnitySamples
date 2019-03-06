@@ -2,3 +2,5 @@ AssetBundleBuild
 Assets/AssetBundleSource
 AssetBundleCache
 asset_bundle_performance_list.txt
+log.txt
+appendLog.txt

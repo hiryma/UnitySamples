@@ -17,7 +17,7 @@ var hierarchy =
     ] ],
     [ "Kayac.Loader", "class_kayac_1_1_loader.html", null ],
     [ "MonoBehaviour", null, [
-      [ "Kayac.LoadHandleHolder", "class_kayac_1_1_load_handle_holder.html", null ]
+      [ "Kayac.LoaderImpl.LoadHandleHolder", "class_kayac_1_1_loader_impl_1_1_load_handle_holder.html", null ]
     ] ],
     [ "Kayac.LoaderImpl.StorageCache", "class_kayac_1_1_loader_impl_1_1_storage_cache.html", null ]
 ];

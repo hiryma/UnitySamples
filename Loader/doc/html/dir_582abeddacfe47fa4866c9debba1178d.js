@@ -9,6 +9,6 @@ var dir_582abeddacfe47fa4866c9debba1178d =
       [ "LoadHandle", "class_kayac_1_1_load_handle.html", "class_kayac_1_1_load_handle" ]
     ] ],
     [ "LoadHandleHolder.cs", "_load_handle_holder_8cs.html", [
-      [ "LoadHandleHolder", "class_kayac_1_1_load_handle_holder.html", "class_kayac_1_1_load_handle_holder" ]
+      [ "LoadHandleHolder", "class_kayac_1_1_loader_impl_1_1_load_handle_holder.html", "class_kayac_1_1_loader_impl_1_1_load_handle_holder" ]
     ] ]
 ];
