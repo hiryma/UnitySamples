@@ -59,7 +59,7 @@ namespace Kayac.LoaderImpl
 			}
 			else
 			{
-				this.isDone = true;
+				this.done = true;
 				Debug.Assert(false, "can't decide fileType from extension: " + Path.GetExtension(_storageCachePath));
 			}
 		}
@@ -67,9 +67,7 @@ namespace Kayac.LoaderImpl
 		public void Dispose()
 		{
 			// 完了まで破棄してはならない
-			Debug.Assert(referenceCount == 0);
-			Debug.Assert(_assetBundleCreateRequest == null);
-			Debug.Assert(_webRequest == null);
+			Debug.Assert(this.disposable);
 
 			if (this.assetBundle != null)
 			{
@@ -85,7 +83,13 @@ namespace Kayac.LoaderImpl
 				this.downloadHandle.DecrementReference();
 				this.downloadHandle = null;
 			}
+			this.name = null;
+			this._storageCachePath = null;
+			_fileType = FileType.Unknown;
+			_onError = null;
 		}
+
+		public bool disposed{ get{return (this.name == null); } }
 
 		public void Dump(System.Text.StringBuilder sb, int index)
 		{
@@ -102,23 +106,26 @@ namespace Kayac.LoaderImpl
 				index,
 				name,
 				showName,
-				isDone ? "loaded" : "loading",
+				done ? "loaded" : "loading",
 				referenceCount);
 		}
 
-		public bool isDone{ get; private set; }
-		// 自前で何もせず待っているだけならキャンセル可能
-		public bool cancelable
+		public bool done{ get; private set; }
+		// 自前で何もせず待っているだけなら破棄可能
+		public bool disposable
 		{
 			get
 			{
-				return (_webRequest == null) && (_assetBundleCreateRequest == null);
+				return (referenceCount <= 0) // 誰も見てなくて
+					&& (_webRequest == null) // ロードしてなくて
+					&& (_assetBundleCreateRequest == null); // ABもロードしてないなら
 			}
 		}
 
 		public void Update(bool selfOnly = true)
 		{
-			if (this.isDone)
+			UnityEngine.Profiling.Profiler.BeginSample("Kayac.LoaderImpl.FileHandle.Update()");
+			if (this.done)
 			{
 				// 何もしない
 			}
@@ -133,10 +140,10 @@ namespace Kayac.LoaderImpl
 						_onError(
 							Loader.Error.CantLoadAssetBundle,
 							this.name,
-							"AssetBundle.LoadFromFileAsync failed.");
+							new Exception("AssetBundle.LoadFromFileAsync failed."));
 					}
 					_assetBundleCreateRequest = null;
-					this.isDone = true;
+					this.done = true;
 				}
 			}
 			else if (_webRequest != null)
@@ -148,7 +155,7 @@ namespace Kayac.LoaderImpl
 						_onError(
 							Loader.Error.CantLoadStorageCache,
 							this.name,
-							_webRequest.error);
+							new Exception(_webRequest.error));
 					}
 					else if (_fileType == FileType.Audio)
 					{
@@ -158,7 +165,7 @@ namespace Kayac.LoaderImpl
 							_onError(
 								Loader.Error.CantLoadAsset,
 								this.name,
-								"DownloadHandlerAudioClip.GetContent returned null.");
+								new Exception("DownloadHandlerAudioClip.GetContent returned null."));
 						}
 					}
 					else if (_fileType == FileType.Texture)
@@ -169,12 +176,12 @@ namespace Kayac.LoaderImpl
 							_onError(
 								Loader.Error.CantLoadAsset,
 								this.name,
-								"DownloadHandlerTexture.GetContent failed.");
+								new Exception("DownloadHandlerTexture.GetContent failed."));
 						}
 					}
 					_webRequest.Dispose();
 					_webRequest = null;
-					this.isDone = true;
+					this.done = true;
 				}
 			}
 			else if (this.downloadHandle != null) // ダウンロード待ち
@@ -189,11 +196,12 @@ namespace Kayac.LoaderImpl
 					this.downloadHandle.DecrementReference();
 					this.downloadHandle = null;
 				}
-				else if (this.downloadHandle.isDone) // ファイルが使えないのに終わっている=エラー
+				else if (this.downloadHandle.done) // ファイルが使えないのに終わっている=エラー
 				{
-					this.isDone = true; // 終了とする
+					this.done = true; // 終了とする
 				}
 			}
+			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
 		public void IncrementReference()
@@ -207,6 +215,7 @@ namespace Kayac.LoaderImpl
 		}
 		enum FileType
 		{
+			Unknown,
 			AssetBundle,
 			Audio,
 			Texture,

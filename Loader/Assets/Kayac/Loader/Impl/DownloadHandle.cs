@@ -12,7 +12,7 @@ namespace Kayac.LoaderImpl
 		public DownloadHandle(
 			string name,
 			string downloadPath,
-			ref Hash128 hash,
+			ref FileHash hash,
 			Loader.OnError onError,
 			int retryCount,
 			int timeoutSeconds,
@@ -37,14 +37,21 @@ namespace Kayac.LoaderImpl
 			_fileWriter = fileWriter;
 		}
 
+		public void SetWaitingListNode(LinkedListNode<DownloadHandle> node)
+		{
+			this.waitingListNode = node;
+		}
+
 		public void Dispose()
 		{
-			Debug.Assert(isDone);
-			Debug.Assert(referenceCount == 0);
-			Debug.Log(name + " Dispose " + _webRequest);
-			Debug.Assert(_webRequest == null);
-			Debug.Assert(_fileWriterHandle == null);
+			Debug.Assert(disposable);
+			if (_webRequest != null)
+			{
+				_webRequest.Dispose();
+				_webRequest = null;
+			}
 
+			_fileWriterHandle = null;
 			this.name = null;
 			_downloadPath = null;
 			_onError = null;
@@ -55,12 +62,15 @@ namespace Kayac.LoaderImpl
 			_downloadHandlerBuffer = null;
 		}
 
+		public bool disposed { get { return this.name == null; } }
+		public LinkedListNode<DownloadHandle> waitingListNode{ get; private set; }
+
 		public void Dump(System.Text.StringBuilder sb, int index)
 		{
 			sb.AppendFormat("{0}: {1} {2} ref:{3}\n",
 				index,
 				name,
-				isDone ? "cached" : "downloading",
+				done ? "cached" : "downloading",
 				referenceCount);
 		}
 
@@ -78,7 +88,7 @@ namespace Kayac.LoaderImpl
 			}
 		}
 
-		public bool isDone
+		public bool done
 		{
 			get
 			{
@@ -90,6 +100,15 @@ namespace Kayac.LoaderImpl
 				{
 					return IsDownloadDone() && IsCacheWriteDone();
 				}
+			}
+		}
+
+		public bool disposable
+		{
+			get
+			{
+				return (referenceCount <= 0) // 誰も見てなくて
+					&& (!IsStarted() || this.done); // 始まってないか終わっていれば
 			}
 		}
 
@@ -107,17 +126,17 @@ namespace Kayac.LoaderImpl
 				if (_fileWriterHandle.done)
 				{
 					var exception = _fileWriterHandle.exception;
-					if (exception != null)
+					if (exception != null) // 書き込み側のエラーはリトライしない。容量不足ならリトライしてもダメだし、故障の類はどうにもならない。
 					{
 						_onError(
 							Loader.Error.CantWriteStorageCache,
 							this.name,
-							"FileWriter failed. exception: " + exception.GetType().ToString());
+							exception);
 						_error = true;
 					}
 					else // 書き込み成功したので登録処理
 					{
-						_storageCache.OnFileSaved(_fileWriterHandle.path, name, ref _hash);
+						_storageCache.OnFileSaved(name, ref _hash);
 					}
 					_fileWriterHandle = null;
 					_fileWriter = null;
@@ -155,7 +174,7 @@ namespace Kayac.LoaderImpl
 						_onError(
 							Loader.Error.Network,
 							this.name,
-							_webRequest.error);
+							new Exception(_webRequest.error));
 						_webRequest.Dispose();
 						_webRequest = null;
 						_error = true;
@@ -172,7 +191,7 @@ namespace Kayac.LoaderImpl
 						_onError(
 							Loader.Error.Network,
 							this.name,
-							_webRequest.error);
+							new Exception(_webRequest.error));
 						_webRequest.Dispose();
 						_webRequest = null;
 						_error = true;
@@ -201,8 +220,8 @@ namespace Kayac.LoaderImpl
 			}
 			_downloadedBytes = 0;
 			_webRequest = new UnityWebRequest(_downloadPath);
-			var tmpPath = _storageCache.MakeRelativeTemporaryPath(name, ref _hash);
-			_fileWriterHandle = _fileWriter.Begin(tmpPath);
+			var cachePath = _storageCache.MakeCachePath(name, ref _hash, absolute: false);
+			_fileWriterHandle = _fileWriter.Begin(cachePath);
 			_webRequest.downloadHandler = new DownloadHandlerFileWriter(
 				_fileWriter,
 				_fileWriterHandle,
@@ -228,7 +247,7 @@ namespace Kayac.LoaderImpl
 		public int referenceCount { get; private set; }
 		public string name { get; private set; }
 		string _downloadPath;
-		Hash128 _hash;
+		FileHash _hash;
 		Loader.OnError _onError;
 		UnityWebRequest _webRequest;
 		int _restRetryCount;

@@ -30,7 +30,7 @@ namespace Kayac
 		public bool MoveNext()
 		{
 			_handle.Update(selfOnly: false); // 下流含めて更新する
-			return !_handle.isDone;
+			return !_handle.done;
 		}
 		public void Reset(){}
 		object IEnumerator.Current { get { return null; } }

@@ -33,8 +33,7 @@ namespace Kayac.LoaderImpl
 
 		public void Dispose()
 		{
-			Debug.Assert(_req == null, "AssetBundleRequest exists. wait complete. isDone=" + isDone);
-			Debug.Assert(_referenceCount <= 0, this.dictionaryKey + " refCount is " + _referenceCount);
+			Debug.Assert(this.disposable);
 			if (this.fileHandle != null)
 			{
 				this.fileHandle.DecrementReference();
@@ -48,9 +47,10 @@ namespace Kayac.LoaderImpl
 			_onError = null;
 		}
 
+		public bool disposed { get { return (this.dictionaryKey == null); } }
+
 		public void Dump(System.Text.StringBuilder sb, int index)
 		{
-			UnityEngine.Profiling.Profiler.BeginSample("Kayac.Loader.DumpAssets");
 			var assetName = "[NULL]";
 			if (asset != null)
 			{
@@ -60,24 +60,24 @@ namespace Kayac.LoaderImpl
 				index,
 				this.dictionaryKey,
 				assetName,
-				isDone ? "done" : "loading",
+				done ? "done" : "loading",
 				GetReferenceCountThreadSafe(),
 				callbackCount);
 		}
 
-		public bool isDone{ get; private set; }
-		// 自前で何かをしておらず上流を待っているだけであればキャンセル可能
-		public bool cancelable
+		public bool done { get; private set; }
+		// 自前で何かをしておらず上流を待っているだけであれば破棄可能
+		public bool disposable
 		{
 			get
 			{
-				return (_req == null);
+				return (GetReferenceCountThreadSafe() <= 0) && (_req == null);
 			}
 		}
 
 		public void Update(bool selfOnly = true)
 		{
-			if (this.isDone)
+			if (this.done)
 			{
 				// 何もしない
 			}
@@ -107,14 +107,14 @@ namespace Kayac.LoaderImpl
 								_onError(
 									Loader.Error.AssetTypeMismatch,
 									this.name,
-									"AssetBundle.LoadAssetAsync failed. probably type mismatch.");
+									new Exception("AssetBundle.LoadAssetAsync failed. probably type mismatch."));
 							}
 							else
 							{
 								_onError(
 									Loader.Error.CantLoadAsset,
 									this.name,
-									"AssetBundle.LoadAssetAsync failed.");
+									new Exception("AssetBundle.LoadAssetAsync failed."));
 							}
 						}
 						else
@@ -122,12 +122,12 @@ namespace Kayac.LoaderImpl
 							_onError(
 								Loader.Error.NoAssetInAssetBundle,
 								this.name,
-								"AssetBundle.LoadAssetAsync failed. " + this.name + " is not contained in AssetBundle:" + this.fileHandle.assetBundle.name);
+								new Exception("AssetBundle.LoadAssetAsync failed. " + this.name + " is not contained in AssetBundle:" + this.fileHandle.assetBundle.name));
 						}
 					}
 					_req = null;
 					ExecuteCallbacks();
-					this.isDone = true;
+					this.done = true;
 				}
 			}
 			else if (this.fileHandle != null)
@@ -136,7 +136,7 @@ namespace Kayac.LoaderImpl
 				{
 					this.fileHandle.Update();
 				}
-				if (this.fileHandle.isDone)
+				if (this.fileHandle.done)
 				{
 					if (this.fileHandle.assetBundle != null)
 					{
@@ -158,11 +158,11 @@ namespace Kayac.LoaderImpl
 					{
 						_asset = this.fileHandle.asset;
 						ExecuteCallbacks();
-						this.isDone = true;
+						this.done = true;
 					}
 					else // エラーの場合終わり
 					{
-						this.isDone = true;
+						this.done = true;
 					}
 				}
 			}

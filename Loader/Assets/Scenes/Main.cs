@@ -6,15 +6,17 @@ using System.IO;
 
 public class Main : MonoBehaviour
 {
-	const int DownloadParallelCount = 1;
 	const int FileCount = 19;
 	const int HandleCount = 64;
 	const int ReleaseWaitMax = 8;
 	const float DeferenceScreenHeight = 432f;
+	const int RandSeed = 1;
+	uint _rand = RandSeed;
 
 	public Text dump;
 	public Canvas canvas;
 	public Toggle autoTestToggle;
+	public int downloadParallelCount;
 
 	RawImage[] _images;
 	Kayac.Loader _loader;
@@ -29,7 +31,7 @@ public class Main : MonoBehaviour
 
 	class AssetFileDatabase : Kayac.Loader.IAssetFileDatabase
 	{
-		public void SetHashMap(Dictionary<string, Hash128> hashMap)
+		public void SetHashMap(Dictionary<string, Kayac.FileHash> hashMap)
 		{
 			_hashMap = hashMap;
 		}
@@ -44,12 +46,12 @@ public class Main : MonoBehaviour
 		}
 
 		public bool GetFileMetaData(
-			out Hash128 hash, // アセットファイルのバージョンを示すハッシュ
+			out Kayac.FileHash hash, // アセットファイルのバージョンを示すハッシュ
 			string fileName)
 		{
 			return _hashMap.TryGetValue(fileName, out hash);
 		}
-		Dictionary<string, Hash128> _hashMap;
+		Dictionary<string, Kayac.FileHash> _hashMap;
 	}
 
 	void Start()
@@ -95,7 +97,15 @@ public class Main : MonoBehaviour
 #endif
 		storageCacheRoot += "/../AssetFileCache";
 
-		_loader = new Kayac.Loader(downloadRoot, storageCacheRoot, _database);
+		if (downloadParallelCount < 1)
+		{
+			downloadParallelCount = 1;
+		}
+		_loader = new Kayac.Loader(
+			downloadRoot,
+			storageCacheRoot,
+			_database,
+			downloadParallelCount);
 	}
 
 	bool ReadAssetFileList(out string downloadRoot)
@@ -132,28 +142,41 @@ public class Main : MonoBehaviour
 
 	public void UpdateHashMap()
 	{
-		var hashMap = new Dictionary<string, Hash128>();
+		var hashMap = new Dictionary<string, Kayac.FileHash>();
 		for (int i = 0; i < _fileList.Count; i++)
 		{
-			var hash = new Hash128(
-				(uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue),
-				(uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue),
-				(uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue),
-				(uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
+			var hash128 = new Hash128(Rand(), Rand(), Rand(), Rand()); // Unityのハッシュが先にある場合、変換可能
+			var hash = new Kayac.FileHash(hash128);
+			Debug.Assert(hash128.ToString() == hash.ToString());
 			hashMap.Add(_fileList[i], hash);
 		}
 		_database.SetHashMap(hashMap);
+	}
+
+	public void DownloadAll()
+	{
+		int downloadCount = 0;
+		foreach (var item in _fileList)
+		{
+			if (_loader.Download(item, OnError))
+			{
+				downloadCount++; // サイズを知っていればサイズを集計する。このサンプルではサイズを知らないので個数だけ集計。
+			}
+		}
 	}
 
 	void Update()
 	{
 		_log.Update();
 
-		_loader.Update();
-		_sb.Length = 0;
-		bool summaryOnly = (_fileList.Count > 20);
-		_loader.Dump(_sb, summaryOnly);
-		dump.text = _sb.ToString();
+		if (_loader.ready) // 見ないでUpdate,Dumpを呼べば、初期化が終わるまでブロックするが動く。ブロックを嫌うならこれを見ておくこと。
+		{
+			_loader.Update();
+			_sb.Length = 0;
+			bool summaryOnly = (_fileList.Count > 20);
+			_loader.Dump(_sb, summaryOnly);
+			dump.text = _sb.ToString();
+		}
 
 		// 破棄中は何もしない
 		int sinceRelease = Time.frameCount - _releasedFrame;
@@ -213,10 +236,7 @@ public class Main : MonoBehaviour
 
 	public void ClearStorageCache()
 	{
-		var t0 = Time.realtimeSinceStartup;
-		bool result = _loader.ClearStorageCache();
-		var t1 = Time.realtimeSinceStartup;
-		Debug.Log("ClearCache : " + result + " " + (t1 - t0));
+		bool result = _loader.StartClearStorageCache();
 	}
 
 	public void Load()
@@ -256,7 +276,7 @@ public class Main : MonoBehaviour
 	public void OnError(
 		Kayac.Loader.Error errorType,
 		string fileOrAssetName,
-		string message)
+		System.Exception exception)
 	{
 		// typeに応じてポップアップを出すなどする
 		switch (errorType)
@@ -265,8 +285,16 @@ public class Main : MonoBehaviour
 			case Kayac.Loader.Error.NoAssetInAssetBundle:
 				break; // このサンプルでは中身知らずにロードしてたまたま見つかって画像だったら表示してるだけなので、これらは無視。
 			default:
-				Debug.LogError("Kayac.Loader error: " + errorType + " : " + fileOrAssetName + " : " + message);
+				Debug.LogError("Kayac.Loader error: " + errorType + " : " + fileOrAssetName + " : " + exception.GetType().Name + " : " + exception.Message);
 				break;
 		}
+	}
+
+	public uint Rand() // hash生成用。毎回起動直後は同じ値にしたいので自前で持つ
+	{
+		_rand ^= _rand >> 13;
+		_rand ^= _rand << 17;
+		_rand ^= _rand >> 5;
+		return _rand;
 	}
 }

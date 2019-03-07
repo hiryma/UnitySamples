@@ -24,6 +24,10 @@ namespace Kayac.LoaderImpl
 			{
 				int written;
 				_writer.Write(out written, _writerHandle, data, offset, length);
+				if (_writerHandle.exception != null) // エラーを起こしているので抜ける
+				{
+					break;
+				}
 				length -= written;
 				if (length <= 0)
 				{

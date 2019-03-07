@@ -30,9 +30,10 @@ namespace Kayac.LoaderImpl
 			protected bool _done; // スレッドセーフである必要あり
 		}
 
-		public FileWriter(string root, int bufferSize)
+		public FileWriter(string root, string temporaryFilePostfix, int bufferSize)
 		{
 			_root = root;
+			_temporaryFilePostfix = temporaryFilePostfix;
 			if (!_root.EndsWith("/"))
 			{
 				_root += '/';
@@ -41,7 +42,7 @@ namespace Kayac.LoaderImpl
 			_writePos = _readPos = 0;
 			_requestQueue = new Queue<Request>();
 			_semaphore = new Semaphore(0, int.MaxValue);
-			_thread = new Thread(ThreadFunc);
+			_thread = new Thread(ThreadEntryPoint);
 			_thread.Start();
 		}
 
@@ -64,7 +65,11 @@ namespace Kayac.LoaderImpl
 		public void Write(out int writtenLength, Handle handle, byte[] data, int srcOffset, int length)
 		{
 			Debug.Assert(handle != null);
-			Debug.Assert(!handle.done);
+			if (handle.done) // エラーで失敗しているのでスルー
+			{
+				writtenLength = 0;
+				return;
+			}
 			Debug.Assert(data != null);
 			// コピーする範囲を決定。
 			Thread.MemoryBarrier(); // 別のスレッドから書き込まれている可能性があることを明示。合ってるかは不明。
@@ -105,8 +110,24 @@ namespace Kayac.LoaderImpl
 		public void End(Handle handle)
 		{
 			Debug.Assert(handle != null);
-			Debug.Assert(!handle.done);
+			if (handle.done) // エラーで失敗しているのでスルー
+			{
+				return;
+			}
 			Enqueue(handle, 0, 0);
+		}
+
+		public int requestCount
+		{
+			get
+			{
+				int ret;
+				lock (_requestQueue)
+				{
+					ret = _requestQueue.Count;
+				}
+				return ret;
+			}
 		}
 
 		public int restBytes
@@ -137,63 +158,64 @@ namespace Kayac.LoaderImpl
 			_semaphore.Release();
 		}
 
-		void ThreadFunc()
+		void ThreadEntryPoint()
 		{
+			UnityEngine.Profiling.Profiler.BeginThreadProfiling("Kayac", "LoaderImpl.FileWriter");
+			_threadBusySampler = UnityEngine.Profiling.CustomSampler.Create("Busy");
 			Request req;
-			while (true)
+			bool end = false;
+			while (!end)
 			{
 				_semaphore.WaitOne(); // 何か投入されるまで待つ
+				_threadBusySampler.Begin();
 				lock (_thread)
 				{
 					req = _requestQueue.Dequeue();
 				}
 				if (req.handle == null) // ダミージョブにつき抜ける
 				{
-					break;
+					end = true;
 				}
-				Execute(ref req);
+				else
+				{
+					Execute(ref req);
+				}
+				_threadBusySampler.End();
 			}
+			UnityEngine.Profiling.Profiler.EndThreadProfiling();
 		}
 
 		void Execute(ref Request req)
 		{
 			HandleImpl handle = req.handle;
-			try
+			if (handle.done) // もう終わってる。たぶんエラー
 			{
-				if (handle.done) // もう終わってるのに来てるのは不正
-				{
-					Debug.Assert(false);
-				}
-				else if (!handle.opened) // 開いてない。開ける要求と解釈する
-				{
-					handle.Open(_root);
-				}
-				else if (req.length == 0) // 書き込むものがない。閉じる要求と解釈する
-				{
-					handle.Close();
-				}
-				else // 開いていて書きこむ
-				{
-					int length0 = Mathf.Min(_buffer.Length - req.offset, req.length);
-					handle.Write(_buffer, req.offset, length0);
-					int length1 = req.length - length0;
-					if (length1 > 0)
-					{
-						handle.Write(_buffer, 0, length1);
-					}
-					int rp = _readPos;
-					rp += req.length;
-					if (rp >= _buffer.Length)
-					{
-						rp -= _buffer.Length;
-					}
-					Interlocked.Exchange(ref _readPos, rp);
-				}
+				// 何もしない
 			}
-			catch (System.Exception e)
+			else if (!handle.opened) // 開いてない。開ける要求と解釈する
 			{
-				handle.Close(); // 何かしくじったら閉じて終わらせる TODO: 真面目なエラー処理
-				Debug.LogException(e);
+				handle.BeginWrite(_root, _temporaryFilePostfix);
+			}
+			else if (req.length == 0) // 書き込むものがない。閉じる要求と解釈する
+			{
+				handle.EndWrite(_root);
+			}
+			else // 開いていて書きこむ
+			{
+				int length0 = Mathf.Min(_buffer.Length - req.offset, req.length);
+				handle.Write(_buffer, req.offset, length0);
+				int length1 = req.length - length0;
+				if (length1 > 0)
+				{
+					handle.Write(_buffer, 0, length1);
+				}
+				int rp = _readPos;
+				rp += req.length;
+				if (rp >= _buffer.Length)
+				{
+					rp -= _buffer.Length;
+				}
+				Interlocked.Exchange(ref _readPos, rp);
 			}
 		}
 
@@ -213,30 +235,62 @@ namespace Kayac.LoaderImpl
 				Close();
 			}
 
-			public void Open(string root)
+			public void BeginWrite(string root, string temporaryFilePostfix)
 			{
 				try
 				{
-					_file = new FileStream(root + this.path, FileMode.Create, FileAccess.Write);
+					var tmpPath = root + this.path + temporaryFilePostfix;
+					_fileInfo = new FileInfo(tmpPath);
+					// フォルダがない場合生成
+					var dir = _fileInfo.Directory;
+					if (!dir.Exists)
+					{
+						dir.Create();
+					}
+					if (_fileInfo.Exists)
+					{
+						_fileStream = _fileInfo.OpenWrite();
+					}
+					else
+					{
+						_fileStream = _fileInfo.Create();
+					}
 				}
 				catch (Exception e)
 				{
-					_exception = e;
+					_exception = FileUtility.InspectIoError(_fileInfo.FullName, null, e);
 					_done = true;
 				}
 			}
 
-			public void Close()
+			void Close()
 			{
-				if (_file != null)
+				if (_fileStream != null)
 				{
 					try
 					{
-						_file.Close();
+						_fileStream.Close();
 					}
 					catch (Exception e)
 					{
-						_exception = e;
+						_exception = FileUtility.InspectIoError(_fileInfo.FullName, null, e);
+					}
+				}
+			}
+
+			public void EndWrite(string root)
+			{
+				if (_fileStream != null)
+				{
+					Close();
+					var dst = root + this.path;
+					try
+					{
+						_fileInfo.MoveTo(dst); // 本番ファイル名に変更
+					}
+					catch (Exception e)
+					{
+						_exception = FileUtility.InspectIoError(_fileInfo.FullName, dst, e);
 					}
 				}
 				_done = true;
@@ -246,11 +300,11 @@ namespace Kayac.LoaderImpl
 			{
 				try
 				{
-					_file.Write(data, offset, length);
+					_fileStream.Write(data, offset, length);
 				}
 				catch (Exception e)
 				{
-					_exception = e;
+					_exception = FileUtility.InspectIoError(_fileInfo.FullName, null, e);
 					_done = true;
 				}
 			}
@@ -258,13 +312,16 @@ namespace Kayac.LoaderImpl
 			Exception _exception;
 			public override Exception exception { get { return _exception; } }
 
-			public bool opened { get { return _file != null; } }
-			FileStream _file; // ロードスレッドからしか触らない
+			public bool opened { get { return _fileStream != null; } }
+			FileStream _fileStream; // ロードスレッドからしか触らない
+			FileInfo _fileInfo;
 		}
 
 		Thread _thread;
+		UnityEngine.Profiling.CustomSampler _threadBusySampler;
 		Semaphore _semaphore;
 		string _root;
+		string _temporaryFilePostfix;
 		Queue<Request> _requestQueue; // スレッドセーフ必要
 		byte[] _buffer;
 		int _writePos; // ユーザが次に書きこむ位置(バッファから見てwrite)
