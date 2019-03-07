@@ -4,22 +4,23 @@ using UnityEngine;
 
 namespace Kayac
 {
+	/// Hash128が別スレッドから使えない問題+ToStringでGCAllocしまくる問題に対処するためにやむをえず自作。
 	public struct FileHash
 	{
-		public FileHash(Hash128 hash128) // Unity側から変換
+		/// Unity側から変換。GCAllocするので最小にしたい。
+		public FileHash(Hash128 hash128)
 		{
-			var s = hash128.ToString(); // 32桁の16進が得られる
-			Debug.Assert(s.Length == 32);
+			var s = hash128.ToString(); // 32桁の16進が得られる前提で書いている
+			Debug.Assert(s.Length == 32, "Hash128.ToString() return unexpected string. length != 32.");
 			v0 = Parse(s, 0);
 			v1 = Parse(s, 8);
 			v2 = Parse(s, 16);
 			v3 = Parse(s, 24);
 		}
 
-		// 32桁の16進数から生成する
-		public FileHash(string s, int start)
+		// 32桁の16進数文字列の一部から生成する。32文字ない場合は中途半端な値になる。死にはしない。
+		public FileHash(string s, int start = 0)
 		{
-			Debug.Assert((s.Length - start) >= 32);
 			v0 = Parse(s, start + 0);
 			v1 = Parse(s, start + 8);
 			v2 = Parse(s, start + 16);
@@ -93,16 +94,20 @@ namespace Kayac
 
 		static uint Parse(string s, int start)
 		{
-			Debug.Assert(s.Length >= (start + 8));
 			int x = 0;
 			for (int i = 0; i < 8; i++)
 			{
+				if ((start + i) >= s.Length)
+				{
+					break;
+				}
 				var c = s[start + i];
 				x |= ParseHex(c) << ((7 - i) * 4);
 			}
 			return (uint)x;
 		}
 
+		/// charの0-9、a-f、A-Fを0-15のintに変換する
 		static int ParseHex(char c)
 		{
 			int ret = 0;
