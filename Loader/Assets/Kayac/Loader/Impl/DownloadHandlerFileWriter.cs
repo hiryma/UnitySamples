@@ -18,6 +18,10 @@ namespace Kayac.LoaderImpl
 
 		protected override bool ReceiveData(byte[] data, int length)
 		{
+			if (_writerHandle == null) // エラー終了してる
+			{
+				return false;
+			}
 			// writerで詰まるようならここでブロックする。 TODO: 後で何か考えろ
 			int offset = 0;
 			while (true)
@@ -41,7 +45,17 @@ namespace Kayac.LoaderImpl
 
 		protected override void CompleteContent()
 		{
-			_writer.End(_writerHandle);
+			if (_writerHandle != null)
+			{
+				_writer.End(_writerHandle);
+				_writerHandle = null;
+			}
+		}
+
+		public void OnError() // エラー時にファイル閉じる
+		{
+			Debug.LogError("DownloadHandler.fileWriter.OnError called.");
+			_writer.Abort(_writerHandle);
 			_writerHandle = null;
 		}
 

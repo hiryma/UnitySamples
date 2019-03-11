@@ -1394,7 +1394,7 @@ MonoBehaviour:
   dump: {fileID: 1517440091}
   canvas: {fileID: 276504760}
   autoTestToggle: {fileID: 1851687164}
-  downloadParallelCount: 16
+  downloadParallelCount: 128
 --- !u!4 &1676556680
 Transform:
   m_ObjectHideFlags: 0

@@ -9,6 +9,7 @@ namespace Kayac
 	{
 		public FileLogHandler(string path, bool append = false)
 		{
+			_stringBuilder = new System.Text.StringBuilder();
 			try
 			{
 				_writer = new System.IO.StreamWriter(path, append);
@@ -36,9 +37,22 @@ namespace Kayac
 			{
 				return;
 			}
-			var message = _frameCountCopy + "\t" + DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + logString;
-			_writer.WriteLine(message);
-			_writer.Flush();
+			string str = null;
+			lock (_stringBuilder)
+			{
+				_stringBuilder.Length = 0;
+				_stringBuilder.Append(_frameCountCopy);
+				_stringBuilder.Append('\t');
+				_stringBuilder.AppendFormat("{0:MM}/{0:dd} {0:HH}:{0:mm}:{0:ss}.{0:fff}", DateTime.Now);
+				_stringBuilder.Append(':');
+				_stringBuilder.Append(logString);
+				str = _stringBuilder.ToString();
+			}
+			lock (_writer)
+			{
+				_writer.WriteLine(str);
+				_writer.Flush();
+			}
 		}
 
 		public void Update()
@@ -53,17 +67,34 @@ namespace Kayac
 			{
 				return;
 			}
-			var message = _frameCountCopy + "\t" + DateTime.Now.ToString("MM/dd HH:mm:ss.fff") + " : " + type.ToString() + " : " + logString;
-			// コールスタックはError系でだけ吐くことにする。設定可能にしても良いかもしれない。
-			if ((type == LogType.Exception) || (type == LogType.Error) || (type == LogType.Assert))
+			string str = null;
+			lock (_stringBuilder)
 			{
-				message += "\n" + stackTrace;
+				_stringBuilder.Length = 0;
+				_stringBuilder.Append(_frameCountCopy);
+				_stringBuilder.Append(' ');
+				_stringBuilder.AppendFormat("{0:MM}/{0:dd} {0:HH}:{0:mm}:{0:ss}.{0:fff}", DateTime.Now);
+				_stringBuilder.Append(':');
+				_stringBuilder.Append(type);
+				_stringBuilder.Append(':');
+				_stringBuilder.Append(logString);
+				// コールスタックはError系でだけ吐くことにする。設定可能にしても良いかもしれない。
+				if ((type == LogType.Exception) || (type == LogType.Error) || (type == LogType.Assert))
+				{
+					_stringBuilder.Append('\n');
+					_stringBuilder.Append(stackTrace);
+				}
+				str = _stringBuilder.ToString();
 			}
-			_writer.WriteLine(message);
-			_writer.Flush();
+			lock (_writer)
+			{
+				_writer.WriteLine(str);
+				_writer.Flush();
+			}
 		}
 
 		System.IO.StreamWriter _writer;
 		int _frameCountCopy; // メインスレッドでしかTime.frameCountにアクセスできないため
+		System.Text.StringBuilder _stringBuilder;
 	}
 }

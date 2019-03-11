@@ -11,24 +11,32 @@ namespace Kayac.LoaderImpl
 	{
 		public const string temporaryFilePostfix = ".tmp";
 
-		public StorageCache(string root, Loader.IAssetFileDatabase database)
+		public StorageCache(string root)
 		{
-			_database = database;
 			if (root[root.Length - 1] == '/') // スラッシュ終わり
 			{
-				_root = root.Substring(0, root.Length - 1);
+				this.root = root.Substring(0, root.Length - 1);
 			}
 			else // スラッシュ終わりでない
 			{
-				_root = root;
+				this.root = root;
 			}
 
 			_stringBuilder = new System.Text.StringBuilder();
 			StartScan();
 		}
 
+		public void Start(Loader.IAssetFileDatabase database, bool update = true)
+		{
+			_database = database;
+			if (update)
+			{
+				StartUpdate();
+			}
+		}
+
 		/// 初期化処理、クリア、等が走っておらずブロックせずに利用可能な状態かを返す。
-		public bool ready { get { return (_entries != null) && (_thread == null); } }
+		public bool ready { get { return (_database != null) && (_entries != null) && (_thread == null); } }
 
 		void StartScan()
 		{
@@ -41,9 +49,9 @@ namespace Kayac.LoaderImpl
 		void ScanThreadEntryPoint()
 		{
 			var t0 = System.DateTime.Now;
-			_scanner.Scan(_root, _database);
+			_scanner.Build(this.root);
 			var t1 = System.DateTime.Now;
-			Debug.Log("Kayac.Lorder: ScanStorageCache take " + (t1 - t0).TotalSeconds + " sec.");
+			Debug.Log("Kayac.Lorder: ScanStorageCache take " + (t1 - t0).TotalMilliseconds + " msec.");
 		}
 
 		public void StartClear()
@@ -56,9 +64,71 @@ namespace Kayac.LoaderImpl
 		void ClearThreadEntryPoint()
 		{
 			var t0 = System.DateTime.Now;
-			Clear(_root, _entries);
+			Clear(this.root, _entries);
 			var t1 = System.DateTime.Now;
-			Debug.Log("Kayac.Lorder: ClearStorageCache take " + (t1 - t0).TotalSeconds + " sec.");
+			Debug.Log("Kayac.Lorder: ClearStorageCache take " + (t1 - t0).TotalMilliseconds + " msec.");
+		}
+
+		static void Clear(string root, Dictionary<string, StorageCache.Entry> entries)
+		{
+			var stringBuilder = new System.Text.StringBuilder();
+			// ファイル個別削除
+			foreach (var item in entries)
+			{
+				var entry = item.Value;
+				var cachePath = StorageCache.MakeCachePath(stringBuilder, item.Key, ref entry.hash, root);
+				FileUtility.DeleteFile(cachePath);
+			}
+			FileUtility.RemoveEmptyDirectories(root);
+		}
+
+
+		void StartUpdate()
+		{
+			JoinThread();
+			_thread = new Thread(UpdateThreadEntryPoint);
+			_thread.Start();
+		}
+
+		void UpdateThreadEntryPoint()
+		{
+			var t0 = System.DateTime.Now;
+			Update(_entries, this.root, _database);
+			var t1 = System.DateTime.Now;
+			Debug.Log("Kayac.Lorder: UpdateStorageCache take " + (t1 - t0).TotalMilliseconds + " msec.");
+		}
+
+		static void Update(
+			Dictionary<string, Entry> entries,
+			string root,
+			Loader.IAssetFileDatabase database)
+		{
+			var sb = new System.Text.StringBuilder();
+			lock (entries)
+			{
+				foreach (var item in entries)
+				{
+					var name = item.Key;
+					FileHash refHash;
+					var entry = item.Value;
+					bool match = false;
+					if (database.GetFileMetaData(out refHash, name))
+					{
+						if (refHash == entry.hash)
+						{
+							match = true;
+						}
+					}
+					if (!match) // Databaseにない、あるいはハッシュが異なる→削除
+					{
+						sb.Length = 0;
+						MakeCachePath(sb, name, ref entry.hash, root);
+						var path = sb.ToString();
+						FileUtility.DeleteFile(path);
+						entries.Remove(name);
+					}
+				}
+			}
 		}
 
 		void JoinThread()
@@ -69,19 +139,23 @@ namespace Kayac.LoaderImpl
 				_thread.Join();
 				_thread = null;
 				var t1 = Time.realtimeSinceStartup;
-				var time = t1 - t0;
-				if (time >= 0.01f) // 10ms秒以上止まったら警告
+				var msec = (t1 - t0) * 1000f;
+				if (msec >= 10f) // 10ms秒以上止まったら警告
 				{
-					Debug.LogWarning("Kayac.Loader(StorageCache): init or clear blocking main thread " + (t1 - t0) + " sec.");
+					Debug.LogWarning("Kayac.Loader(StorageCache): init or clear blocking main thread " + msec + " msec.");
 				}
 				if (_scanner != null) // スキャン
 				{
 					_entries = _scanner.GetResult();
 					_scanner = null;
 				}
-				else // クリアー
+				else if (_started) // 開始済みならクリア
 				{
 					_entries.Clear();
+				}
+				else // まだStartが終わっていないならUpdateによるスレッドなのでstart済みとする
+				{
+					_started = true;
 				}
 			}
 		}
@@ -108,7 +182,7 @@ namespace Kayac.LoaderImpl
 			lock (_entries)
 			{
 				sb.AppendFormat("[StorageCache] count:{0}\n", _entries.Count);
-				sb.AppendFormat("root: {0}\n", _root);
+				sb.AppendFormat("root: {0}\n", this.root);
 				if (!summaryOnly)
 				{
 					foreach (var item in _entries)
@@ -140,6 +214,7 @@ namespace Kayac.LoaderImpl
 		public void OnFileSaved(string name, ref FileHash hash)
 		{
 			JoinThread(); // スレッド実行待ちでブロック
+
 			// すでにあれば、古いファイルを消す。
 			TryDelete(name);
 			// テーブル更新
@@ -157,7 +232,7 @@ namespace Kayac.LoaderImpl
 				_stringBuilder,
 				name,
 				ref hash,
-				absolute ? _root : null);
+				absolute ? this.root : null);
 		}
 
 		public static string MakeCachePath(
@@ -166,32 +241,26 @@ namespace Kayac.LoaderImpl
 			ref FileHash hash,
 			string root)
 		{
-			int extIndex = name.LastIndexOf('.');
 			sb.Length = 0;
 			if (root != null)
 			{
 				sb.Append(root);
 				sb.Append('/');
 			}
+			int extIndex = name.LastIndexOf('.');
+			if (extIndex < 0)
+			{
+				extIndex = name.Length;
+			}
 			sb.Append(name, 0, extIndex);
 			sb.Append('.');
 			hash.AppendString(sb);
 			sb.Append('.');
-			sb.Append(name, extIndex + 1, name.Length - extIndex - 1);
-			return sb.ToString();
-		}
-
-		public static void Clear(string root, Dictionary<string, StorageCache.Entry> entries)
-		{
-			var stringBuilder = new System.Text.StringBuilder();
-			// ファイル個別削除
-			foreach (var item in entries)
+			if (extIndex < name.Length)
 			{
-				var entry = item.Value;
-				var cachePath = StorageCache.MakeCachePath(stringBuilder, item.Key, ref entry.hash, root);
-				FileUtility.DeleteFile(cachePath);
+				sb.Append(name, extIndex + 1, name.Length - extIndex - 1);
 			}
-			FileUtility.RemoveEmptyDirectories(root);
+			return sb.ToString();
 		}
 
 		public struct Entry // 生成時刻を足す可能性は高い。性能のためにパスを加えることもありうる。
@@ -199,11 +268,12 @@ namespace Kayac.LoaderImpl
 			public FileHash hash;
 		}
 
-		string _root; // スラッシュが後ろについてない状態で持つ
+		public string root { get; private set; } // スラッシュが後ろについてない状態で持つ
 		Dictionary<string, Entry> _entries;
 		System.Text.StringBuilder _stringBuilder; // 文字列処理用StringBuilder
 		Loader.IAssetFileDatabase _database;
 		Thread _thread;
 		StorageCacheScanner _scanner;
+		bool _started;
 	}
 }

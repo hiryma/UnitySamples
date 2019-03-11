@@ -10,38 +10,29 @@ namespace Kayac.LoaderImpl
 	// このクラスのコードは全て別スレッド実行
 	public class StorageCacheScanner
 	{
-		public void Scan(
-			string root,
-			Loader.IAssetFileDatabase database)
+		public void Build(string root)
 		{
 			Debug.Assert(root[root.Length - 1] != '/'); // スラッシュ終わりなら不正
 			_root = root;
-			_database = database;
 
 			_entries = new Dictionary<string, StorageCache.Entry>();
 			_stringBuilder = new System.Text.StringBuilder();
 			if (Directory.Exists(_root))
 			{
-				Scan(_root);
+				BuildRecursive(_root);
 			}
 			else // フォルダがなければ作る。スキャンの必要はない。
 			{
 				Directory.CreateDirectory(_root);
 			}
-			FileUtility.RemoveEmptyDirectories(_root);
 		}
 
-		public Dictionary<string, StorageCache.Entry> GetResult()
-		{
-			return _entries;
-		}
-
-		void Scan(string path) // 別スレッド実行
+		void BuildRecursive(string path) // 別スレッド実行
 		{
 			var dirs = Directory.GetDirectories(path);
 			foreach (var dir in dirs)
 			{
-				Scan(dir);
+				BuildRecursive(dir);
 			}
 			var files = Directory.GetFiles(path);
 			foreach (var file in files)
@@ -59,39 +50,29 @@ namespace Kayac.LoaderImpl
 				}
 				else
 				{
-					FileHash refHash;
-					bool match = false;
-					if (_database.GetFileMetaData(out refHash, name))
+					lock (_entries)
 					{
-						if (refHash == newEntry.hash)
+						StorageCache.Entry oldEntry;
+						if (_entries.TryGetValue(name, out oldEntry)) // すでに辞書に入ってる。バグによるものと思われ、判断がつかないので両方消す。
 						{
-							match = true;
+							FileUtility.DeleteFile(file);
+							_stringBuilder.Length = 0;
+							StorageCache.MakeCachePath(_stringBuilder, name, ref oldEntry.hash, _root);
+							FileUtility.DeleteFile(_stringBuilder.ToString());
 						}
 						else
 						{
-							Debug.Log(name + " : " + refHash.ToString() + " != " + newEntry.hash.ToString());
+							_entries.Add(name, newEntry);
+Debug.Log(name + " " + file);
 						}
-					}
-					if (match)
-					{
-						lock (_entries)
-						{
-							if (!_entries.ContainsKey(name))
-							{
-								_entries.Add(name, newEntry);
-							}
-							else // すでに辞書に入ってる。ありえないはずだが止める理由はないのでバグとして報告はする
-							{
-								Debug.LogError("同ファイル名同ハッシュのものが二つある?ありえない");
-							}
-						}
-					}
-					else // メタデータがない or ハッシュ不一致につき削除する
-					{
-						FileUtility.DeleteFile(file);
 					}
 				}
 			}
+		}
+
+		public Dictionary<string, StorageCache.Entry> GetResult()
+		{
+			return _entries;
 		}
 
 		bool ParseCachePath(out string name, out FileHash hash, out bool isTemporary, string path)

@@ -38,9 +38,13 @@ namespace Kayac
 			string fileOrAssetName,
 			Exception exception);
 
-		public Loader(
+		public Loader(string storageCacheRoot)
+		{
+			_storageCache = new StorageCache(storageCacheRoot);
+		}
+
+		public void Start(
 			string downloadRoot,
-			string storageCacheRoot,
 			IAssetFileDatabase database,
 			int parallelDownloadCount = 16,
 			int downloadRetryCount = 3,
@@ -48,9 +52,9 @@ namespace Kayac
 			int fileWriteBufferSize = 16 * 1024 * 1024,
 			int downloadHandlerBufferSize = 16 * 1024)
 		{
-			_storageCache = new StorageCache(storageCacheRoot, database);
+			_storageCache.Start(database);
 			_fileWriter = new FileWriter(
-				storageCacheRoot,
+				_storageCache.root,
 				StorageCache.temporaryFilePostfix,
 				fileWriteBufferSize);
 
@@ -78,13 +82,19 @@ namespace Kayac
 		}
 
 		/// 初期化及びクリアが終わってブロックなしで利用可能かを返す。これがfalseを返す状態でも、ブロックはするが利用できる。
-		public bool ready{ get { return _storageCache.ready; } }
+		public bool ready { get { return _storageCache.ready; } }
 
 		/// ダウンロードを開始すればtrue、すでにキャッシュにあるか、すでに開始済みであればfalseを返す。
 		public bool Download(
 			string fileName,
 			OnError onError)
 		{
+			if (!IsStarted())
+			{
+				Debug.Assert(this.ready, "Call Start().");
+				return false;
+			}
+
 			var ret = false;
 			DownloadHandle handle = null;
 			FileHash hash;
@@ -122,6 +132,12 @@ namespace Kayac
 			OnComplete onComplete = null,
 			GameObject holderGameObject = null)
 		{
+			if (!IsStarted())
+			{
+				Debug.Assert(this.ready, "Call Start().");
+				return null;
+			}
+
 			string fileName;
 			string assetName;
 			_database.ParseIdentifier(out fileName, out assetName, identifier);
@@ -232,6 +248,7 @@ namespace Kayac
 				}
 			}
 
+
 			var storageCachePath = _storageCache.MakeCachePath(fileName, ref hash, absolute: true);
 			var fileHandle = new FileHandle(
 				fileName,
@@ -245,11 +262,20 @@ namespace Kayac
 
 		public void Update()
 		{
+			if (!IsStarted())
+			{
+				return;
+			}
 			UnityEngine.Profiling.Profiler.BeginSample("Kayac.Loader.Update");
 			UpdateDownload();
 			UpdateFile();
 			UpdateAsset();
 			UnityEngine.Profiling.Profiler.EndSample();
+		}
+
+		public bool HasStorageCache(string name, FileHash hash)
+		{
+			return _storageCache.Has(name, ref hash);
 		}
 
 		void UpdateDownload()
@@ -378,7 +404,7 @@ namespace Kayac
 			var ret = 0;
 			foreach (var item in _goingDownloadHandles)
 			{
-				if (item != null)
+				if ((item != null) && !item.done)
 				{
 					ret++;
 				}
@@ -392,32 +418,34 @@ namespace Kayac
 			var sb = stringBuilderToAppend; // 短い別名
 			sb.AppendFormat("downloadRoot: {0}\n", _downloadRoot);
 			_storageCache.Dump(sb, summaryOnly);
-			sb.AppendFormat("[DownloadingFiles] waiting:{0} going:{1} all:{2}\n",
-				_waitingDownloadHandles.Count,
-				CountGoingDownload(),
-				_downloadHandles.Count);
-			if (!summaryOnly)
+			if (IsStarted())
 			{
-				DumpDownloads(sb, _downloadHandles);
+				sb.AppendFormat("[DownloadingFiles] waiting:{0} going:{1} all:{2}\n",
+					_waitingDownloadHandles.Count,
+					CountGoingDownload(),
+					_downloadHandles.Count);
+				if (!summaryOnly)
+				{
+					DumpDownloads(sb, _downloadHandles);
+				}
+				sb.AppendFormat("[Files] watching:{0} all:{1}\n",
+					_watchingFileHandles.Count,
+					_fileHandles.Count);
+				if (!summaryOnly)
+				{
+					DumpFiles(sb, _fileHandles);
+				}
+				lock (_watchingAssetHandles)
+				{
+					sb.AppendFormat("[Assets] watching:{0} all:{1}\n",
+						_watchingAssetHandles.Count,
+						_assetHandles.Count);
+				}
+				if (!summaryOnly)
+				{
+					DumpAssets(sb, _assetHandles);
+				}
 			}
-			sb.AppendFormat("[Files] watching:{0} all:{1}\n",
-				_watchingFileHandles.Count,
-				_fileHandles.Count);
-			if (!summaryOnly)
-			{
-				DumpFiles(sb, _fileHandles);
-			}
-			lock (_watchingAssetHandles)
-			{
-				sb.AppendFormat("[Assets] watching:{0} all:{1}\n",
-					_watchingAssetHandles.Count,
-					_assetHandles.Count);
-			}
-			if (!summaryOnly)
-			{
-				DumpAssets(sb, _assetHandles);
-			}
-			var ret = sb.ToString();
 			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
@@ -460,26 +488,37 @@ namespace Kayac
 		/// 開始すればtrueを返す。一つでもメモリ内にAssetが存在していればfalseを返して何もしない
 		public bool StartClearStorageCache()
 		{
-			// 全ハンドルが空でない限り受け付けない
-			if ((_assetHandles.Count > 0)
-				|| (_fileHandles.Count > 0)
-				|| (_downloadHandles.Count > 0))
+			// 開始後は全ハンドルが空でない限り受け付けない
+			if (IsStarted())
 			{
-				return false;
+				if ((_assetHandles.Count > 0)
+					|| (_fileHandles.Count > 0)
+					|| (_downloadHandles.Count > 0))
+				{
+					return false;
+				}
+				Debug.Assert(_fileWriter.requestCount == 0, "FileWriter.requestCount=" + _fileWriter.requestCount);
 			}
-			Debug.Assert(_fileWriter.requestCount == 0, "FileWriter.requestCount=" + _fileWriter.requestCount);
 			_storageCache.StartClear();
 			return true;
+		}
+
+		bool IsStarted()
+		{
+			return (_database != null);
 		}
 
 		/// 元から存在しないケースも含めて、ファイルが結果としてなくなればtrueを返す。使用中だと消せないのでfalseを返す。
 		public bool DeleteStorageCache(string fileName)
 		{
 			// これを使っているハンドルが存在していれば消せない
-			if (_fileHandles.ContainsKey(fileName)
-				|| _downloadHandles.ContainsKey(fileName))
+			if (IsStarted())
 			{
-				return false;
+				if (_fileHandles.ContainsKey(fileName)
+					|| _downloadHandles.ContainsKey(fileName))
+				{
+					return false;
+				}
 			}
 			_storageCache.TryDelete(fileName);
 			return true;
@@ -496,20 +535,20 @@ namespace Kayac
 			}
 		}
 
-		readonly IAssetFileDatabase _database;
-		readonly string _downloadRoot;
-		readonly int _parallelDownloadCount;
-		readonly int _downloadRetryCount;
-		readonly int _timeoutSeconds;
+		IAssetFileDatabase _database;
+		string _downloadRoot;
+		int _parallelDownloadCount;
+		int _downloadRetryCount;
+		int _timeoutSeconds;
 		readonly StorageCache _storageCache;
-		readonly FileWriter _fileWriter;
-		readonly byte[][] _downloadHandlerBuffers;
-		readonly Dictionary<string, AssetHandle> _assetHandles;
-		readonly List<AssetHandle> _watchingAssetHandles; // Updateで状態を見ないといけないハンドルはここにリスト。lockで保護が必要。
-		readonly Dictionary<string, DownloadHandle> _downloadHandles;
-		readonly LinkedList<DownloadHandle> _waitingDownloadHandles;
-		readonly DownloadHandle[] _goingDownloadHandles;
-		readonly Dictionary<string, FileHandle> _fileHandles;
-		readonly List<FileHandle> _watchingFileHandles;
+		FileWriter _fileWriter;
+		byte[][] _downloadHandlerBuffers;
+		Dictionary<string, AssetHandle> _assetHandles;
+		List<AssetHandle> _watchingAssetHandles; // Updateで状態を見ないといけないハンドルはここにリスト。lockで保護が必要。
+		Dictionary<string, DownloadHandle> _downloadHandles;
+		LinkedList<DownloadHandle> _waitingDownloadHandles;
+		DownloadHandle[] _goingDownloadHandles;
+		Dictionary<string, FileHandle> _fileHandles;
+		List<FileHandle> _watchingFileHandles;
 	}
 }

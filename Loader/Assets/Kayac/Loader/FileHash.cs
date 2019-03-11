@@ -18,6 +18,13 @@ namespace Kayac
 			v3 = Parse(s, 24);
 		}
 
+		/// バージョン番号からテキトーに生成する。new FileHash(version.ToString("x32"))と同一の結果。
+		public FileHash(int version)
+		{
+			v0 = v1 = v2 = 0;
+			v3 = (uint)version;
+		}
+
 		// 32桁の16進数文字列の一部から生成する。32文字ない場合は中途半端な値になる。死にはしない。
 		public FileHash(string s, int start = 0)
 		{

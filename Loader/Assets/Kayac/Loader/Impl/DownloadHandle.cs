@@ -165,25 +165,32 @@ namespace Kayac.LoaderImpl
 						_webRequest.Dispose();
 						_webRequest = null;
 					}
-					else if (_restRetryCount > 0) // エラーでリトライが残っている場合
+					else
 					{
-						Retry();
-					}
-					else // エラー停止確定
-					{
-						_onError(
-							Loader.Error.Network,
-							this.name,
-							new Exception(_webRequest.error));
-						_webRequest.Dispose();
-						_webRequest = null;
-						_error = true;
+						_downloadHandler.OnError();
+						if (!_error && (_restRetryCount > 0)) // エラーでリトライが残っている場合
+						{
+Debug.LogError("Retry : " + _webRequest.error);
+							Retry();
+						}
+						else // エラー停止確定
+						{
+							_onError(
+								Loader.Error.Network,
+								this.name,
+								new Exception(_webRequest.error));
+							_webRequest.Dispose();
+							_webRequest = null;
+							_error = true;
+						}
 					}
 				}
 				else if ((DateTime.Now - _lastReceiveTime).TotalSeconds >= _timeoutSeconds) // タイムアウト
 				{
-					if (_restRetryCount > 0) // リトライが残っている場合
+					_downloadHandler.OnError();
+					if (!_error && (_restRetryCount > 0)) // リトライが残っている場合
 					{
+Debug.LogError("Timeout Retry");
 						Retry();
 					}
 					else // エラー停止確定
@@ -222,10 +229,11 @@ namespace Kayac.LoaderImpl
 			_webRequest = new UnityWebRequest(_downloadPath);
 			var cachePath = _storageCache.MakeCachePath(name, ref _hash, absolute: false);
 			_fileWriterHandle = _fileWriter.Begin(cachePath);
-			_webRequest.downloadHandler = new DownloadHandlerFileWriter(
+			_downloadHandler = new DownloadHandlerFileWriter(
 				_fileWriter,
 				_fileWriterHandle,
 				_downloadHandlerBuffer);
+			_webRequest.downloadHandler = _downloadHandler;
 			_webRequest.SendWebRequest();
 			_lastReceiveTime = DateTime.Now;
 		}
@@ -250,6 +258,7 @@ namespace Kayac.LoaderImpl
 		FileHash _hash;
 		Loader.OnError _onError;
 		UnityWebRequest _webRequest;
+		DownloadHandlerFileWriter _downloadHandler;
 		int _restRetryCount;
 		System.Action<int> _onProgress;
 		int _downloadedBytes;

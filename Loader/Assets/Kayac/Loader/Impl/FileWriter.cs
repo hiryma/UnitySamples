@@ -42,13 +42,14 @@ namespace Kayac.LoaderImpl
 			_writePos = _readPos = 0;
 			_requestQueue = new Queue<Request>();
 			_semaphore = new Semaphore(0, int.MaxValue);
+			_threadBusySampler = UnityEngine.Profiling.CustomSampler.Create("Busy");
 			_thread = new Thread(ThreadEntryPoint);
 			_thread.Start();
 		}
 
 		public void Dispose()
 		{
-			Enqueue(null, 0, 0);
+			Enqueue(Request.Type.None, null, 0, 0);
 			_thread.Join();
 		}
 
@@ -57,7 +58,7 @@ namespace Kayac.LoaderImpl
 			Debug.Assert(path != null);
 			Debug.Assert(!path.Contains("/../"));
 			var handle = new HandleImpl(path);
-			Enqueue(handle, 0, 0);
+			Enqueue(Request.Type.Begin, handle, 0, 0);
 			return handle;
 		}
 
@@ -103,7 +104,7 @@ namespace Kayac.LoaderImpl
 					wp -= _buffer.Length;
 				}
 				Interlocked.Exchange(ref _writePos, wp);
-				Enqueue(handle, dstOffset, writtenLength);
+				Enqueue(Request.Type.Write, handle, dstOffset, writtenLength);
 			}
 		}
 
@@ -114,7 +115,17 @@ namespace Kayac.LoaderImpl
 			{
 				return;
 			}
-			Enqueue(handle, 0, 0);
+			Enqueue(Request.Type.End, handle, 0, 0);
+		}
+
+		public void Abort(Handle handle)
+		{
+			Debug.Assert(handle != null);
+			if (handle.done) // エラーで失敗しているのでスルー
+			{
+				return;
+			}
+			Enqueue(Request.Type.Abort, handle, 0, 0);
 		}
 
 		public int requestCount
@@ -145,9 +156,10 @@ namespace Kayac.LoaderImpl
 			}
 		}
 
-		void Enqueue(Handle handle, int offset, int length)
+		void Enqueue(Request.Type type, Handle handle, int offset, int length)
 		{
 			Request req;
+			req.type = type;
 			req.handle = handle as HandleImpl;
 			req.offset = offset;
 			req.length = length;
@@ -161,7 +173,6 @@ namespace Kayac.LoaderImpl
 		void ThreadEntryPoint()
 		{
 			UnityEngine.Profiling.Profiler.BeginThreadProfiling("Kayac", "LoaderImpl.FileWriter");
-			_threadBusySampler = UnityEngine.Profiling.CustomSampler.Create("Busy");
 			Request req;
 			bool end = false;
 			while (!end)
@@ -172,7 +183,7 @@ namespace Kayac.LoaderImpl
 				{
 					req = _requestQueue.Dequeue();
 				}
-				if (req.handle == null) // ダミージョブにつき抜ける
+				if (req.type == Request.Type.None) // ダミージョブにつき抜ける
 				{
 					end = true;
 				}
@@ -188,19 +199,31 @@ namespace Kayac.LoaderImpl
 		void Execute(ref Request req)
 		{
 			HandleImpl handle = req.handle;
-			if (handle.done) // もう終わってる。たぶんエラー
+			Request.Type type = req.type;
+			if (handle.done)
+			{
+				// 終わってれば前の要求に重なっている。でもバグじゃね?
+				Debug.Assert(false, "Handle.done == true. バグじゃね?");
+			}
+			else if (type == Request.Type.None)
 			{
 				// 何もしない
+				Debug.Assert(false, "Request.type == None. バグじゃね?");
 			}
-			else if (!handle.opened) // 開いてない。開ける要求と解釈する
+			else if (type == Request.Type.Begin) // 開いてない。開ける要求と解釈する
 			{
+				Debug.Assert(!handle.opened);
 				handle.BeginWrite(_root, _temporaryFilePostfix);
 			}
-			else if (req.length == 0) // 書き込むものがない。閉じる要求と解釈する
+			else if (type == Request.Type.End) // 書き込むものがない。閉じる要求と解釈する
 			{
 				handle.EndWrite(_root);
 			}
-			else // 開いていて書きこむ
+			else if (type == Request.Type.Abort)
+			{
+				handle.Abort();
+			}
+			else if (type == Request.Type.Write)
 			{
 				int length0 = Mathf.Min(_buffer.Length - req.offset, req.length);
 				handle.Write(_buffer, req.offset, length0);
@@ -217,10 +240,23 @@ namespace Kayac.LoaderImpl
 				}
 				Interlocked.Exchange(ref _readPos, rp);
 			}
+			else
+			{
+				Debug.Assert(false, "Unknown RequestType. " + (int)type);
+			}
 		}
 
 		struct Request
 		{
+			public enum Type
+			{
+				None,
+				Begin,
+				Write,
+				End,
+				Abort,
+			}
+			public Type type;
 			public HandleImpl handle;
 			public int offset;
 			public int length;
@@ -249,10 +285,12 @@ namespace Kayac.LoaderImpl
 					}
 					if (_fileInfo.Exists)
 					{
+Debug.Log("FileWriter: Open: " + tmpPath);
 						_fileStream = _fileInfo.OpenWrite();
 					}
 					else
 					{
+Debug.Log("FileWriter: Create: " + tmpPath);
 						_fileStream = _fileInfo.Create();
 					}
 				}
@@ -269,6 +307,7 @@ namespace Kayac.LoaderImpl
 				{
 					try
 					{
+Debug.Log("FileWriter: Close: " + _fileInfo.Name);
 						_fileStream.Close();
 					}
 					catch (Exception e)
@@ -278,20 +317,37 @@ namespace Kayac.LoaderImpl
 				}
 			}
 
+			public void Abort()
+			{
+				Debug.Assert(_fileInfo != null);
+				Debug.Assert(_fileStream != null);
+				Close();
+				try
+				{
+Debug.Log("FileWriter: Delete: " + _fileInfo.Name);
+					_fileInfo.Delete();
+				}
+				catch (Exception e)
+				{
+					_exception = FileUtility.InspectIoError(_fileInfo.FullName, null, e);
+				}
+				_done = true;
+			}
+
 			public void EndWrite(string root)
 			{
-				if (_fileStream != null)
+				Debug.Assert(_fileInfo != null);
+				Debug.Assert(_fileStream != null);
+				Close();
+				var dst = root + this.path;
+				try
 				{
-					Close();
-					var dst = root + this.path;
-					try
-					{
-						_fileInfo.MoveTo(dst); // 本番ファイル名に変更
-					}
-					catch (Exception e)
-					{
-						_exception = FileUtility.InspectIoError(_fileInfo.FullName, dst, e);
-					}
+Debug.Log("FileWriter: Move: " + _fileInfo.Name + " -> " + dst);
+					_fileInfo.MoveTo(dst); // 本番ファイル名に変更
+				}
+				catch (Exception e)
+				{
+					_exception = FileUtility.InspectIoError(_fileInfo.FullName, dst, e);
 				}
 				_done = true;
 			}
@@ -308,11 +364,10 @@ namespace Kayac.LoaderImpl
 					_done = true;
 				}
 			}
+			public override Exception exception { get { return _exception; } }
+			public bool opened { get { return _fileStream != null; } }
 
 			Exception _exception;
-			public override Exception exception { get { return _exception; } }
-
-			public bool opened { get { return _fileStream != null; } }
 			FileStream _fileStream; // ロードスレッドからしか触らない
 			FileInfo _fileInfo;
 		}

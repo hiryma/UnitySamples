@@ -56,8 +56,16 @@ public class Main : MonoBehaviour
 
 	void Start()
 	{
-		// ログファイルへ
 		_log = new Kayac.FileLogHandler("log.txt");
+#if UNITY_EDITOR
+		var storageCacheRoot = Application.dataPath;
+#else
+		var storageCacheRoot = Application.persistentDataPath;
+#endif
+		storageCacheRoot += "/../AssetFileCache";
+		// キャッシュのスキャンはできるだけ早く始めた方が良い
+		_loader = new Kayac.Loader(storageCacheRoot);
+
 		_sb = new System.Text.StringBuilder();
 		_images = new RawImage[HandleCount];
 		int sqrtHandleCount = Mathf.FloorToInt(Mathf.Sqrt((float)HandleCount));
@@ -90,20 +98,14 @@ public class Main : MonoBehaviour
 		}
 		UpdateHashMap();
 
-#if UNITY_EDITOR
-		var storageCacheRoot = Application.dataPath;
-#else
-		var storageCacheRoot = Application.persistentDataPath;
-#endif
-		storageCacheRoot += "/../AssetFileCache";
 
 		if (downloadParallelCount < 1)
 		{
 			downloadParallelCount = 1;
 		}
-		_loader = new Kayac.Loader(
+		// Databaseの準備ができたらロード可能にするためにStartを呼ぶ
+		_loader.Start(
 			downloadRoot,
-			storageCacheRoot,
 			_database,
 			downloadParallelCount);
 	}
@@ -169,14 +171,11 @@ public class Main : MonoBehaviour
 	{
 		_log.Update();
 
-		if (_loader.ready) // 見ないでUpdate,Dumpを呼べば、初期化が終わるまでブロックするが動く。ブロックを嫌うならこれを見ておくこと。
-		{
-			_loader.Update();
-			_sb.Length = 0;
-			bool summaryOnly = (_fileList.Count > 20);
-			_loader.Dump(_sb, summaryOnly);
-			dump.text = _sb.ToString();
-		}
+		_loader.Update();
+		_sb.Length = 0;
+		bool summaryOnly = (_fileList.Count > 20);
+		_loader.Dump(_sb, summaryOnly);
+		dump.text = _sb.ToString();
 
 		// 破棄中は何もしない
 		int sinceRelease = Time.frameCount - _releasedFrame;
