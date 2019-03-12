@@ -1395,6 +1395,7 @@ MonoBehaviour:
   canvas: {fileID: 276504760}
   autoTestToggle: {fileID: 1851687164}
   downloadParallelCount: 128
+  memoryCacheLimitMB: 16
 --- !u!4 &1676556680
 Transform:
   m_ObjectHideFlags: 0

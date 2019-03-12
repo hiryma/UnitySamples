@@ -104,6 +104,7 @@ namespace Kayac.LoaderImpl
 			Loader.IAssetFileDatabase database)
 		{
 			var sb = new System.Text.StringBuilder();
+			var removeNames = new List<string>();
 			lock (entries)
 			{
 				foreach (var item in entries)
@@ -125,9 +126,13 @@ namespace Kayac.LoaderImpl
 						MakeCachePath(sb, name, ref entry.hash, root);
 						var path = sb.ToString();
 						FileUtility.DeleteFile(path);
-						entries.Remove(name);
+						removeNames.Add(name);
 					}
 				}
+			}
+			foreach (var name in removeNames)
+			{
+				entries.Remove(name);
 			}
 		}
 

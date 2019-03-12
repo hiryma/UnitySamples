@@ -46,7 +46,7 @@ namespace Kayac.LoaderImpl
 				_fileType = FileType.Texture;
 				var url = "file://" + _storageCachePath;
 				_webRequest = new UnityWebRequest(url);
-				var handler = new DownloadHandlerTexture(readable: false);
+				_webRequest.downloadHandler = new DownloadHandlerTexture(readable: false);
 				_webRequest.SendWebRequest();
 			}
 			else if (lowerPath.EndsWith(".ogg"))
@@ -54,7 +54,7 @@ namespace Kayac.LoaderImpl
 				_fileType = FileType.Audio;
 				var url = "file://" + _storageCachePath;
 				_webRequest = new UnityWebRequest(url);
-				var handler = new DownloadHandlerAudioClip(url, AudioType.OGGVORBIS); // TODO: 自分で読んだデータからAudioClipを作る方法が見当たらない。
+				_webRequest.downloadHandler = new DownloadHandlerAudioClip(url, AudioType.OGGVORBIS);
 				_webRequest.SendWebRequest();
 			}
 			else

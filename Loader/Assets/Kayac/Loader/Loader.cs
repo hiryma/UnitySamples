@@ -72,6 +72,7 @@ namespace Kayac
 
 			_assetHandles = new Dictionary<string, AssetHandle>();
 			_watchingAssetHandles = new List<AssetHandle>();
+			_memoryCachedAssetHandles = new LinkedList<AssetHandle>();
 
 			_downloadHandles = new Dictionary<string, DownloadHandle>();
 			_waitingDownloadHandles = new LinkedList<DownloadHandle>();
@@ -83,6 +84,11 @@ namespace Kayac
 
 		/// 初期化及びクリアが終わってブロックなしで利用可能かを返す。これがfalseを返す状態でも、ブロックはするが利用できる。
 		public bool ready { get { return _storageCache.ready; } }
+		public int memoryCacheLimit{ get; private set; }
+		public void SetMemoryCacheLimit(int limitBytes)
+		{
+			this.memoryCacheLimit = limitBytes;
+		}
 
 		/// ダウンロードを開始すればtrue、すでにキャッシュにあるか、すでに開始済みであればfalseを返す。
 		public bool Download(
@@ -161,6 +167,13 @@ namespace Kayac
 					_watchingAssetHandles.Add(assetHandle); // 生成直後は監視が必要
 				}
 				_assetHandles.Add(assetDictionaryKey, assetHandle);
+			}
+			else if (assetHandle.memoryCachedListNode != null) // 参照カウント0だけどキャッシュされてる奴がみつかった
+			{
+				// キャッシュから外す
+				Debug.Assert(assetHandle.disposable); // 破棄可能なはず
+				_memoryCachedAssetHandles.Remove(assetHandle.memoryCachedListNode);
+				assetHandle.SetMemoryCachedListNode(null); // 切断
 			}
 
 			if (onComplete != null)
@@ -247,7 +260,6 @@ namespace Kayac
 					downloadHandle = MakeDownloadHandle(fileName, ref hash, onError);
 				}
 			}
-
 
 			var storageCachePath = _storageCache.MakeCachePath(fileName, ref hash, absolute: true);
 			var fileHandle = new FileHandle(
@@ -381,14 +393,37 @@ namespace Kayac
 					{
 						skip = true;
 					}
-					else if (handle.disposable) // 破棄可能なら破棄
+					else
 					{
-						skip = true;
-						_assetHandles.Remove(handle.dictionaryKey);
-						var fileHandle = handle.fileHandle;
-						_watchingFileHandles.Add(fileHandle); // 監視対象に入れる。不要なら次で外れるのでとりあえず入れる。
-						handle.Dispose();
+						if (handle.done) // 終わってるので監視対象からは外す。
+						{
+							skip = true;
+							if (!handle.memorySizeEstimated) //メモリ量カウント。
+							{
+								handle.EstimateMemorySize();
+								_memoryCachedSize += handle.memorySize;
+								CheckMemoryCache();
+							}
+						}
+
+						if (handle.disposable) // 破棄可能なら破棄
+						{
+							skip = true;
+							// キャッシュへ行くか判定
+							if (handle.done // 終わってて
+								&& (handle.memoryCachedListNode == null) // まだリストに入ってなくて
+								&& ((_memoryCachedSize + handle.memorySize) < this.memoryCacheLimit)) // 容量が入れば
+							{
+								var node = _memoryCachedAssetHandles.AddLast(handle);
+								handle.SetMemoryCachedListNode(node);
+							}
+							else // 破棄
+							{
+								DisposeAssetHandle(handle);
+							}
+						}
 					}
+
 					if (!skip)
 					{
 						dst++;
@@ -397,6 +432,50 @@ namespace Kayac
 				_watchingAssetHandles.RemoveRange(dst, _watchingAssetHandles.Count - dst);
 			}
 			UnityEngine.Profiling.Profiler.EndSample();
+		}
+
+		void CheckMemoryCache()
+		{
+			var node = _memoryCachedAssetHandles.First;
+			while ((node != null) && (_memoryCachedSize >= this.memoryCacheLimit))
+			{
+				var next = node.Next;
+				var handle = node.Value;
+				if (!handle.disposed)
+				{
+Debug.Log("CheckCache: " + handle.name + " " + handle.dictionaryKey + " " + handle.memorySize);
+					Debug.Assert(handle.disposable, "not disposable: ref=" + handle.GetReferenceCountThreadSafe());
+					Debug.Assert(handle.memoryCachedListNode != null, "node is null. " + handle.name);
+					Debug.Assert(handle.memoryCachedListNode.Value.name == _memoryCachedAssetHandles.First.Value.name,
+						handle.memoryCachedListNode.Value.name + " != " +  _memoryCachedAssetHandles.First.Value.name);
+
+					handle.SetMemoryCachedListNode(null);
+					DisposeAssetHandle(handle);
+				}
+				_memoryCachedAssetHandles.RemoveFirst();
+				node = next;
+			}
+		}
+
+		void ClearMemoryCache()
+		{
+			int limitBackup = this.memoryCacheLimit;
+			this.memoryCacheLimit = 0;
+			CheckMemoryCache();
+			this.memoryCacheLimit = limitBackup;
+			Debug.Assert(_memoryCachedAssetHandles.Count == 0, "ClearMemoryCache incomplete: count=" + _memoryCachedAssetHandles.Count);
+		}
+
+		void DisposeAssetHandle(AssetHandle handle)
+		{
+			_assetHandles.Remove(handle.dictionaryKey);
+			var fileHandle = handle.fileHandle;
+			_watchingFileHandles.Add(fileHandle); // 監視対象に入れる。不要なら次で外れるのでとりあえず入れる。
+			if (handle.memorySizeEstimated)
+			{
+				_memoryCachedSize -= handle.memorySize;
+			}
+			handle.Dispose();
 		}
 
 		int CountGoingDownload()
@@ -437,9 +516,12 @@ namespace Kayac
 				}
 				lock (_watchingAssetHandles)
 				{
-					sb.AppendFormat("[Assets] watching:{0} all:{1}\n",
+					sb.AppendFormat("[Assets] watching:{0} all:{1} memoryCached:{2} memorySize:{3}/{4}\n",
 						_watchingAssetHandles.Count,
-						_assetHandles.Count);
+						_assetHandles.Count,
+						_memoryCachedAssetHandles.Count,
+						((float)_memoryCachedSize / (1024f * 1024f)).ToString("F1"),
+						((float)this.memoryCacheLimit / (1024f * 1024f)).ToString("F1"));
 				}
 				if (!summaryOnly)
 				{
@@ -491,6 +573,8 @@ namespace Kayac
 			// 開始後は全ハンドルが空でない限り受け付けない
 			if (IsStarted())
 			{
+				// メモリキャッシュをクリアする
+				ClearMemoryCache();
 				if ((_assetHandles.Count > 0)
 					|| (_fileHandles.Count > 0)
 					|| (_downloadHandles.Count > 0))
@@ -498,6 +582,7 @@ namespace Kayac
 					return false;
 				}
 				Debug.Assert(_fileWriter.requestCount == 0, "FileWriter.requestCount=" + _fileWriter.requestCount);
+				Debug.Assert(_memoryCachedSize == 0, "ClearMemoryCache incomplete: size=" + _memoryCachedSize);
 			}
 			_storageCache.StartClear();
 			return true;
@@ -545,6 +630,8 @@ namespace Kayac
 		byte[][] _downloadHandlerBuffers;
 		Dictionary<string, AssetHandle> _assetHandles;
 		List<AssetHandle> _watchingAssetHandles; // Updateで状態を見ないといけないハンドルはここにリスト。lockで保護が必要。
+		LinkedList<AssetHandle> _memoryCachedAssetHandles;
+		int _memoryCachedSize; // 推定バイト数
 		Dictionary<string, DownloadHandle> _downloadHandles;
 		LinkedList<DownloadHandle> _waitingDownloadHandles;
 		DownloadHandle[] _goingDownloadHandles;

@@ -17,6 +17,7 @@ public class Main : MonoBehaviour
 	public Canvas canvas;
 	public Toggle autoTestToggle;
 	public int downloadParallelCount;
+	public int memoryCacheLimitMB;
 
 	RawImage[] _images;
 	Kayac.Loader _loader;
@@ -98,7 +99,6 @@ public class Main : MonoBehaviour
 		}
 		UpdateHashMap();
 
-
 		if (downloadParallelCount < 1)
 		{
 			downloadParallelCount = 1;
@@ -108,6 +108,7 @@ public class Main : MonoBehaviour
 			downloadRoot,
 			_database,
 			downloadParallelCount);
+		_loader.SetMemoryCacheLimit(this.memoryCacheLimitMB * 1024 * 1024);
 	}
 
 	bool ReadAssetFileList(out string downloadRoot)
