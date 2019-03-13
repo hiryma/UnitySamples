@@ -39,4 +39,4 @@ build.app
 build.app/
 
 .vscode
-Logs/Packages-Update.log
+**/Logs/Packages-Update.log
