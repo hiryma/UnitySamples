@@ -3,17 +3,18 @@ using System.Collections.Generic;
 using System.Threading;
 using System;
 using System.IO;
-using UnityEngine; // Debug, Hash128を使っている
+using UnityEngine; // Debugだけ使っている
 
 namespace Kayac.LoaderImpl
 {
 	// このクラスのコードは全て別スレッド実行
 	public class StorageCacheScanner
 	{
-		public void Build(string root)
+		public void Build(string root, bool useHash)
 		{
 			Debug.Assert(root[root.Length - 1] != '/'); // スラッシュ終わりなら不正
 			_root = root;
+			_useHash = useHash;
 
 			_entries = new Dictionary<string, StorageCache.Entry>();
 			_stringBuilder = new System.Text.StringBuilder();
@@ -57,13 +58,12 @@ namespace Kayac.LoaderImpl
 						{
 							FileUtility.DeleteFile(file);
 							_stringBuilder.Length = 0;
-							StorageCache.MakeCachePath(_stringBuilder, name, ref oldEntry.hash, _root);
+							StorageCache.MakeCachePath(_stringBuilder, name, ref oldEntry.hash, _root, _useHash);
 							FileUtility.DeleteFile(_stringBuilder.ToString());
 						}
 						else
 						{
 							_entries.Add(name, newEntry);
-Debug.Log(name + " " + file);
 						}
 					}
 				}
@@ -77,70 +77,116 @@ Debug.Log(name + " " + file);
 
 		bool ParseCachePath(out string name, out FileHash hash, out bool isTemporary, string path)
 		{
-			// hoge/fuga/fileName.0123456701234567012345671234567.ext.tmp
-			// の形式。fileNameまでをname、数字羅列部分をhashとして取り出したい。
-			// name内に.があることは許したいのと、tmpがあったりなかったりするので、
-			// 後ろから順に.を見つけて範囲を確定していくという手間のかかる状態になっている。
-			// regexの方が楽なのだが、そこそこ回数呼ぶので速度を重視して手で書いた。
-			int i, nameEnd, hashBegin, hashEnd, extBegin, extEnd;
-			nameEnd = hashBegin = hashEnd = extBegin = extEnd = int.MinValue;
-			// 最後が.tmpで終わればテンポラリファイル。
+			/*
+			hoge/fuga/fileName.0123456701234567012345671234567.ext.tmp
+			みたいな形式。
+			*/
+			// まず最後のperiodの後ろが.tmpであるかを識別する。
+			int pathEnd;
 			if (path.EndsWith(StorageCache.temporaryFilePostfix))
 			{
 				isTemporary = true;
-				i = path.Length - 1 - StorageCache.temporaryFilePostfix.Length;
+				pathEnd = path.Length - StorageCache.temporaryFilePostfix.Length;
 			}
 			else
 			{
 				isTemporary = false;
-				i = path.Length - 1;
+				pathEnd = path.Length;
 			}
-			extEnd = i + 1;
-
-			// 次のピリオドを探す。スラッシュが出てくればそれ以降は見ない。
+			// ここからさかのぼりながら.を最大2つ探す
+			int periodPosBits = 0; //15bitづつ2分割して使う。配列を使いたいがnewしたくない。変数2つ用意するのも嫌だ。
+			int periodCount = 0;
+			int i = pathEnd - 1;
 			while ((i >= 0) && (path[i] != '/'))
 			{
 				if (path[i] == '.')
 				{
-					extBegin = i + 1;
-					hashEnd = i;
-					i--;
-					break;
+					periodPosBits |= (i << (periodCount * 15));
+					periodCount++;
+					if (periodCount == 2)
+					{
+						break;
+					}
 				}
 				i--;
 			}
 
-			// 次のピリオドを探す。スラッシュが出てくればそれ以降は見ない。
-			while ((i >= 0) && (path[i] != '/'))
+			int nameEnd, hashBegin, hashEnd, extBegin, extEnd;
+			if (_useHash) // ハッシュ値がファイル名に挿入されている場合
 			{
-				if (path[i] == '.')
+				if (periodCount >= 2) // 拡張子とハッシュが両方存在する
 				{
-					hashBegin = i + 1;
-					nameEnd = i;
-					i--;
-					break;
+					extEnd = pathEnd;
+					hashEnd = ((periodPosBits >> 0) & 0x7fff);
+					extBegin = hashEnd + 1;
+					nameEnd = ((periodPosBits >> 15) & 0x7fff);
+					hashBegin = nameEnd + 1;
 				}
-				i--;
+				else if (periodCount == 1) // 拡張子がなくハッシュのみ存在すると解釈する
+				{
+					extBegin = extEnd = int.MinValue;
+					hashEnd = pathEnd;
+					nameEnd = ((periodPosBits >> 0) & 0x7fff);
+					hashBegin = nameEnd + 1;
+				}
+				else
+				{
+					extBegin = extEnd = hashBegin = hashEnd = nameEnd = int.MinValue;
+				}
+			}
+			else // ハッシュ値がない場合
+			{
+				hashBegin = hashEnd = int.MinValue;
+				if (periodCount >= 1) // 最後のピリオドの後ろを拡張子とし、その前は単にファイル名の一部と解釈する
+				{
+					extEnd = pathEnd;
+					nameEnd = ((periodPosBits >> 0) & 0x7fff);
+					extBegin = nameEnd + 1;
+				}
+				else if (periodCount == 0) // 拡張子がない
+				{
+					extBegin = extEnd = int.MinValue;
+					nameEnd = pathEnd;
+				}
+				else
+				{
+					extBegin = extEnd = nameEnd = int.MinValue;
+				}
 			}
 
-			if ((hashEnd < 0) || (nameEnd < 0)) // 認識できない。失敗
+			bool ret;
+			if (nameEnd < 0) // 認識不能
 			{
+				ret = false;
 				name = null;
 				hash = new FileHash();
-				return false;
 			}
-
-			hash = new FileHash(path, hashBegin);
-			_stringBuilder.Length = 0;
-			_stringBuilder.Append(path, _root.Length + 1, nameEnd - _root.Length - 1); // rootはslashを含まないのでその次から
-			_stringBuilder.Append('.');
-			_stringBuilder.Append(path, extBegin, extEnd - extBegin);
-			name = _stringBuilder.ToString();
-			return true;
+			else // 認識はできている
+			{
+				ret = true;
+				if (_useHash)
+				{
+					hash = new FileHash(path, hashBegin);
+				}
+				else
+				{
+					hash = new FileHash();
+				}
+				_stringBuilder.Length = 0;
+				_stringBuilder.Append(path, _root.Length + 1, nameEnd - _root.Length - 1); // rootはslashを含まないのでその次から
+				if (extBegin >= 0)
+				{
+					_stringBuilder.Append('.');
+					_stringBuilder.Append(path, extBegin, extEnd - extBegin);
+				}
+				name = _stringBuilder.ToString();
+			}
+//Debug.Log("ParseCachePath " + path + " -> " + name + " + " + hash.ToString());
+			return ret;
 		}
 
 		string _root;
-		Loader.IAssetFileDatabase _database;
+		bool _useHash;
 		Dictionary<string, StorageCache.Entry> _entries;
 		System.Text.StringBuilder _stringBuilder;
 	}

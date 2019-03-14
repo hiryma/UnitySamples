@@ -10,7 +10,7 @@ namespace Kayac.LoaderImpl
 	public class AssetHandle
 	{
 		public const int DefaultMemorySizeEstimate = 4096; // 4KBとしてみる
-		public UnityEngine.Object asset { get { return _asset; } }
+		public UnityEngine.Object asset { get; private set; }
 
 		public AssetHandle(
 			FileHandle fileHandle,
@@ -34,13 +34,14 @@ namespace Kayac.LoaderImpl
 
 		public void Dispose()
 		{
+//Debug.Log("AssetHandle Dispose " + name + " " + this.dictionaryKey);
 			Debug.Assert(this.disposable);
 			if (this.fileHandle != null)
 			{
 				this.fileHandle.DecrementReference();
 				this.fileHandle = null;
 			}
-			_asset = null;
+			this.asset = null;
 			_type = null;
 			this.dictionaryKey = null;
 			ExecuteCallbacks(); // 残っているコールバックを実行して破棄
@@ -91,24 +92,32 @@ namespace Kayac.LoaderImpl
 						var go = _req.asset as GameObject;
 						if (go != null)
 						{
-							_asset = go.GetComponent(_type);
+							this.asset = go.GetComponent(_type);
 						}
 					}
 					else
 					{
-						_asset = _req.asset;
+						this.asset = _req.asset;
 					}
-					if (_asset == null)
+					if (this.asset == null)
 					{
 						// あるのか確認してエラーを絞り込む
 						if (this.fileHandle.assetBundle.Contains(this.name))
 						{
 							if (_type != null)
 							{
+								string actualTypeName = "[Unknown]";
+#if true // 試しに同期ロードで型指定なしでロードして何が出てくるかを見る
+								var tmpAsset = this.fileHandle.assetBundle.LoadAsset(this.name);
+								if (tmpAsset != null)
+								{
+									actualTypeName = tmpAsset.GetType().Name;
+								}
+#endif
 								_onError(
 									Loader.Error.AssetTypeMismatch,
 									this.name,
-									new Exception("AssetBundle.LoadAssetAsync failed. probably type mismatch."));
+									new Exception("AssetBundle.LoadAssetAsync failed. type of " + this.name + " is " + actualTypeName));
 							}
 							else
 							{
@@ -125,6 +134,10 @@ namespace Kayac.LoaderImpl
 								this.name,
 								new Exception("AssetBundle.LoadAssetAsync failed. " + this.name + " is not contained in AssetBundle:" + this.fileHandle.assetBundle.name));
 						}
+					}
+					else
+					{
+//Debug.Log("AssetHandle Complete: " + this.dictionaryKey + " " + this.asset.GetType().Name + " " + this.asset.name);
 					}
 					_req = null;
 					ExecuteCallbacks();
@@ -157,7 +170,7 @@ namespace Kayac.LoaderImpl
 					}
 					else if (this.fileHandle.asset != null)
 					{
-						_asset = this.fileHandle.asset;
+						this.asset = this.fileHandle.asset;
 						ExecuteCallbacks();
 						this.done = true;
 					}
@@ -198,7 +211,7 @@ namespace Kayac.LoaderImpl
 			}
 			for (int i = 0; i < _callbacks.Count; i++)
 			{
-				_callbacks[i](_asset);
+				_callbacks[i](this.asset);
 			}
 			_callbacks.Clear();
 		}
@@ -206,7 +219,7 @@ namespace Kayac.LoaderImpl
 		public void EstimateMemorySize()
 		{
 			Debug.Assert(this.done);
-			this.memorySize = EstimateMemorySize(_asset);
+			this.memorySize = EstimateMemorySize(this.asset);
 		}
 
 		public static int EstimateMemorySize(UnityEngine.Object asset)
@@ -219,19 +232,19 @@ namespace Kayac.LoaderImpl
 				var bitPerPixel = GetBitsPerPixel(texture.format);
 				ret *= bitPerPixel;
 				ret /= 8; // ブロック物で4x4に丸めたりしないといけないが気にしない。所詮推定なので。
-Debug.Log("Tex " + ret);
+//Debug.Log("Tex " + ret);
 			}
 			else if (asset is TextAsset)
 			{
 				var text = asset as TextAsset;
 				ret = text.bytes.Length;
-Debug.Log("Text " + ret);
+//Debug.Log("Text " + ret);
 			}
 			else if (asset is AudioClip)
 			{
 				var clip = asset as AudioClip;
 				ret = clip.channels * clip.samples * 2; // 無圧縮16bitと仮定(この仮定は実際には厳しすぎるのだが)
-Debug.Log("Audio " + ret);
+//Debug.Log("Audio " + ret);
 			}
 			return ret;
 		}
@@ -309,9 +322,50 @@ Debug.Log("Audio " + ret);
 
 		int _referenceCount;
 		AssetBundleRequest _req;
-		UnityEngine.Object _asset;
 		Type _type;
 		List<Loader.OnComplete> _callbacks;
 		Loader.OnError _onError;
+
+
+
+
+// ----------------------------------- 邪悪なコード --------------------------------------
+		//邪悪な同期処理版。いずれ絶対に消す。売り物に入れないという強い決意を持ってエラーコールバックをわざと受け取らないし、多少コピペしても他のコードと独立を保つ
+		public AssetHandle(FileHandle fileHandle, string name, string dictionaryKey, Type type)
+		{
+			this.fileHandle = fileHandle;
+			this.fileHandle.IncrementReference();
+			this.name = name;
+			_type = type;
+			this.dictionaryKey = dictionaryKey;
+			if (_type == null) // 型指定されてない
+			{
+				this.asset = this.fileHandle.assetBundle.LoadAsset(this.name);
+			}
+			else
+			{
+				var extractType = _type;
+				if (_type.IsSubclassOf(typeof(Component)))
+				{
+					extractType = typeof(GameObject);
+				}
+				this.asset = this.fileHandle.assetBundle.LoadAsset(this.name, extractType);
+			}
+
+			if (_type.IsSubclassOf(typeof(Component)))
+			{
+				var go = this.asset as GameObject;
+				if (go != null)
+				{
+					this.asset = go.GetComponent(_type);
+				}
+				else
+				{
+					this.asset = null;
+				}
+			}
+			this.done = true;
+		}
+// ----------------------------------- 邪悪なコード --------------------------------------
 	}
 }

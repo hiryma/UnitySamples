@@ -13,7 +13,8 @@ namespace Kayac.LoaderImpl
 			string name,
 			string storageCachePath,
 			DownloadHandle downloadHandle,
-			Loader.OnError onError)
+			Loader.OnError onError,
+			FileHandle[] dependencies)
 		{
 			Debug.Assert(name != null);
 			Debug.Assert(storageCachePath != null);
@@ -22,6 +23,14 @@ namespace Kayac.LoaderImpl
 			_onError = onError;
 			_storageCachePath = storageCachePath;
 			this.downloadHandle = downloadHandle;
+			this.dependencies = dependencies;
+			if (dependencies != null)
+			{
+				for (int i = 0; i < dependencies.Length; i++)
+				{
+					dependencies[i].IncrementReference();
+				}
+			}
 
 			if (this.downloadHandle == null)
 			{
@@ -36,12 +45,7 @@ namespace Kayac.LoaderImpl
 		void Start()
 		{
 			var lowerPath = _storageCachePath.ToLower();
-			if (lowerPath.EndsWith(".unity3d"))
-			{
-				_fileType = FileType.AssetBundle;
-				_assetBundleCreateRequest = AssetBundle.LoadFromFileAsync(_storageCachePath);
-			}
-			else if (lowerPath.EndsWith(".png") || lowerPath.EndsWith(".jpg"))
+			if (lowerPath.EndsWith(".png") || lowerPath.EndsWith(".jpg"))
 			{
 				_fileType = FileType.Texture;
 				var url = "file://" + _storageCachePath;
@@ -57,15 +61,16 @@ namespace Kayac.LoaderImpl
 				_webRequest.downloadHandler = new DownloadHandlerAudioClip(url, AudioType.OGGVORBIS);
 				_webRequest.SendWebRequest();
 			}
-			else
+			else // 認識できなければAssetBundleとする
 			{
-				this.done = true;
-				Debug.Assert(false, "can't decide fileType from extension: " + Path.GetExtension(_storageCachePath));
+				_fileType = FileType.AssetBundle;
+				_assetBundleCreateRequest = AssetBundle.LoadFromFileAsync(_storageCachePath);
 			}
 		}
 
 		public void Dispose()
 		{
+//Debug.Log("FileHandle Dispose " + name + " " + _fileType);
 			// 完了まで破棄してはならない
 			Debug.Assert(this.disposable);
 
@@ -82,6 +87,14 @@ namespace Kayac.LoaderImpl
 			{
 				this.downloadHandle.DecrementReference();
 				this.downloadHandle = null;
+			}
+			if (this.dependencies != null)
+			{
+				for (int i = 0; i < this.dependencies.Length; i++)
+				{
+					this.dependencies[i].DecrementReference();
+				}
+				this.dependencies = null;
 			}
 			this.name = null;
 			this._storageCachePath = null;
@@ -110,7 +123,35 @@ namespace Kayac.LoaderImpl
 				referenceCount);
 		}
 
-		public bool done{ get; private set; }
+		public bool _selfDone;
+		public bool done
+		{
+			get
+			{
+				if (!_selfDone) // 自分が終わっていなければdoneでない
+				{
+					return false;
+				}
+				if (this.dependencies == null) // 自分が終わっていて依存がないならdone
+				{
+					return true;
+				}
+				// 一個でも依存してるのが終わってなければdoneでない
+				for (int i = 0; i < this.dependencies.Length; i++)
+				{
+					if (!this.dependencies[i].done)
+					{
+						return false;
+					}
+					else
+					{
+						Debug.Assert(this.dependencies[i].assetBundle != null);
+					}
+				}
+				return true;
+			}
+		}
+
 		// 自前で何もせず待っているだけなら破棄可能
 		public bool disposable
 		{
@@ -142,8 +183,12 @@ namespace Kayac.LoaderImpl
 							this.name,
 							new Exception("AssetBundle.LoadFromFileAsync failed."));
 					}
+					else
+					{
+//Debug.Log("FileHandle Complete: " + this.name + " " + this.asset.GetType().Name + " " + this.asset.name);
+					}
 					_assetBundleCreateRequest = null;
-					this.done = true;
+					_selfDone = true;
 				}
 			}
 			else if (_webRequest != null)
@@ -181,7 +226,7 @@ namespace Kayac.LoaderImpl
 					}
 					_webRequest.Dispose();
 					_webRequest = null;
-					this.done = true;
+					_selfDone = true;
 				}
 			}
 			else if (this.downloadHandle != null) // ダウンロード待ち
@@ -198,7 +243,7 @@ namespace Kayac.LoaderImpl
 				}
 				else if (this.downloadHandle.done) // ファイルが使えないのに終わっている=エラー
 				{
-					this.done = true; // 終了とする
+					_selfDone = true; // 終了とする
 				}
 			}
 			UnityEngine.Profiling.Profiler.EndSample();
@@ -225,10 +270,26 @@ namespace Kayac.LoaderImpl
 		public int referenceCount { get; private set; }
 		public string name { get; private set; }
 		public DownloadHandle downloadHandle { get; private set; }
+		public FileHandle[] dependencies {get; private set; }
 		string _storageCachePath;
 		FileType _fileType;
 		Loader.OnError _onError;
 		AssetBundleCreateRequest _assetBundleCreateRequest;
 		UnityWebRequest _webRequest;
+
+
+
+
+// ----------------------------------- 邪悪なコード --------------------------------------
+		// 同期ロード専用の邪悪なバージョン。わざと機能制限かけておく。アセットバンドルのみ、エラー処理なし。
+		public FileHandle(string name, string storageCachePath)
+		{
+			this.name = name;
+			_storageCachePath = storageCachePath;
+			_fileType = FileType.AssetBundle;
+			this.asset = AssetBundle.LoadFromFile(_storageCachePath);
+			_selfDone = true;
+		}
+// ----------------------------------- 邪悪なコード --------------------------------------
 	}
 }

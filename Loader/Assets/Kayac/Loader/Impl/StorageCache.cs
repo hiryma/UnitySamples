@@ -11,7 +11,7 @@ namespace Kayac.LoaderImpl
 	{
 		public const string temporaryFilePostfix = ".tmp";
 
-		public StorageCache(string root)
+		public StorageCache(string root, bool useHash)
 		{
 			if (root[root.Length - 1] == '/') // スラッシュ終わり
 			{
@@ -21,6 +21,7 @@ namespace Kayac.LoaderImpl
 			{
 				this.root = root;
 			}
+			_useHash = useHash;
 
 			_stringBuilder = new System.Text.StringBuilder();
 			StartScan();
@@ -49,7 +50,7 @@ namespace Kayac.LoaderImpl
 		void ScanThreadEntryPoint()
 		{
 			var t0 = System.DateTime.Now;
-			_scanner.Build(this.root);
+			_scanner.Build(this.root, _useHash);
 			var t1 = System.DateTime.Now;
 			Debug.Log("Kayac.Lorder: ScanStorageCache take " + (t1 - t0).TotalMilliseconds + " msec.");
 		}
@@ -64,19 +65,22 @@ namespace Kayac.LoaderImpl
 		void ClearThreadEntryPoint()
 		{
 			var t0 = System.DateTime.Now;
-			Clear(this.root, _entries);
+			Clear(this.root, _entries, _useHash);
 			var t1 = System.DateTime.Now;
 			Debug.Log("Kayac.Lorder: ClearStorageCache take " + (t1 - t0).TotalMilliseconds + " msec.");
 		}
 
-		static void Clear(string root, Dictionary<string, StorageCache.Entry> entries)
+		static void Clear(
+			string root,
+			Dictionary<string, StorageCache.Entry> entries,
+			bool useHash)
 		{
 			var stringBuilder = new System.Text.StringBuilder();
 			// ファイル個別削除
 			foreach (var item in entries)
 			{
 				var entry = item.Value;
-				var cachePath = StorageCache.MakeCachePath(stringBuilder, item.Key, ref entry.hash, root);
+				var cachePath = StorageCache.MakeCachePath(stringBuilder, item.Key, ref entry.hash, root, useHash);
 				FileUtility.DeleteFile(cachePath);
 			}
 			FileUtility.RemoveEmptyDirectories(root);
@@ -93,7 +97,7 @@ namespace Kayac.LoaderImpl
 		void UpdateThreadEntryPoint()
 		{
 			var t0 = System.DateTime.Now;
-			Update(_entries, this.root, _database);
+			Update(_entries, this.root, _database, _useHash);
 			var t1 = System.DateTime.Now;
 			Debug.Log("Kayac.Lorder: UpdateStorageCache take " + (t1 - t0).TotalMilliseconds + " msec.");
 		}
@@ -101,7 +105,8 @@ namespace Kayac.LoaderImpl
 		static void Update(
 			Dictionary<string, Entry> entries,
 			string root,
-			Loader.IAssetFileDatabase database)
+			Loader.IAssetFileDatabase database,
+			bool useHash)
 		{
 			var sb = new System.Text.StringBuilder();
 			var removeNames = new List<string>();
@@ -113,9 +118,11 @@ namespace Kayac.LoaderImpl
 					FileHash refHash;
 					var entry = item.Value;
 					bool match = false;
-					if (database.GetFileMetaData(out refHash, name))
+					int sizeBytes;
+					IEnumerable<string> dependenciesUnused;
+					if (database.GetFileMetaData(out refHash, out sizeBytes, out dependenciesUnused, name, needDependency: false))
 					{
-						if (refHash == entry.hash)
+						if (!useHash || (refHash == entry.hash)) // useHash==falseならハッシュは見ない。項目があれば良しとする
 						{
 							match = true;
 						}
@@ -123,7 +130,7 @@ namespace Kayac.LoaderImpl
 					if (!match) // Databaseにない、あるいはハッシュが異なる→削除
 					{
 						sb.Length = 0;
-						MakeCachePath(sb, name, ref entry.hash, root);
+						MakeCachePath(sb, name, ref entry.hash, root, useHash);
 						var path = sb.ToString();
 						FileUtility.DeleteFile(path);
 						removeNames.Add(name);
@@ -167,11 +174,12 @@ namespace Kayac.LoaderImpl
 
 		public bool Has(string name, ref FileHash hash)
 		{
+//Debug.Log("Has: " + name + " " + hash);
 			JoinThread(); // スレッド実行待ちでブロック
 			Entry entry;
 			if (_entries.TryGetValue(name, out entry))
 			{
-				if (entry.hash == hash)
+				if (!_useHash || (entry.hash == hash))
 				{
 					return true;
 				}
@@ -237,14 +245,29 @@ namespace Kayac.LoaderImpl
 				_stringBuilder,
 				name,
 				ref hash,
-				absolute ? this.root : null);
+				absolute ? this.root : null,
+				_useHash);
+		}
+
+		static int LastIndexOf(string s, int start, int length, char letter)
+		{
+			for (int i = (length - 1); i >= 0; i--)
+			{
+				int pos = start + i;
+				if (s[pos] == letter)
+				{
+					return pos;
+				}
+			}
+			return int.MinValue;
 		}
 
 		public static string MakeCachePath(
 			System.Text.StringBuilder sb,
 			string name,
 			ref FileHash hash,
-			string root)
+			string root,
+			bool useHash)
 		{
 			sb.Length = 0;
 			if (root != null)
@@ -252,18 +275,27 @@ namespace Kayac.LoaderImpl
 				sb.Append(root);
 				sb.Append('/');
 			}
+
 			int extIndex = name.LastIndexOf('.');
-			if (extIndex < 0)
+			if (extIndex >= 0) // 拡張子がある場合
 			{
-				extIndex = name.Length;
-			}
-			sb.Append(name, 0, extIndex);
-			sb.Append('.');
-			hash.AppendString(sb);
-			sb.Append('.');
-			if (extIndex < name.Length)
-			{
+				sb.Append(name, 0, extIndex);
+				sb.Append('.');
+				if (useHash)
+				{
+					hash.AppendString(sb);
+					sb.Append('.');
+				}
 				sb.Append(name, extIndex + 1, name.Length - extIndex - 1);
+			}
+			else // 拡張子がない場合
+			{
+				sb.Append(name);
+				if (useHash)
+				{
+					sb.Append('.');
+					hash.AppendString(sb);
+				}
 			}
 			return sb.ToString();
 		}
@@ -280,5 +312,6 @@ namespace Kayac.LoaderImpl
 		Thread _thread;
 		StorageCacheScanner _scanner;
 		bool _started;
+		bool _useHash;
 	}
 }

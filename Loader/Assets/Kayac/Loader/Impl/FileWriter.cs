@@ -285,12 +285,12 @@ namespace Kayac.LoaderImpl
 					}
 					if (_fileInfo.Exists)
 					{
-Debug.Log("FileWriter: Open: " + tmpPath);
+//Debug.Log("FileWriter: Open: " + tmpPath);
 						_fileStream = _fileInfo.OpenWrite();
 					}
 					else
 					{
-Debug.Log("FileWriter: Create: " + tmpPath);
+//Debug.Log("FileWriter: Create: " + tmpPath);
 						_fileStream = _fileInfo.Create();
 					}
 				}
@@ -307,7 +307,7 @@ Debug.Log("FileWriter: Create: " + tmpPath);
 				{
 					try
 					{
-Debug.Log("FileWriter: Close: " + _fileInfo.Name);
+//Debug.Log("FileWriter: Close: " + _fileInfo.Name);
 						_fileStream.Close();
 					}
 					catch (Exception e)
@@ -324,7 +324,7 @@ Debug.Log("FileWriter: Close: " + _fileInfo.Name);
 				Close();
 				try
 				{
-Debug.Log("FileWriter: Delete: " + _fileInfo.Name);
+//Debug.Log("FileWriter: Delete: " + _fileInfo.Name);
 					_fileInfo.Delete();
 				}
 				catch (Exception e)
@@ -342,7 +342,7 @@ Debug.Log("FileWriter: Delete: " + _fileInfo.Name);
 				var dst = root + this.path;
 				try
 				{
-Debug.Log("FileWriter: Move: " + _fileInfo.Name + " -> " + dst);
+//Debug.Log("FileWriter: Move: " + _fileInfo.Name + " -> " + dst);
 					_fileInfo.MoveTo(dst); // 本番ファイル名に変更
 				}
 				catch (Exception e)

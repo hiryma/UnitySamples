@@ -48,8 +48,13 @@ public class Main : MonoBehaviour
 
 		public bool GetFileMetaData(
 			out Kayac.FileHash hash, // アセットファイルのバージョンを示すハッシュ
-			string fileName)
+			out int sizeBytes,
+			out IEnumerable<string> dependencies,
+			string fileName,
+			bool needDependencies)
 		{
+			sizeBytes = 0;
+			dependencies = null;
 			return _hashMap.TryGetValue(fileName, out hash);
 		}
 		Dictionary<string, Kayac.FileHash> _hashMap;
@@ -65,7 +70,7 @@ public class Main : MonoBehaviour
 #endif
 		storageCacheRoot += "/../AssetFileCache";
 		// キャッシュのスキャンはできるだけ早く始めた方が良い
-		_loader = new Kayac.Loader(storageCacheRoot);
+		_loader = new Kayac.Loader(storageCacheRoot, useHashInStorageCache: true);
 
 		_sb = new System.Text.StringBuilder();
 		_images = new RawImage[HandleCount];
@@ -158,14 +163,11 @@ public class Main : MonoBehaviour
 
 	public void DownloadAll()
 	{
-		int downloadCount = 0;
-		foreach (var item in _fileList)
-		{
-			if (_loader.Download(item, OnError))
-			{
-				downloadCount++; // サイズを知っていればサイズを集計する。このサンプルではサイズを知らないので個数だけ集計。
-			}
-		}
+		int fileCount;
+		long sizeBytes;
+		_loader.CheckDownload(out fileCount, out sizeBytes, _fileList, useDependency: true);
+		Debug.Log("CheckDownload: count=" + fileCount + " size=" + sizeBytes);
+		_loader.Download(_fileList, OnError, useDependency: true, shuffle: true);
 	}
 
 	void Update()

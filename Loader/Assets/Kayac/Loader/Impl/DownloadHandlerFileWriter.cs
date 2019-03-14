@@ -54,7 +54,7 @@ namespace Kayac.LoaderImpl
 
 		public void OnError() // エラー時にファイル閉じる
 		{
-			Debug.LogError("DownloadHandler.fileWriter.OnError called.");
+			Debug.LogError("DownloadHandlerFileWriter.OnError called.");
 			_writer.Abort(_writerHandle);
 			_writerHandle = null;
 		}

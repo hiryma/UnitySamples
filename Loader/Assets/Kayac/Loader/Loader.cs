@@ -19,6 +19,7 @@ namespace Kayac
 			NoAssetInAssetBundle, // そんな名前のアセットはアセットバンドル内に存在しない。高確率でバグ。
 			AssetTypeMismatch, // 指定の名前のアセットはあるが型が異なるのでロードできない。高確率でバグ。
 			CantLoadAsset, // 何故かアセットをロードできない。おそらくファイルが壊れている。該当するファイルをキャッシュから破棄すべき。
+			Other, // その他。使い方の間違いなど、コードのバグ由来のものはここにまとめて文字列で詳細を出す。
 		}
 
 		public interface IAssetFileDatabase
@@ -29,7 +30,10 @@ namespace Kayac
 				string identifier); // Loader.Loadに渡された文字列
 			bool GetFileMetaData( // 後でCRCなりサイズなりのメタデータを足す可能性があるので、名前をこうしておく
 				out FileHash hash, // アセットファイルのバージョンを示すハッシュ
-				string fileName);
+				out int sizeBytes, // ファイルのサイズ(2GB超えてくるならlongにするけど、マジやめた方がいいと思うので敢えてintにする)
+				out IEnumerable<string> dependencies, // 依存するファイル名集合
+				string fileName,
+				bool needDependency); // これがflaseならdependenciesはnullで良い。使わない。
 		}
 		// AssetIdentifier → AssetFileName + ファイル内AssetName → URLかキャッシュファイル名
 		public delegate void OnComplete(UnityEngine.Object asset);
@@ -38,9 +42,9 @@ namespace Kayac
 			string fileOrAssetName,
 			Exception exception);
 
-		public Loader(string storageCacheRoot)
+		public Loader(string storageCacheRoot, bool useHashInStorageCache)
 		{
-			_storageCache = new StorageCache(storageCacheRoot);
+			_storageCache = new StorageCache(storageCacheRoot, useHashInStorageCache);
 		}
 
 		public void Start(
@@ -52,6 +56,11 @@ namespace Kayac
 			int fileWriteBufferSize = 16 * 1024 * 1024,
 			int downloadHandlerBufferSize = 16 * 1024)
 		{
+			if (IsStarted())
+			{
+				Debug.LogWarning("Kayac.Loader.Start() called twice.");
+				return;
+			}
 			_storageCache.Start(database);
 			_fileWriter = new FileWriter(
 				_storageCache.root,
@@ -80,41 +89,164 @@ namespace Kayac
 
 			_fileHandles = new Dictionary<string, FileHandle>();
 			_watchingFileHandles = new List<FileHandle>();
+			_watchingFileHandleAddList = new List<FileHandle>();
 		}
 
 		/// 初期化及びクリアが終わってブロックなしで利用可能かを返す。これがfalseを返す状態でも、ブロックはするが利用できる。
 		public bool ready { get { return _storageCache.ready; } }
-		public int memoryCacheLimit{ get; private set; }
+		public int memoryCacheLimit { get; private set; }
 		public void SetMemoryCacheLimit(int limitBytes)
 		{
 			this.memoryCacheLimit = limitBytes;
 		}
 
-		/// ダウンロードを開始すればtrue、すでにキャッシュにあるか、すでに開始済みであればfalseを返す。
-		public bool Download(
+		public void CheckDownload(
+			out int downloadFileCount,
+			out long downloadSizeBytes,
+			IEnumerable<string> fileNames,
+			bool useDependency)
+		{
+			downloadFileCount = 0;
+			downloadSizeBytes = 0;
+			if (!IsStarted())
+			{
+				Debug.Assert(this.ready, "Call Start().");
+				return;
+			}
+			// 第一ループ。HashSetにとにかくつっこむ。必要なら依存するファイルもつっこむ。
+			var uniqueSet = new HashSet<string>();
+			foreach (var fileName in fileNames)
+			{
+				uniqueSet.Add(fileName);
+				FileHash hash;
+				IEnumerable<string> dependencies;
+				int sizeBytes;
+				if (useDependency)
+				{
+					if (_database.GetFileMetaData(out hash, out sizeBytes, out dependencies, fileName, useDependency))
+					{
+						if (dependencies != null)
+						{
+							foreach (var dependency in dependencies)
+							{
+								uniqueSet.Add(dependency);
+							}
+						}
+					}
+				}
+			}
+
+			// 第二ループ。ダウンロードが必要か判定しながら加算
+			foreach (var fileName in uniqueSet)
+			{
+				FileHash hash;
+				IEnumerable<string> dependencies;
+				int sizeBytes;
+				// メタデータなければ飛ばす
+				if (!_database.GetFileMetaData(out hash, out sizeBytes, out dependencies, fileName, useDependency))
+				{
+					continue;
+				}
+				DownloadHandle handleUnused;
+				if (_downloadHandles.TryGetValue(fileName, out handleUnused)) // ハンドルがあるので飛ばす
+				{
+					continue;
+				}
+
+				if (_storageCache.Has(fileName, ref hash)) // キャッシュにあるので飛ばす
+				{
+					continue;
+				}
+
+				// 加算
+				downloadFileCount++;
+				downloadSizeBytes += sizeBytes;
+			}
+		}
+
+		public void Download(
 			string fileName,
-			OnError onError)
+			OnError onError,
+			bool useDependency)
 		{
 			if (!IsStarted())
 			{
 				Debug.Assert(this.ready, "Call Start().");
-				return false;
+				if (onError != null)
+				{
+					onError(Error.Other, fileName, new Exception("Loader.Start() hasn't called."));
+				}
+				return;
 			}
 
-			var ret = false;
 			DownloadHandle handle = null;
 			FileHash hash;
-			_database.GetFileMetaData(out hash, fileName);
-
-			if (!_storageCache.Has(fileName, ref hash)) // キャッシュにない
+			IEnumerable<string> dependencies;
+			int sizeBytes;
+			if (!_database.GetFileMetaData(out hash, out sizeBytes, out dependencies, fileName, useDependency))
 			{
-				if (!_downloadHandles.TryGetValue(fileName, out handle))
+				if (onError != null)
+				{
+					onError(Error.Other, fileName, new Exception("IAssetFileDatabase.GetFileMetaData() returned false."));
+				}
+				return;
+			}
+
+			if (!_downloadHandles.TryGetValue(fileName, out handle))
+			{
+				if (!_storageCache.Has(fileName, ref hash)) // キャッシュにない
 				{
 					MakeDownloadHandle(fileName, ref hash, onError);
-					ret = true;
 				}
 			}
-			return ret;
+			// 依存関係があれば再帰
+			if (dependencies != null)
+			{
+				foreach (var dependency in dependencies)
+				{
+					Download(
+						dependency,
+						onError,
+						useDependency: true);
+				}
+			}
+		}
+
+		public void Download(
+			IEnumerable<string> fileNames,
+			OnError onError,
+			bool useDependency,
+			bool shuffle)
+		{
+			if (shuffle) // 一時配列を作ってシャッフルする
+			{
+				var shuffledFileNames = new List<string>();
+				foreach (var fileName in fileNames)
+				{
+					shuffledFileNames.Add(fileName);
+				}
+				Shuffle(shuffledFileNames);
+				fileNames = shuffledFileNames;
+			}
+
+			foreach (var fileName in fileNames)
+			{
+				Download(fileName, onError, useDependency);
+			}
+		}
+
+		static void Shuffle<T>(IList<T> a) // Fisher-Yates shuffle.
+		{
+			Debug.Assert(a != null);
+			var n = a.Count;
+			for (int i = 0; i < n; i++)
+			{
+				int srcIndex = 0;
+				srcIndex = UnityEngine.Random.Range(i, n);
+				var tmp = a[srcIndex];
+				a[srcIndex] = a[i];
+				a[i] = tmp; // これでi番は確定
+			}
 		}
 
 		public int downloadingCount
@@ -138,15 +270,16 @@ namespace Kayac
 			OnComplete onComplete = null,
 			GameObject holderGameObject = null)
 		{
+//Debug.Log("Loader.Load: " + identifier + " " + type.Name);
 			if (!IsStarted())
 			{
+				if (onError != null)
+				{
+					onError(Error.Other, identifier, new System.Exception("Loader.Start() hasn't called."));
+				}
 				Debug.Assert(this.ready, "Call Start().");
 				return null;
 			}
-
-			string fileName;
-			string assetName;
-			_database.ParseIdentifier(out fileName, out assetName, identifier);
 
 			var assetDictionaryKey = identifier + "_" + type.Name;
 
@@ -156,11 +289,21 @@ namespace Kayac
 			// みつからなかったので生成
 			if (assetHandle == null)
 			{
-				FileHandle fileHandle = null;
-				if (!_fileHandles.TryGetValue(fileName, out fileHandle))
+				string fileName;
+				string assetName;
+				if (!_database.ParseIdentifier(out fileName, out assetName, identifier))
 				{
-					fileHandle = MakeFileHandle(fileName, onError);
+					if (onError != null)
+					{
+						onError(Error.Other, identifier, new System.Exception("IAssetFileDatabase.ParseIdentifier() returned false."));
+					}
+					return null;
 				}
+				Debug.Assert(fileName != null);
+				Debug.Assert(assetName != null);
+				Debug.Assert(fileName[0] != '/', "fileName must not starts with slash."); // スラッシュ始まりは許容しない
+
+				var fileHandle = GetOrMakeFileHandle(fileName, onError);
 				assetHandle = new AssetHandle(fileHandle, assetName, assetDictionaryKey, type, onError);
 				lock (_watchingAssetHandles)
 				{
@@ -245,12 +388,33 @@ namespace Kayac
 			return handle;
 		}
 
-		FileHandle MakeFileHandle(
+		FileHandle GetOrMakeFileHandle(
 			string fileName,
 			OnError onError)
 		{
+			// すでにあれば返して終わり
+			FileHandle ret;
+			if (_fileHandles.TryGetValue(fileName, out ret))
+			{
+				return ret;
+			}
+
 			FileHash hash;
-			_database.GetFileMetaData(out hash, fileName);
+			int sizeBytesUnused;
+			IEnumerable<string> dependencies;
+			if (!_database.GetFileMetaData(
+				out hash,
+				out sizeBytesUnused,
+				out dependencies,
+				fileName,
+				needDependency: true))
+			{
+				if (onError != null)
+				{
+					onError(Error.Other, fileName, new Exception("IAssetFileDatabase.GetFileMetaData() returned false."));
+				}
+				return null;
+			}
 
 			DownloadHandle downloadHandle = null;
 			if (!_storageCache.Has(fileName, ref hash)) // キャッシュにない
@@ -261,15 +425,37 @@ namespace Kayac
 				}
 			}
 
+			// 依存関係側を先に処理
+			FileHandle[] dependencyHandles = null;
+			if (dependencies != null)
+			{
+				// 先に数える。結構な数になるのでListで余計なメモリを食いたくない
+				int count = 0;
+				foreach (var unused in dependencies)
+				{
+					count++;
+				}
+				dependencyHandles = new FileHandle[count];
+				count = 0;
+				foreach (var dependency in dependencies)
+				{
+					Debug.Log("Dependency: " + fileName + " -> " + dependency);
+					var handle = GetOrMakeFileHandle(dependency, onError);
+					dependencyHandles[count] = handle;
+					count++;
+				}
+			}
+
 			var storageCachePath = _storageCache.MakeCachePath(fileName, ref hash, absolute: true);
-			var fileHandle = new FileHandle(
+			ret = new FileHandle(
 				fileName,
 				storageCachePath,
 				downloadHandle,
-				onError);
-			_fileHandles.Add(fileName, fileHandle);
-			_watchingFileHandles.Add(fileHandle);
-			return fileHandle;
+				onError,
+				dependencyHandles);
+			_fileHandles.Add(fileName, ret);
+			_watchingFileHandles.Add(ret);
+			return ret;
 		}
 
 		public void Update()
@@ -333,6 +519,7 @@ namespace Kayac
 		void UpdateFile()
 		{
 			UnityEngine.Profiling.Profiler.BeginSample("Kayac.Loader.UpdateLoad");
+			_watchingFileHandleAddList.Clear();
 			int dst = 0;
 			for (int i = 0; i < _watchingFileHandles.Count; i++)
 			{
@@ -349,6 +536,7 @@ namespace Kayac
 					skip = true;
 					_fileHandles.Remove(handle.name);
 					var downloadHandle = handle.downloadHandle;
+					var dependencies = handle.dependencies;
 					handle.Dispose();
 					// DownloadHandleが誰も見てない状態になった場合は、破棄をここで行う
 					if ((downloadHandle != null) && downloadHandle.disposable)
@@ -363,6 +551,21 @@ namespace Kayac
 						}
 						downloadHandle.Dispose();
 					}
+					// 依存するFileHandleが誰も見てない状態になった場合は、監視リストに放り込んで次のフレームで処理する
+					if (dependencies != null)
+					{
+						for (int dependencyIndex = 0;
+							dependencyIndex < dependencies.Length;
+							dependencyIndex++)
+						{
+							var dependency = dependencies[dependencyIndex];
+							if (dependency.disposable)
+							{
+								Debug.Assert(!dependency.disposed);
+								_watchingFileHandleAddList.Add(dependency);
+							}
+						}
+					}
 				}
 				else if (handle.done) // 完了したら監視対象から外す
 				{
@@ -374,6 +577,7 @@ namespace Kayac
 				}
 			}
 			_watchingFileHandles.RemoveRange(dst, _watchingFileHandles.Count - dst);
+			_watchingFileHandles.AddRange(_watchingFileHandleAddList); // 依存関係監視で増えたものを追加
 			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
@@ -443,11 +647,11 @@ namespace Kayac
 				var handle = node.Value;
 				if (!handle.disposed)
 				{
-Debug.Log("CheckCache: " + handle.name + " " + handle.dictionaryKey + " " + handle.memorySize);
+//Debug.Log("CheckCache: " + handle.name + " " + handle.dictionaryKey + " " + handle.memorySize);
 					Debug.Assert(handle.disposable, "not disposable: ref=" + handle.GetReferenceCountThreadSafe());
 					Debug.Assert(handle.memoryCachedListNode != null, "node is null. " + handle.name);
 					Debug.Assert(handle.memoryCachedListNode.Value.name == _memoryCachedAssetHandles.First.Value.name,
-						handle.memoryCachedListNode.Value.name + " != " +  _memoryCachedAssetHandles.First.Value.name);
+						handle.memoryCachedListNode.Value.name + " != " + _memoryCachedAssetHandles.First.Value.name);
 
 					handle.SetMemoryCachedListNode(null);
 					DisposeAssetHandle(handle);
@@ -611,6 +815,7 @@ Debug.Log("CheckCache: " + handle.name + " " + handle.dictionaryKey + " " + hand
 
 		public void UnloadThreadSafe(AssetHandle assetHandle)
 		{
+//			Debug.Log("AssetHandle Unload:" + assetHandle.dictionaryKey + " " + assetHandle.GetReferenceCountThreadSafe());
 			if (assetHandle.DecrementReferenceThreadSafe() <= 0)
 			{
 				lock (_watchingAssetHandles)
@@ -637,5 +842,63 @@ Debug.Log("CheckCache: " + handle.name + " " + handle.dictionaryKey + " " + hand
 		DownloadHandle[] _goingDownloadHandles;
 		Dictionary<string, FileHandle> _fileHandles;
 		List<FileHandle> _watchingFileHandles;
+		List<FileHandle> _watchingFileHandleAddList; // テンポラリ使用
+
+
+		// ----------------------------------- 邪悪なコード --------------------------------------
+		// 著しく使ってほしくない同期バージョン。アセットバンドルからのロードのみサポート。該当AssetBundleが非同期ロード中だと失敗。
+		public LoadHandle LoadSynchronous_SHOULD_BE_REMOVED(string identifier, Type type)
+		{
+			AssetHandle assetHandle = null;
+			var assetDictionaryKey = identifier + "_" + type.Name;
+			_assetHandles.TryGetValue(assetDictionaryKey, out assetHandle);
+
+			// みつからなかったので生成
+			if (assetHandle == null)
+			{
+				string fileName;
+				string assetName;
+				if (_database.ParseIdentifier(out fileName, out assetName, identifier))
+				{
+					FileHandle fileHandle;
+					if (!_fileHandles.TryGetValue(fileName, out fileHandle))
+					{
+						FileHash hash;
+						int sizeBytesUnused;
+						IEnumerable<string> dependenciesUnused;
+						_database.GetFileMetaData(
+							out hash,
+							out sizeBytesUnused,
+							out dependenciesUnused,
+							fileName,
+							needDependency: false);
+						var storageCachePath = _storageCache.MakeCachePath(fileName, ref hash, absolute: true);
+						fileHandle = new FileHandle(fileName, storageCachePath);
+						_fileHandles.Add(fileName, fileHandle);
+					}
+					Debug.Assert(fileHandle.done);
+					assetHandle = new AssetHandle(fileHandle, assetName, assetDictionaryKey, type);
+					_assetHandles.Add(assetDictionaryKey, assetHandle);
+				}
+			}
+			else if (assetHandle.memoryCachedListNode != null) // 参照カウント0だけどキャッシュされてる奴がみつかった
+			{
+				// キャッシュから外す
+				Debug.Assert(assetHandle.disposable); // 破棄可能なはず
+				_memoryCachedAssetHandles.Remove(assetHandle.memoryCachedListNode);
+				assetHandle.SetMemoryCachedListNode(null); // 切断
+			}
+			if (assetHandle != null)
+			{
+				assetHandle.IncrementReferenceThreadSafe();
+				return new LoadHandle(assetHandle, this);
+			}
+			else
+			{
+				return null;
+			}
+		}
+		//----------------------------------- ここまで邪悪なコード ------------------------------
+
 	}
 }
