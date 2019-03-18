@@ -45,7 +45,8 @@ namespace Kayac.LoaderImpl
 		void Start()
 		{
 			var lowerPath = _storageCachePath.ToLower();
-			if (lowerPath.EndsWith(".png") || lowerPath.EndsWith(".jpg"))
+			if (lowerPath.EndsWith(".png")
+				|| lowerPath.EndsWith(".jpg"))
 			{
 				_fileType = FileType.Texture;
 				var url = "file://" + _storageCachePath;
@@ -59,6 +60,19 @@ namespace Kayac.LoaderImpl
 				var url = "file://" + _storageCachePath;
 				_webRequest = new UnityWebRequest(url);
 				_webRequest.downloadHandler = new DownloadHandlerAudioClip(url, AudioType.OGGVORBIS);
+				_webRequest.SendWebRequest();
+			}
+			else if (lowerPath.EndsWith(".txt")
+				|| lowerPath.EndsWith(".html")
+				|| lowerPath.EndsWith(".xml")
+				|| lowerPath.EndsWith(".json")
+				|| lowerPath.EndsWith(".csv")
+				|| lowerPath.EndsWith(".yaml"))
+			{
+				_fileType = FileType.Text;
+				var url = "file://" + _storageCachePath;
+				_webRequest = new UnityWebRequest(url);
+				_webRequest.downloadHandler = new DownloadHandlerBuffer();
 				_webRequest.SendWebRequest();
 			}
 			else // 認識できなければAssetBundleとする
@@ -224,6 +238,21 @@ namespace Kayac.LoaderImpl
 								new Exception("DownloadHandlerTexture.GetContent failed."));
 						}
 					}
+					else if (_fileType == FileType.Text)
+					{
+						var text = _webRequest.downloadHandler.text;
+						if (text == null)
+						{
+							_onError(
+								Loader.Error.CantLoadAsset,
+								this.name,
+								new Exception("DownloadHandlerBuffer.text returned null."));
+						}
+						else
+						{
+							this.asset = new TextAsset(text);
+						}
+					}
 					_webRequest.Dispose();
 					_webRequest = null;
 					_selfDone = true;
@@ -264,6 +293,7 @@ namespace Kayac.LoaderImpl
 			AssetBundle,
 			Audio,
 			Texture,
+			Text,
 		}
 		public UnityEngine.Object asset { get; private set; } // png等単一アセットを読んだ場合ここに結果を入れる
 		public AssetBundle assetBundle{ get{ return asset as AssetBundle; } }

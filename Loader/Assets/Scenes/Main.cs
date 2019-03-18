@@ -18,6 +18,7 @@ public class Main : MonoBehaviour
 	public Toggle autoTestToggle;
 	public int downloadParallelCount;
 	public int memoryCacheLimitMB;
+	public int loadLimitMB = 256;
 
 	RawImage[] _images;
 	Kayac.Loader _loader;
@@ -30,13 +31,13 @@ public class Main : MonoBehaviour
 	AssetFileDatabase _database;
 	List<string> _fileList;
 
-	class AssetFileDatabase : Kayac.Loader.IAssetFileDatabase
+	class AssetFileDatabase : Kayac.Loader.AssetFileDatabase
 	{
 		public void SetHashMap(Dictionary<string, Kayac.FileHash> hashMap)
 		{
 			_hashMap = hashMap;
 		}
-		public bool ParseIdentifier(
+		public override bool ParseIdentifier(
 			out string assetFileName, // ファイル名(Loaderに渡したroot相対なのでフォルダがあるならそれも含む)
 			out string assetName, // ファイル内でアセットを識別する名前
 			string assetIdentifier) // コード内から指定された識別子。今回はurlそのもの。
@@ -46,15 +47,12 @@ public class Main : MonoBehaviour
 			return true;
 		}
 
-		public bool GetFileMetaData(
+		public override bool GetFileMetaData(
 			out Kayac.FileHash hash, // アセットファイルのバージョンを示すハッシュ
 			out int sizeBytes,
-			out IEnumerable<string> dependencies,
-			string fileName,
-			bool needDependencies)
+			string fileName)
 		{
 			sizeBytes = 0;
-			dependencies = null;
 			return _hashMap.TryGetValue(fileName, out hash);
 		}
 		Dictionary<string, Kayac.FileHash> _hashMap;
@@ -114,6 +112,7 @@ public class Main : MonoBehaviour
 			_database,
 			downloadParallelCount);
 		_loader.SetMemoryCacheLimit(this.memoryCacheLimitMB * 1024 * 1024);
+		_loader.SetLoadLimit(this.loadLimitMB * 1024 * 1024);
 	}
 
 	bool ReadAssetFileList(out string downloadRoot)

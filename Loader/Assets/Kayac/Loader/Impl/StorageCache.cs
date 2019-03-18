@@ -119,8 +119,7 @@ namespace Kayac.LoaderImpl
 					var entry = item.Value;
 					bool match = false;
 					int sizeBytes;
-					IEnumerable<string> dependenciesUnused;
-					if (database.GetFileMetaData(out refHash, out sizeBytes, out dependenciesUnused, name, needDependency: false))
+					if (database.GetFileMetaData(out refHash, out sizeBytes, name))
 					{
 						if (!useHash || (refHash == entry.hash)) // useHash==falseならハッシュは見ない。項目があれば良しとする
 						{

@@ -237,7 +237,7 @@ namespace Kayac.LoaderImpl
 			else if (asset is TextAsset)
 			{
 				var text = asset as TextAsset;
-				ret = text.bytes.Length;
+				ret = text.text.Length * sizeof(char);
 //Debug.Log("Text " + ret);
 			}
 			else if (asset is AudioClip)

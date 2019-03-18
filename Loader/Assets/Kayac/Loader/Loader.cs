@@ -19,21 +19,43 @@ namespace Kayac
 			NoAssetInAssetBundle, // そんな名前のアセットはアセットバンドル内に存在しない。高確率でバグ。
 			AssetTypeMismatch, // 指定の名前のアセットはあるが型が異なるのでロードできない。高確率でバグ。
 			CantLoadAsset, // 何故かアセットをロードできない。おそらくファイルが壊れている。該当するファイルをキャッシュから破棄すべき。
+			ExceedMemoryLimit, // 設定したメモリ量限界を超えたのでロードしない
 			Other, // その他。使い方の間違いなど、コードのバグ由来のものはここにまとめて文字列で詳細を出す。
 		}
 
+		// 継承して使ってね
 		public interface IAssetFileDatabase
 		{
 			bool ParseIdentifier(
 				out string fileName, // アセットが入っているファイルの、Loaderに渡したrootからの相対パス
 				out string assetName, // ファイル内のアセットの名前。assetBundle生成の設定次第ではフルパスが必要になる。
 				string identifier); // Loader.Loadに渡された文字列
-			bool GetFileMetaData( // 後でCRCなりサイズなりのメタデータを足す可能性があるので、名前をこうしておく
-				out FileHash hash, // アセットファイルのバージョンを示すハッシュ
-				out int sizeBytes, // ファイルのサイズ(2GB超えてくるならlongにするけど、マジやめた方がいいと思うので敢えてintにする)
-				out IEnumerable<string> dependencies, // 依存するファイル名集合
-				string fileName,
-				bool needDependency); // これがflaseならdependenciesはnullで良い。使わない。
+			IEnumerable<string> GetDependencies(string fileName);
+			bool GetFileMetaData(out FileHash hash, out int sizeBytes, string fileName);
+		}
+
+		// IAssetFileDatabaseのデフォルト実装
+		public class AssetFileDatabase : IAssetFileDatabase
+		{
+			public virtual bool ParseIdentifier(
+				out string fileName, // アセットが入っているファイルの、Loaderに渡したrootからの相対パス
+				out string assetName, // ファイル内のアセットの名前。assetBundle生成の設定次第ではフルパスが必要になる。
+				string identifier) // Loader.Loadに渡された文字列
+			{ // デフォルト実装は1ファイル1アセットを想定したもの
+				fileName = identifier;
+				assetName = identifier;
+				return true;
+			}
+			public virtual IEnumerable<string> GetDependencies(string fileName)
+			{
+				return null;
+			}
+			public virtual bool GetFileMetaData(out FileHash hash, out int sizeBytes, string fileName)
+			{
+				hash = new FileHash();
+				sizeBytes = 0;
+				return true;
+			}
 		}
 		// AssetIdentifier → AssetFileName + ファイル内AssetName → URLかキャッシュファイル名
 		public delegate void OnComplete(UnityEngine.Object asset);
@@ -45,11 +67,12 @@ namespace Kayac
 		public Loader(string storageCacheRoot, bool useHashInStorageCache)
 		{
 			_storageCache = new StorageCache(storageCacheRoot, useHashInStorageCache);
+			this.loadLimit = long.MaxValue;
 		}
 
 		public void Start(
 			string downloadRoot,
-			IAssetFileDatabase database,
+			AssetFileDatabase database,
 			int parallelDownloadCount = 16,
 			int downloadRetryCount = 3,
 			int timeoutSeconds = 30,
@@ -94,10 +117,17 @@ namespace Kayac
 
 		/// 初期化及びクリアが終わってブロックなしで利用可能かを返す。これがfalseを返す状態でも、ブロックはするが利用できる。
 		public bool ready { get { return _storageCache.ready; } }
+		/// この量に収まっていればアセットをできるだけ捨てないでメモリに残す
 		public int memoryCacheLimit { get; private set; }
 		public void SetMemoryCacheLimit(int limitBytes)
 		{
 			this.memoryCacheLimit = limitBytes;
+		}
+		/// この量を超えた状態だとロードが失敗する
+		public long loadLimit { get; private set; }
+		public void SetLoadLimit(long limitBytes)
+		{
+			this.loadLimit = limitBytes;
 		}
 
 		public void CheckDownload(
@@ -118,19 +148,14 @@ namespace Kayac
 			foreach (var fileName in fileNames)
 			{
 				uniqueSet.Add(fileName);
-				FileHash hash;
-				IEnumerable<string> dependencies;
-				int sizeBytes;
 				if (useDependency)
 				{
-					if (_database.GetFileMetaData(out hash, out sizeBytes, out dependencies, fileName, useDependency))
+					var dependencies = _database.GetDependencies(fileName);
+					if (dependencies != null)
 					{
-						if (dependencies != null)
+						foreach (var dependency in dependencies)
 						{
-							foreach (var dependency in dependencies)
-							{
-								uniqueSet.Add(dependency);
-							}
+							uniqueSet.Add(dependency);
 						}
 					}
 				}
@@ -140,10 +165,9 @@ namespace Kayac
 			foreach (var fileName in uniqueSet)
 			{
 				FileHash hash;
-				IEnumerable<string> dependencies;
 				int sizeBytes;
 				// メタデータなければ飛ばす
-				if (!_database.GetFileMetaData(out hash, out sizeBytes, out dependencies, fileName, useDependency))
+				if (!_database.GetFileMetaData(out hash, out sizeBytes, fileName))
 				{
 					continue;
 				}
@@ -181,9 +205,8 @@ namespace Kayac
 
 			DownloadHandle handle = null;
 			FileHash hash;
-			IEnumerable<string> dependencies;
-			int sizeBytes;
-			if (!_database.GetFileMetaData(out hash, out sizeBytes, out dependencies, fileName, useDependency))
+			int sizeBytesUnused;
+			if (!_database.GetFileMetaData(out hash, out sizeBytesUnused, fileName))
 			{
 				if (onError != null)
 				{
@@ -200,14 +223,18 @@ namespace Kayac
 				}
 			}
 			// 依存関係があれば再帰
-			if (dependencies != null)
+			if (useDependency)
 			{
-				foreach (var dependency in dependencies)
+				var dependencies = _database.GetDependencies(fileName);
+				if (dependencies != null)
 				{
-					Download(
-						dependency,
-						onError,
-						useDependency: true);
+					foreach (var dependency in dependencies)
+					{
+						Download(
+							dependency,
+							onError,
+							useDependency: true);
+					}
 				}
 			}
 		}
@@ -278,6 +305,16 @@ namespace Kayac
 					onError(Error.Other, identifier, new System.Exception("Loader.Start() hasn't called."));
 				}
 				Debug.Assert(this.ready, "Call Start().");
+				return null;
+			}
+
+			// 容量制限に引っかかってロードできない!!
+			if (_memoryUsingBytes > this.loadLimit)
+			{
+				if (onError != null)
+				{
+					onError(Error.ExceedMemoryLimit, identifier, new System.Exception("memory limit exceed. LOAD ABORTED. limit=" + this.loadLimit));
+				}
 				return null;
 			}
 
@@ -401,13 +438,7 @@ namespace Kayac
 
 			FileHash hash;
 			int sizeBytesUnused;
-			IEnumerable<string> dependencies;
-			if (!_database.GetFileMetaData(
-				out hash,
-				out sizeBytesUnused,
-				out dependencies,
-				fileName,
-				needDependency: true))
+			if (!_database.GetFileMetaData(out hash, out sizeBytesUnused, fileName))
 			{
 				if (onError != null)
 				{
@@ -427,6 +458,7 @@ namespace Kayac
 
 			// 依存関係側を先に処理
 			FileHandle[] dependencyHandles = null;
+			var dependencies = _database.GetDependencies(fileName);
 			if (dependencies != null)
 			{
 				// 先に数える。結構な数になるのでListで余計なメモリを食いたくない
@@ -605,7 +637,7 @@ namespace Kayac
 							if (!handle.memorySizeEstimated) //メモリ量カウント。
 							{
 								handle.EstimateMemorySize();
-								_memoryCachedSize += handle.memorySize;
+								_memoryUsingBytes += handle.memorySize;
 								CheckMemoryCache();
 							}
 						}
@@ -616,7 +648,7 @@ namespace Kayac
 							// キャッシュへ行くか判定
 							if (handle.done // 終わってて
 								&& (handle.memoryCachedListNode == null) // まだリストに入ってなくて
-								&& ((_memoryCachedSize + handle.memorySize) < this.memoryCacheLimit)) // 容量が入れば
+								&& ((_memoryUsingBytes + handle.memorySize) < this.memoryCacheLimit)) // 容量が入れば
 							{
 								var node = _memoryCachedAssetHandles.AddLast(handle);
 								handle.SetMemoryCachedListNode(node);
@@ -641,7 +673,7 @@ namespace Kayac
 		void CheckMemoryCache()
 		{
 			var node = _memoryCachedAssetHandles.First;
-			while ((node != null) && (_memoryCachedSize >= this.memoryCacheLimit))
+			while ((node != null) && (_memoryUsingBytes >= this.memoryCacheLimit))
 			{
 				var next = node.Next;
 				var handle = node.Value;
@@ -677,7 +709,7 @@ namespace Kayac
 			_watchingFileHandles.Add(fileHandle); // 監視対象に入れる。不要なら次で外れるのでとりあえず入れる。
 			if (handle.memorySizeEstimated)
 			{
-				_memoryCachedSize -= handle.memorySize;
+				_memoryUsingBytes -= handle.memorySize;
 			}
 			handle.Dispose();
 		}
@@ -720,12 +752,13 @@ namespace Kayac
 				}
 				lock (_watchingAssetHandles)
 				{
-					sb.AppendFormat("[Assets] watching:{0} all:{1} memoryCached:{2} memorySize:{3}/{4}\n",
+					sb.AppendFormat("[Assets] watching:{0} all:{1} memoryCached:{2} memorySize:{3}/{4}/{5}\n",
 						_watchingAssetHandles.Count,
 						_assetHandles.Count,
 						_memoryCachedAssetHandles.Count,
-						((float)_memoryCachedSize / (1024f * 1024f)).ToString("F1"),
-						((float)this.memoryCacheLimit / (1024f * 1024f)).ToString("F1"));
+						((float)_memoryUsingBytes / (1024f * 1024f)).ToString("F1"),
+						((float)this.memoryCacheLimit / (1024f * 1024f)).ToString("F1"),
+						((float)this.loadLimit / (1024f * 1024f)).ToString("F1"));
 				}
 				if (!summaryOnly)
 				{
@@ -786,7 +819,7 @@ namespace Kayac
 					return false;
 				}
 				Debug.Assert(_fileWriter.requestCount == 0, "FileWriter.requestCount=" + _fileWriter.requestCount);
-				Debug.Assert(_memoryCachedSize == 0, "ClearMemoryCache incomplete: size=" + _memoryCachedSize);
+				Debug.Assert(_memoryUsingBytes == 0, "ClearMemoryCache incomplete: size=" + _memoryUsingBytes);
 			}
 			_storageCache.StartClear();
 			return true;
@@ -836,7 +869,7 @@ namespace Kayac
 		Dictionary<string, AssetHandle> _assetHandles;
 		List<AssetHandle> _watchingAssetHandles; // Updateで状態を見ないといけないハンドルはここにリスト。lockで保護が必要。
 		LinkedList<AssetHandle> _memoryCachedAssetHandles;
-		int _memoryCachedSize; // 推定バイト数
+		int _memoryUsingBytes; // 推定バイト数
 		Dictionary<string, DownloadHandle> _downloadHandles;
 		LinkedList<DownloadHandle> _waitingDownloadHandles;
 		DownloadHandle[] _goingDownloadHandles;
@@ -865,13 +898,10 @@ namespace Kayac
 					{
 						FileHash hash;
 						int sizeBytesUnused;
-						IEnumerable<string> dependenciesUnused;
 						_database.GetFileMetaData(
 							out hash,
 							out sizeBytesUnused,
-							out dependenciesUnused,
-							fileName,
-							needDependency: false);
+							fileName);
 						var storageCachePath = _storageCache.MakeCachePath(fileName, ref hash, absolute: true);
 						fileHandle = new FileHandle(fileName, storageCachePath);
 						_fileHandles.Add(fileName, fileHandle);
