@@ -28,14 +28,14 @@ namespace Kayac
 			instance.Process();
 		}
 
-		Dictionary<string, string> _guidAndPath;
+		HashSet<string> _targetAssetPaths;
 //		StreamWriter _log;
 
 		void Process()
 		{
 //			_log = new StreamWriter("AssetReferenceFinderLog.txt");
 			var output = new StreamWriter("AssetReferenceFinder.txt");
-			_guidAndPath = new Dictionary<string, string>();
+			_targetAssetPaths = new HashSet<string>();
 			// ResourcesとStreamingAssetsを検索して、ダメフォルダリストに入れる
 			var targetFolders = new List<string>();
 			var folderGuids = AssetDatabase.FindAssets("t:folder");
@@ -64,113 +64,74 @@ namespace Kayac
 				{
 					CollectGuidRecursive(path);
 				}
-				var guid = AssetDatabase.AssetPathToGUID(path);
-				if (!_guidAndPath.ContainsKey(guid))
+				if (!_targetAssetPaths.Contains(path))
 				{
-					_guidAndPath.Add(guid, path);
+					_targetAssetPaths.Add(path);
 				}
 			}
 			// 全アセットを舐めて、prefab、sceneであれば中のguidを探して問題のものがあるか調べる。
 			var assetGuids = AssetDatabase.FindAssets("t:object");
-			var results = new Dictionary<string, HashSet<string>>();
 			int assetCount = assetGuids.Length;
 			int i = 0;
+			var t0 = System.DateTime.Now;
+			var set = new HashSet<string>();
 			foreach (var assetGuid in assetGuids)
 			{
-				if (!_guidAndPath.ContainsKey(assetGuid))
+				var assetPath = AssetDatabase.GUIDToAssetPath(assetGuid);
+				if (!_targetAssetPaths.Contains(assetPath)) // 問題のフォルダの外にあるアセットのみ調べる
 				{
-					var assetPath = AssetDatabase.GUIDToAssetPath(assetGuid);
-					Debug.Log("ExternalAssetReferenceFinder scan " + i + "/" + assetCount + " : " + assetPath);
-					if (!results.ContainsKey(assetPath))
+					set.Clear();
+					var dependencies = AssetDatabase.GetDependencies(assetPath, false);
+					foreach (var dependency in dependencies)
 					{
-						if (assetPath.EndsWith(".unity")
-							|| assetPath.EndsWith(".prefab")
-							|| assetPath.EndsWith(".asset")
-							|| assetPath.EndsWith(".anim")
-							|| assetPath.EndsWith(".mat")
-							|| assetPath.EndsWith(".controller"))
+						if (_targetAssetPaths.Contains(dependency)) // 問題のものを発見!
 						{
-							var set = MakeSet(assetPath);
-							if (set.Count > 0)
+							if (!set.Contains(dependency))
 							{
-								results.Add(assetPath, set);
+								set.Add(dependency);
 							}
+						}
+					}
+					if (set.Count > 0)
+					{
+						output.Write(assetPath);
+						output.Write('\n');
+						foreach (var path in set)
+						{
+							output.Write('\t');
+							output.Write(path);
+							output.Write('\n');
 						}
 					}
 				}
 				i++;
 			}
-			// 書き出し
-			foreach (var item in results)
-			{
-				output.Write(item.Key);
-				output.Write('\n');
-				foreach (var path in item.Value)
-				{
-					output.Write('\t');
-					output.Write(path);
-					output.Write('\n');
-				}
-			}
 			output.Flush();
+			var t1 = System.DateTime.Now;
+			Debug.Log("Scan " + i + " files. time:" + (t1 - t0).TotalSeconds + " sec.");
 		}
 
 		void CollectGuidRecursive(string path)
 		{
 			foreach (var childPath in Directory.GetFiles(path))
 			{
-				var childGuid = AssetDatabase.AssetPathToGUID(childPath);
-				if (!_guidAndPath.ContainsKey(childGuid))
+				if (!_targetAssetPaths.Contains(childPath))
 				{
 //					_log.Write("\tAsset: " + childPath + "\n");
 //					_log.Flush();
-					_guidAndPath.Add(childGuid, childPath);
+					_targetAssetPaths.Add(childPath);
 				}
 			}
 			foreach (var childPath in Directory.GetDirectories(path))
 			{
-				var childGuid = AssetDatabase.AssetPathToGUID(childPath);
-				if (!_guidAndPath.ContainsKey(childGuid))
+				if (!_targetAssetPaths.Contains(childPath))
 				{
 //					_log.Write("\tAsset: " + childPath + "\n");
 //					_log.Flush();
-					_guidAndPath.Add(childGuid, childPath);
+					_targetAssetPaths.Add(childPath);
 				}
 				CollectGuidRecursive(childPath);
 			}
-		}
-
-		HashSet<string> MakeSet(string path)
-		{
-//			_log.Write("MakeList: " + path + "\n");
-//			_log.Flush();
-			var ret = new HashSet<string>();
-			StreamReader reader = null;
-			try
-			{
-				reader = new StreamReader(path);
-			}
-			catch
-			{
-				return ret;
-			}
-			var regex = new Regex(@"guid:\s+(?<guid>[0-9a-fA-F]{32})", RegexOptions.Compiled);
-			var text = reader.ReadToEnd();
-			var matches = regex.Matches(text);
-			foreach (Match match in matches)
-			{
-				var guid = match.Groups["guid"].Value;
-				string matchPath;
-				if (_guidAndPath.TryGetValue(guid, out matchPath))
-				{
-					if (!ret.Contains(matchPath))
-					{
-						ret.Add(matchPath);
-					}
-				}
-			}
-//			_log.Flush();
-			return ret;
 		}
 	}
 }
