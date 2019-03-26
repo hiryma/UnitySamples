@@ -19,9 +19,6 @@ public class Macopay
 
 	public IEnumerator CoAcount(System.Action onComplete)
 	{
-#if UNITY_WEBGL // 他のサイト叩けないのでWebGLでは即座に終わらせる
-		yield return null;
-#else
 		var url = _serverRoot + "api/external/account?api_key=" + _apiKey;
 		var req = new UnityWebRequest();
 		req.downloadHandler = new DownloadHandlerBuffer();
@@ -46,7 +43,6 @@ public class Macopay
 			Debug.Log(_currency);
 		}
 		req.Dispose();
-#endif
 		if (onComplete != null)
 		{
 			onComplete();
@@ -55,9 +51,6 @@ public class Macopay
 
 	public IEnumerator CoWalletCurrency(int chargeAmount, System.Action onComplete)
 	{
-#if UNITY_WEBGL // 他のサイト叩けないのでWebGLでは即座に終わらせる
-		yield return null;
-#else
 		var form = new WWWForm();
 		form.AddField("api_key", _apiKey);
 		form.AddField("before", _currency);
@@ -94,7 +87,6 @@ public class Macopay
 			Debug.Log(_currency);
 		}
 		req.Dispose();
-#endif
 		if (onComplete != null)
 		{
 			onComplete();
