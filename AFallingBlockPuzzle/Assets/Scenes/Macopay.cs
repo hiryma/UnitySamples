@@ -23,7 +23,6 @@ public class Macopay
 		var req = new UnityWebRequest();
 		req.downloadHandler = new DownloadHandlerBuffer();
 		req.url = url;
-		req.SetRequestHeader("Content-Type", "application/json; charset=UTF-8");
 		req.method = UnityWebRequest.kHttpVerbGET;
 		req.SendWebRequest();
 		while (!req.isDone)
@@ -55,7 +54,6 @@ public class Macopay
 		form.AddField("api_key", _apiKey);
 		form.AddField("before", _currency);
 		form.AddField("after", _currency + chargeAmount);
-		Debug.Log(System.Text.Encoding.UTF8.GetString(form.data));
 
 		var url = _serverRoot + "api/external/wallet/currency";
 
