@@ -1,14 +1,9 @@
-﻿Shader "PostProcess/LightPostProcessorComposition"
+﻿Shader "Hidden/LightPostProcessorComposition"
 {
 	Properties
 	{
 		_MainTex ("Texture", 2D) = "white" {}
-		_GaussTex ("Gauss", 2D) = "white" {}
-		_Level1Tex ("Level1", 2D) = "white" {}
-		_Level2Tex ("Level2", 2D) = "white" {}
-		_Level3Tex ("Level3", 2D) = "white" {}
-		_Level4Tex ("Level4", 2D) = "white" {}
-		_Level5Tex ("Level5", 2D) = "white" {}
+		_BloomTex ("Gauss", 2D) = "white" {}
 		_ColorTransformR ("ColorTransformR", Vector) = (1, 0, 0, 0)
 		_ColorTransformG ("ColorTransformG", Vector) = (0, 1, 0, 0)
 		_ColorTransformB ("ColorTransformB", Vector) = (0, 0, 1, 0)
@@ -30,72 +25,68 @@
 			{
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
-				float3 gauss0 : TEXCOORD1;
-				float3 gauss1 : TEXCOORD2;
-				float3 gauss2 : TEXCOORD3;
-				float3 gauss3 : TEXCOORD4;
-				float3 gauss4 : TEXCOORD5;
-				float3 gauss5 : TEXCOORD6;
-				float3 gauss6 : TEXCOORD7;
 			};
 
 			struct v2f
 			{
 				float2 uv : TEXCOORD0;
 				float4 vertex : SV_POSITION;
-				float3 gauss0 : TEXCOORD1;
-				float3 gauss1 : TEXCOORD2;
-				float3 gauss2 : TEXCOORD3;
-				float3 gauss3 : TEXCOORD4;
-				float3 gauss4 : TEXCOORD5;
-				float3 gauss5 : TEXCOORD6;
-				float3 gauss6 : TEXCOORD7;
+				float2 bloomUv0 : TEXCOORD1;
+				float2 bloomUv1 : TEXCOORD2;
+				float2 bloomUv2 : TEXCOORD3;
+				float2 bloomUv3 : TEXCOORD4;
+				float2 bloomUv4 : TEXCOORD5;
+				float2 bloomUv5 : TEXCOORD6;
+				float2 bloomUv6 : TEXCOORD7;
 			};
+
+			float4 _BloomUvTransform0;
+			float4 _BloomUvTransform1;
+			float4 _BloomUvTransform2;
+			float4 _BloomUvTransform3;
+			float4 _BloomUvTransform4;
+			float4 _BloomUvTransform5;
+			float4 _BloomUvTransform6;
 
 			v2f vert (appdata v)
 			{
 				v2f o;
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.uv = v.uv;
-				o.gauss0 = v.gauss0;
-				o.gauss1 = v.gauss1;
-				o.gauss2 = v.gauss2;
-				o.gauss3 = v.gauss3;
-				o.gauss4 = v.gauss4;
-				o.gauss5 = v.gauss5;
-				o.gauss6 = v.gauss6;
+				o.bloomUv0 = (v.uv * _BloomUvTransform0.xy) + _BloomUvTransform0.zw;
+				o.bloomUv1 = (v.uv * _BloomUvTransform1.xy) + _BloomUvTransform1.zw;
+				o.bloomUv2 = (v.uv * _BloomUvTransform2.xy) + _BloomUvTransform2.zw;
+				o.bloomUv3 = (v.uv * _BloomUvTransform3.xy) + _BloomUvTransform3.zw;
+				o.bloomUv4 = (v.uv * _BloomUvTransform4.xy) + _BloomUvTransform4.zw;
+				o.bloomUv5 = (v.uv * _BloomUvTransform5.xy) + _BloomUvTransform5.zw;
+				o.bloomUv6 = (v.uv * _BloomUvTransform6.xy) + _BloomUvTransform6.zw;
 				return o;
 			}
 
 			sampler2D _MainTex;
-			sampler2D _GaussTex;
-			sampler2D _Level1Tex;
-			sampler2D _Level2Tex;
-			sampler2D _Level3Tex;
-			sampler2D _Level4Tex;
-			sampler2D _Level5Tex;
+			sampler2D _BloomTex;
 			fixed4 _ColorTransformR;
 			fixed4 _ColorTransformG;
 			fixed4 _ColorTransformB;
+			float _BloomWeight0;
+			float _BloomWeight1;
+			float _BloomWeight2;
+			float _BloomWeight3;
+			float _BloomWeight4;
+			float _BloomWeight5;
+			float _BloomWeight6;
 
 			fixed4 frag (v2f i) : SV_Target
 			{
 				fixed4 col = tex2D(_MainTex, i.uv);
-#if 1
-				col += tex2D(_GaussTex, i.gauss0.xy) * i.gauss0.z;
-				col += tex2D(_GaussTex, i.gauss1.xy) * i.gauss1.z;
-				col += tex2D(_GaussTex, i.gauss2.xy) * i.gauss2.z;
-				col += tex2D(_GaussTex, i.gauss3.xy) * i.gauss3.z;
-				col += tex2D(_GaussTex, i.gauss4.xy) * i.gauss4.z;
-				col += tex2D(_GaussTex, i.gauss5.xy) * i.gauss5.z;
-				col += tex2D(_GaussTex, i.gauss6.xy) * i.gauss6.z;
-#else
-				col += tex2D(_Level1Tex, i.uv) * (1.0 / 1.0);
-				col += tex2D(_Level2Tex, i.uv) * (1.0 / 1.0);
-				col += tex2D(_Level3Tex, i.uv) * (1.0 / 1.0);
-				col += tex2D(_Level4Tex, i.uv) * (1.0 / 1.0);
-				col += tex2D(_Level5Tex, i.uv) * (1.0 / 1.0);
-#endif
+				col += tex2D(_BloomTex, i.bloomUv0) * _BloomWeight0;
+				col += tex2D(_BloomTex, i.bloomUv1) * _BloomWeight1;
+				col += tex2D(_BloomTex, i.bloomUv2) * _BloomWeight2;
+				col += tex2D(_BloomTex, i.bloomUv3) * _BloomWeight3;
+				col += tex2D(_BloomTex, i.bloomUv4) * _BloomWeight4;
+				col += tex2D(_BloomTex, i.bloomUv5) * _BloomWeight5;
+				col += tex2D(_BloomTex, i.bloomUv6) * _BloomWeight6;
+//return tex2D(_BloomTex, i.bloomUv4) * 16;
 				fixed4 colA1 = fixed4(col.rgb, 1.0);
 				fixed4 t;
 				t.r = dot(_ColorTransformR, colA1);
@@ -103,8 +94,6 @@
 				t.b = dot(_ColorTransformB, colA1);
 				t.a = col.a;
 				return t;
-//col = tex2D(_Level4Tex, i.uv);
-				return col;
 			}
 			ENDCG
 		}

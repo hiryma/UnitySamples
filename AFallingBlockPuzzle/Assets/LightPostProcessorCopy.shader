@@ -1,4 +1,4 @@
-﻿Shader "PostProcess/LightPostProcessorCopy"
+﻿Shader "Hidden/LightPostProcessorCopy"
 {
 	Properties
 	{

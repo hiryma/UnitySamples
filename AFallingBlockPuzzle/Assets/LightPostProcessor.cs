@@ -12,7 +12,7 @@ public class LightPostProcessor : MonoBehaviour
 	[SerializeField]
 	Shader _copyShader;
 	[SerializeField]
-	Shader _gaussianShader;
+	Shader _convolutionShader;
 	[SerializeField]
 	float _extractionThreshold;
 	[SerializeField]
@@ -22,31 +22,38 @@ public class LightPostProcessor : MonoBehaviour
 	[SerializeField]
 	float _saturation = 1f;
 	[SerializeField]
-	int _maxGaussianLevelCount = 7;
+	int _bloomStartLevel = 0;
 	[SerializeField]
-	float _bloomStrength = 0.01f;
+	int _maxBloomLevelCount = 7;
+	[SerializeField]
+	float _bloomStrength = 0.05f;
+	[SerializeField]
+	float _bloomStrengthMultiplier = 2f;
+	[SerializeField]
+	float _bloomSigmaInPixel = 2f;
 
 	Material _compositionMaterial;
 	Material _extractionMaterial;
+	Material _convolutionMaterial;
 	Material _copyMaterial;
-	RenderTexture _level1;
-	RenderTexture _level2;
-	RenderTexture _level3;
-	RenderTexture _level4;
-	RenderTexture _level5;
 	RenderTexture _prevSource;
 	RenderTexture _sourceWithMip;
-	RenderTexture _gaussA;
-	RenderTexture _gaussB;
-	int _gaussianStartLevel = 1;
-	List<GaussRect> _gaussRects;
+	RenderTexture _bloomX;
+	RenderTexture _bloomXY;
+	List<BloomRect> _bloomRects;
+	BloomSample[] _bloomSamples;
+	bool _first = true;
 
-	void OnRenderImage(RenderTexture source, RenderTexture destination)
+	void Awake()
 	{
-		_maxGaussianLevelCount = System.Math.Min(_maxGaussianLevelCount, 7); // 最大7。シェーダ的な都合で。
+		_maxBloomLevelCount = System.Math.Min(_maxBloomLevelCount, 7); // 最大7。シェーダ的な都合で。
 		if (_copyMaterial == null)
 		{
 			_copyMaterial = new Material(_copyShader);
+		}
+		if (_convolutionMaterial == null)
+		{
+			_convolutionMaterial = new Material(_convolutionShader);
 		}
 		if (_extractionMaterial == null)
 		{
@@ -57,6 +64,28 @@ public class LightPostProcessor : MonoBehaviour
 			_compositionMaterial = new Material(_compositionShader);
 			SetColorTransform();
 		}
+		_bloomSamples = new BloomSample[8];
+		for (int i = 0; i < 8; i++)
+		{
+			var sample = _bloomSamples[i];
+			sample.shaderPropertyId = Shader.PropertyToID("_Sample" + i);
+			_bloomSamples[i] = sample;
+		}
+	}
+
+#if UNITY_EDITOR
+	void Update()
+	{
+		if (Input.GetKeyDown(KeyCode.F1))
+		{
+			StartCoroutine(CoSaveRenderTargets());
+			Debug.Log("Save");
+		}
+	}
+#endif
+
+	void OnRenderImage(RenderTexture source, RenderTexture destination)
+	{
 		SetupRenderTargets(source);
 
 		GL.PushMatrix();
@@ -64,10 +93,16 @@ public class LightPostProcessor : MonoBehaviour
 		GL.LoadOrtho();
 		_copyMaterial.SetTexture("_MainTex", source);
 		_copyMaterial.SetPass(0);
-		int toWidth = source.width >> _gaussianStartLevel;
-		int toHeight = source.height >> _gaussianStartLevel;
+		int toWidth = source.width >> _bloomStartLevel;
+		int toHeight = source.height >> _bloomStartLevel;
 		int toX = (_sourceWithMip.width - toWidth) / 2; // 中央に配置する。端に置くと次のgaussianで末端がおかしくなる
 		int toY = (_sourceWithMip.height - toHeight) / 2;
+		RenderTexture.active = _sourceWithMip;
+		bool first = _first;
+		if (first)
+		{
+			GL.Clear(false, true, new Color(0f, 0f, 0f, 1f));
+		}
 		Blit(
 			source,
 			0,
@@ -80,109 +115,106 @@ public class LightPostProcessor : MonoBehaviour
 			toWidth,
 			toHeight);
 
-		_sourceWithMip.filterMode = FilterMode.Point; // 後で換える
-		_copyMaterial.SetTexture("_MainTex", _sourceWithMip);
-		_copyMaterial.SetPass(0);
-
-		// _gaussAの所定の場所へ各レベルをコピー(後でgaussしながらに変更する)
-		for (int i = 0; i < _gaussRects.Count; i++)
+		// 係数再計算
+		CalcGaussianSamples(_bloomSigmaInPixel);
+		// _gaussAの所定の場所へ_sourceWithMipの各レベルからX方向ガウシアンブラー
+		_convolutionMaterial.SetTexture("_MainTex", _sourceWithMip);
+		_convolutionMaterial.SetFloat("_Threshold", _extractionThreshold);
+		RenderTexture.active = _bloomX;
+		if (first)
 		{
-			var rect = _gaussRects[i];
+			GL.Clear(false, true, new Color(0f, 0f, 0f, 1f));
+		}
+		int w = _sourceWithMip.width; // 各ミップレベルの幅
+		for (int rectIndex = 0; rectIndex < _bloomRects.Count; rectIndex++)
+		{
+			for (int sampleIndex = 0; sampleIndex < _bloomSamples.Length; sampleIndex++)
+			{
+				var sample = _bloomSamples[sampleIndex];
+				_convolutionMaterial.SetVector(
+					sample.shaderPropertyId,
+					new Vector4(sample.offset / (float)w, 0f, sample.weight, 0f));
+//Debug.Log(sampleIndex + " " + w + " " + sample.offset + " " + (sample.offset / (float)w) + " " + ((float)w / sample.offset) + " " + sample.weight);
+			}
+			_convolutionMaterial.SetPass(0);
+
+			var rect = _bloomRects[rectIndex];
 			Blit(
 				_sourceWithMip,
 				toX,
 				toY,
 				toWidth,
 				toHeight,
-				_gaussA,
+				_bloomX,
 				rect.x,
 				rect.y,
 				rect.width,
 				rect.height);
+			w /= 2;
 		}
 
-		// _gaussA -> _gaussB
-		_copyMaterial.SetTexture("_MainTex", _gaussA);
-		_copyMaterial.SetPass(0);
-		for (int i = 0; i < _gaussRects.Count; i++)
+		// _bloomX -> _bloomXY Y方向ガウシアンブラー
+		RenderTexture.active = _bloomXY;
+		if (first)
 		{
-			var rect = _gaussRects[i];
+			GL.Clear(false, true, new Color(0f, 0f, 0f, 1f));
+		}
+		_convolutionMaterial.SetTexture("_MainTex", _bloomX);
+		_convolutionMaterial.SetFloat("_Threshold", 0f);
+		for (int rectIndex = 0; rectIndex < _bloomRects.Count; rectIndex++)
+		{
+			for (int sampleIndex = 0; sampleIndex < _bloomSamples.Length; sampleIndex++)
+			{
+				var sample = _bloomSamples[sampleIndex];
+				_convolutionMaterial.SetVector(
+					sample.shaderPropertyId,
+					new Vector4(0f, sample.offset / (float)_bloomX.height, sample.weight, 0f));
+			}
+			_convolutionMaterial.SetPass(0);
+
+			var rect = _bloomRects[rectIndex];
 			Blit(
-				_gaussA,
-				_gaussB,
+				_bloomX,
+				_bloomXY,
 				rect.x,
 				rect.y,
 				rect.width,
 				rect.height);
 		}
 
+		// 最終合成
 		Composite(source, destination);
-
 		GL.PopMatrix();
-		if (Time.frameCount == 100)
-		{
-			StartCoroutine(CoSaveRenderTargets());
-			Debug.Log("Save");
-		}
-		/*
-				Graphics.Blit(source, _level1, _extractionMaterial);
-				Graphics.Blit(_level1, _level2);
-				Graphics.Blit(_level2, _level3);
-				Graphics.Blit(_level3, _level4);
-				Graphics.Blit(_level4, _level5);
-				Graphics.Blit(source, destination, _compositionMaterial);
-		*/
+		_first = false;
 	}
 
 	void Composite(RenderTexture source, RenderTexture destination)
 	{
 		_compositionMaterial.SetTexture("_MainTex", source);
+		float strength = _bloomStrength;
+		for (int i = 0; i < _bloomRects.Count; i++)
+		{
+			var rect = _bloomRects[i];
+			_compositionMaterial.SetFloat(rect.weightShaderPropertyId, strength);
+			Vector4 uvTransform;
+			uvTransform.x = (float)rect.width / (float)_bloomXY.width;
+			uvTransform.y = (float)rect.height / (float)_bloomXY.height;
+			uvTransform.z = (float)rect.x / (float)_bloomXY.width;
+			uvTransform.w = (float)rect.y / (float)_bloomXY.height;
+			_compositionMaterial.SetVector(rect.uvTransformShaderPropertyId, uvTransform);
+			strength *= _bloomStrengthMultiplier;
+		}
 		_compositionMaterial.SetPass(0);
+
 		RenderTexture.active = destination;
 		GL.Begin(GL.QUADS);
-		float strength = _bloomStrength;
-		for (int i = 0; i < _gaussRects.Count; i++)
-		{
-			var rect = _gaussRects[i];
-			float u0 = (float)rect.x / (float)_gaussB.width;
-			float v0 = (float)rect.y / (float)_gaussB.height;
-			GL.MultiTexCoord3(1 + i, u0, v0, strength);
-			strength *= 2f;
-		}
-		GL.MultiTexCoord2(0, 0f, 0f);
+		GL.TexCoord2(0f, 0f);
 		GL.Vertex3(0f, 0f, 0f);
-		strength = _bloomStrength;
-		for (int i = 0; i < _gaussRects.Count; i++)
-		{
-			var rect = _gaussRects[i];
-			float u0 = (float)rect.x / (float)_gaussB.width;
-			float v1 = (float)(rect.y + rect.height) / (float)_gaussB.height;
-			GL.MultiTexCoord3(1 + i, u0, v1, strength);
-			strength *= 2f;
-		}
-		GL.MultiTexCoord2(0, 0f, 1f);
+		GL.TexCoord2(0f, 1f);
 		GL.Vertex3(0f, 1f, 0f);
-		strength = _bloomStrength;
-		for (int i = 0; i < _gaussRects.Count; i++)
-		{
-			var rect = _gaussRects[i];
-			float u1 = (float)(rect.x + rect.width) / (float)_gaussB.width;
-			float v1 = (float)(rect.y + rect.height) / (float)_gaussB.height;
-			GL.MultiTexCoord3(1 + i, u1, v1, strength);
-			strength *= 2f;
-		}
-		GL.MultiTexCoord2(0, 1f, 1f);
+		GL.TexCoord2(1f, 1f);
 		GL.Vertex3(1f, 1f, 0f);
-		strength = _bloomStrength;
-		for (int i = 0; i < _gaussRects.Count; i++)
-		{
-			var rect = _gaussRects[i];
-			float u1 = (float)(rect.x + rect.width) / (float)_gaussB.width;
-			float v0 = (float)rect.y / (float)_gaussB.height;
-			GL.MultiTexCoord3(1 + i, u1, v0, strength);
-			strength *= 2f;
-		}
-		GL.MultiTexCoord2(0, 1f, 0f);
+		GL.TexCoord2(1f, 0f);
 		GL.Vertex3(1f, 0f, 0f);
 		GL.End();
 	}
@@ -258,21 +290,6 @@ public class LightPostProcessor : MonoBehaviour
 		SetColorTransform();
 	}
 
-	static int ToPow2RoundUp(int x)
-	{
-		if (x == 0)
-		{
-			return 0;
-		}
-		x--;
-		x |= x >> 1; // 上2bitが1になる
-		x |= x >> 2; // 上4bitが1になる
-		x |= x >> 4; // 上8bitが1になる
-		x |= x >> 8; // 上16bitが1になる
-		x |= x >> 16; // 上32bitが1になる
-		return x + 1;
-	}
-
 	void SetupRenderTargets(RenderTexture source)
 	{
 		if ((source != null) && (_prevSource != null) && (source.width == _prevSource.width) && (source.height == _prevSource.height))
@@ -284,60 +301,121 @@ public class LightPostProcessor : MonoBehaviour
 		{
 			format = RenderTextureFormat.ARGB2101010;
 		}
-		int topGaussWidth = source.width >> _gaussianStartLevel;
-		int topGaussHeight = source.height >> _gaussianStartLevel;
+//format = RenderTextureFormat.ARGBHalf;
+		int topBloomWidth = source.width >> _bloomStartLevel;
+		int topBloomHeight = source.height >> _bloomStartLevel;
 		_sourceWithMip = new RenderTexture(
-			ToPow2RoundUp(topGaussWidth), //2羃でないとミップマップを作れる保証がないので2羃
-			ToPow2RoundUp(topGaussHeight),
+			ToPow2RoundUp(topBloomWidth), //2羃でないとミップマップを作れる保証がないので2羃
+			ToPow2RoundUp(topBloomHeight),
 			0,
 			format);
 		_sourceWithMip.name = "sourceWithMip";
 		_sourceWithMip.useMipMap = true;
-		_gaussRects = new List<GaussRect>();
-		int gaussWidth, gaussHeight;
-		CalcGaussianRenderTextureArrangement(
-			out gaussWidth,
-			out gaussHeight,
-			_gaussRects,
-			topGaussWidth,
-			topGaussHeight,
+		_sourceWithMip.filterMode = FilterMode.Bilinear;
+		_bloomRects = new List<BloomRect>();
+		int bloomWidth, bloomHeight;
+		CalcBloomRenderTextureArrangement(
+			out bloomWidth,
+			out bloomHeight,
+			_bloomRects,
+			topBloomWidth,
+			topBloomHeight,
 			16, // TODO: 調整可能にするか?
-			_maxGaussianLevelCount);
-		_gaussA = new RenderTexture(gaussWidth, gaussHeight, 0, format);
-		_gaussA.name = "gaussA";
-		_gaussB = new RenderTexture(gaussWidth, gaussHeight, 0, format);
-		_gaussB.name = "gaussB";
+			_maxBloomLevelCount);
+		_bloomX = new RenderTexture(bloomWidth, bloomHeight, 0, format);
+		_bloomX.name = "bloomX";
+		_bloomX.filterMode = FilterMode.Bilinear;
+		_bloomXY = new RenderTexture(bloomWidth, bloomHeight, 0, format);
+		_bloomXY.name = "bloomXY";
+		_bloomXY.filterMode = FilterMode.Bilinear;
+		_compositionMaterial.SetTexture("_BloomTex", _bloomXY);
 
-		_level1 = new RenderTexture(source.width >> 1, source.height >> 1, 0);
-		_level2 = new RenderTexture(source.width >> 2, source.height >> 2, 0);
-		_level3 = new RenderTexture(source.width >> 3, source.height >> 3, 0);
-		_level4 = new RenderTexture(source.width >> 4, source.height >> 4, 0);
-		_level5 = new RenderTexture(source.width >> 5, source.height >> 5, 0);
-		_compositionMaterial.SetTexture("_Level1Tex", _level1);
-		_compositionMaterial.SetTexture("_Level2Tex", _level2);
-		_compositionMaterial.SetTexture("_Level3Tex", _level3);
-		_compositionMaterial.SetTexture("_Level4Tex", _level4);
-		_compositionMaterial.SetTexture("_Level5Tex", _level5);
-		_compositionMaterial.SetTexture("_GaussTex", _gaussB);
 		_prevSource = source;
 	}
 
-	struct GaussRect
+	void CalcGaussianSamples(float sigma)
 	{
-		public GaussRect(int x, int y, int w, int h)
-		{
-			this.x = x;
-			this.y = y;
-			this.width = w;
-			this.height = h;
-		}
-		public int x, y, width, height;
+		// 0: 0と1
+		// 1: -1と0
+		// 2: 2と3
+		// 3: -3と-2
+		// 4: 4と5
+		// 5: -5と-4
+		// 6: 6と7
+		// 7: -7と-6
+		float w0 = Gauss(sigma, 0f) * 0.5f; // 2回参照されるので半分
+		float w1 = Gauss(sigma, 1f);
+		float w2 = Gauss(sigma, 2f);
+		float w3 = Gauss(sigma, 3f);
+		float w4 = Gauss(sigma, 4f);
+		float w5 = Gauss(sigma, 5f);
+		float w6 = Gauss(sigma, 6f);
+		float w7 = Gauss(sigma, 7f);
+
+		float w01 = w0 + w1;
+		float x01 = 0f + (w1 / w01);
+		float w23 = w2 + w3;
+		float x23 = 2f + (w3 / w23);
+		float w45 = w4 + w5;
+		float x45 = 4f + (w5 / w45);
+		float w67 = w6 + w7;
+		float x67 = 6f + (w7 / w67);
+		float wSum = (w01 + w23 + w45 + w67) * 2f;
+		// 和が1になるように正規化
+		w01 /= wSum;
+		w23 /= wSum;
+		w45 /= wSum;
+		w67 /= wSum;
+//Debug.Log(x01 + " " + w01);
+//Debug.Log(x23 + " " + w23);
+//Debug.Log(x45 + " " + w45);
+//Debug.Log(x67 + " " + w67);
+
+		SetGaussSample(0, x01, w01);
+		SetGaussSample(1, -x01, w01);
+		SetGaussSample(2, x23, w23);
+		SetGaussSample(3, -x23, w23);
+		SetGaussSample(4, x45, w45);
+		SetGaussSample(5, -x45, w45);
+		SetGaussSample(6, x67, w67);
+		SetGaussSample(7, -x67, w67);
 	}
 
-	void CalcGaussianRenderTextureArrangement(
+	void SetGaussSample(int index, float offset, float weight)
+	{
+		var sample = _bloomSamples[index];
+		sample.offset = offset;
+		sample.weight = weight;
+		_bloomSamples[index] = sample;
+	}
+
+	float Gauss(float sigma, float x)
+	{
+		float sigma2 = sigma * sigma;
+		return Mathf.Exp(-(x * x) / (2f * sigma2));
+	}
+
+	struct BloomSample
+	{
+		public float offset;
+		public float weight;
+		public int shaderPropertyId;
+	}
+
+	struct BloomRect
+	{
+		public int x;
+		public int y;
+		public int width;
+		public int height;
+		public int uvTransformShaderPropertyId;
+		public int weightShaderPropertyId;
+	}
+
+	void CalcBloomRenderTextureArrangement(
 		out int widthOut,
 		out int heightOut,
-		List<GaussRect> gaussRects,
+		List<BloomRect> rects,
 		int width,
 		int height,
 		int padding,
@@ -350,7 +428,14 @@ public class LightPostProcessor : MonoBehaviour
 		int maxY = 0;
 		while ((levelCount > 0) && (width > 0) && (height > 0))
 		{
-			gaussRects.Add(new GaussRect(x, y, width, height));
+			BloomRect rect;
+			rect.x = x;
+			rect.y = y;
+			rect.width = width;
+			rect.height = height;
+			rect.uvTransformShaderPropertyId = Shader.PropertyToID("_BloomUvTransform" + rects.Count);
+			rect.weightShaderPropertyId = Shader.PropertyToID("_BloomWeight" + rects.Count);
+			rects.Add(rect);
 			maxX = System.Math.Max(maxX, x + width + padding);
 			maxY = System.Math.Max(maxY, y + height + padding);
 			if (isRight)
@@ -362,8 +447,13 @@ public class LightPostProcessor : MonoBehaviour
 				y += height + padding;
 			}
 			isRight = !isRight;
-			width >>= 1;
-			height >>= 1;
+			// 4で割れなくなるとサンプリング点がズレて汚なくなるので抜ける。TODO: 理由を明らかにせよ。奇数になるとどうも汚ない。
+			if (((width % 4) != 0) || ((height % 4) != 0))
+			{
+				break;
+			}
+			width /= 2;
+			height /= 2;
 			levelCount--;
 		}
 		widthOut = maxX;
@@ -399,6 +489,22 @@ public class LightPostProcessor : MonoBehaviour
 		_compositionMaterial.SetVector("_ColorTransformB", t.GetRow(2));
 	}
 
+	static int ToPow2RoundUp(int x)
+	{
+		if (x == 0)
+		{
+			return 0;
+		}
+		x--;
+		x |= x >> 1; // 上2bitが1になる
+		x |= x >> 2; // 上4bitが1になる
+		x |= x >> 4; // 上8bitが1になる
+		x |= x >> 8; // 上16bitが1になる
+		x |= x >> 16; // 上32bitが1になる
+		return x + 1;
+	}
+
+#if UNITY_EDITOR
 	IEnumerator CoSaveRenderTargets()
 	{
 		yield return new WaitForEndOfFrame();
@@ -417,8 +523,8 @@ public class LightPostProcessor : MonoBehaviour
 			}
 			level++;
 		}
-		SaveRenderTarget(_gaussA, 0, "gaussA.png");
-		SaveRenderTarget(_gaussB, 0, "gaussB.png");
+		SaveRenderTarget(_bloomX, 0, "bloomX.png");
+		SaveRenderTarget(_bloomXY, 0, "bloomXY.png");
 	}
 
 	void SaveRenderTarget(RenderTexture source, int mipLevel, string path)
@@ -445,7 +551,6 @@ public class LightPostProcessor : MonoBehaviour
 		System.IO.File.WriteAllBytes(path, pngBytes);
 	}
 
-#if UNITY_EDITOR
 	void OnValidate()
 	{
 		this.extractionThreshold = _extractionThreshold;

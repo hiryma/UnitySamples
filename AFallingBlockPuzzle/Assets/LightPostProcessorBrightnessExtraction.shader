@@ -1,4 +1,4 @@
-﻿Shader "PostProcess/LightPostProcessorBrightnessExtraction"
+﻿Shader "Hidden/LightPostProcessorBrightnessExtraction"
 {
 	Properties
 	{
