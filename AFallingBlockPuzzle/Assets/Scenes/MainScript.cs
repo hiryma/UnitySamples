@@ -215,7 +215,7 @@ public class MainScript : MonoBehaviour
 
 	void UpdateGameOver()
 	{
-		if (Input.anyKeyDown)
+		if (Input.GetKeyDown(KeyCode.Return))
 		{
 			StartTitle();
 		}
