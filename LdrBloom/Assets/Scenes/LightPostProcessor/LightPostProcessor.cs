@@ -6,15 +6,12 @@ using UnityEngine.Rendering;
 public class LightPostProcessor : MonoBehaviour
 {
 	[SerializeField]
-	Shader _compositionShader;
-	[SerializeField]
 	Shader _extractionShader;
-	[SerializeField]
-	Shader _copyShader;
 	[SerializeField]
 	Shader _convolutionShader;
 	[SerializeField]
-	float _extractionThreshold;
+	Shader _compositionShader;
+
 	[SerializeField]
 	Vector3 _colorOffset = new Vector3(0f, 0f, 0f);
 	[SerializeField]
@@ -22,20 +19,23 @@ public class LightPostProcessor : MonoBehaviour
 	[SerializeField]
 	float _saturation = 1f;
 	[SerializeField]
-	int _bloomStartLevel = 0;
+	float _bloomPixelThreshold = 0;
+	[SerializeField]
+	int _bloomStartLevel = 2;
 	[SerializeField]
 	int _maxBloomLevelCount = 7;
 	[SerializeField]
-	float _bloomStrength = 0.05f;
+	int _minBloomLevelSize = 16;
+	[SerializeField]
+	float _bloomStrength = 1f;
 	[SerializeField]
 	float _bloomStrengthMultiplier = 2f;
 	[SerializeField]
-	float _bloomSigmaInPixel = 2f;
+	float _bloomSigmaInPixel = 3f;
 
-	Material _compositionMaterial;
 	Material _extractionMaterial;
 	Material _convolutionMaterial;
-	Material _copyMaterial;
+	Material _compositionMaterial;
 	RenderTexture _prevSource;
 	RenderTexture _sourceWithMip;
 	RenderTexture _bloomX;
@@ -47,10 +47,6 @@ public class LightPostProcessor : MonoBehaviour
 	void Awake()
 	{
 		_maxBloomLevelCount = System.Math.Min(_maxBloomLevelCount, 7); // 最大7。シェーダ的な都合で。
-		if (_copyMaterial == null)
-		{
-			_copyMaterial = new Material(_copyShader);
-		}
 		if (_convolutionMaterial == null)
 		{
 			_convolutionMaterial = new Material(_convolutionShader);
@@ -91,13 +87,26 @@ public class LightPostProcessor : MonoBehaviour
 		GL.PushMatrix();
 		GL.LoadIdentity();
 		GL.LoadOrtho();
-		_copyMaterial.SetTexture("_MainTex", source);
-		_copyMaterial.SetPass(0);
+
+		/* 輝度抽出
+		color' = (color - threshold) / (1 - threshold)
+		とするのだが、高速に計算するために式を展開して積和の形にしておく
+		  = (1/(1-threshold)) * color + (-threshold)/(1-threshold)
+		*/
+		_extractionMaterial.SetTexture("_MainTex", source);
+		var colorTransform = new Vector4(
+			1f / (1f - _bloomPixelThreshold), // 乗算項
+			-_bloomPixelThreshold / (1f - _bloomPixelThreshold), // 加算項
+			Mathf.Pow(2f, _bloomPixelThreshold),
+			0f);
+		_extractionMaterial.SetVector("_ColorTransform", colorTransform);
+		_extractionMaterial.SetPass(0);
 		int toWidth = source.width >> _bloomStartLevel;
 		int toHeight = source.height >> _bloomStartLevel;
 		int toX = (_sourceWithMip.width - toWidth) / 2; // 中央に配置する。端に置くと次のgaussianで末端がおかしくなる
 		int toY = (_sourceWithMip.height - toHeight) / 2;
 		RenderTexture.active = _sourceWithMip;
+		_sourceWithMip.DiscardContents();
 		bool first = _first;
 		if (first)
 		{
@@ -119,8 +128,8 @@ public class LightPostProcessor : MonoBehaviour
 		CalcGaussianSamples(_bloomSigmaInPixel);
 		// _gaussAの所定の場所へ_sourceWithMipの各レベルからX方向ガウシアンブラー
 		_convolutionMaterial.SetTexture("_MainTex", _sourceWithMip);
-		_convolutionMaterial.SetFloat("_Threshold", _extractionThreshold);
 		RenderTexture.active = _bloomX;
+		_bloomX.DiscardContents();
 		if (first)
 		{
 			GL.Clear(false, true, new Color(0f, 0f, 0f, 1f));
@@ -155,12 +164,12 @@ public class LightPostProcessor : MonoBehaviour
 
 		// _bloomX -> _bloomXY Y方向ガウシアンブラー
 		RenderTexture.active = _bloomXY;
+		_bloomXY.DiscardContents();
 		if (first)
 		{
 			GL.Clear(false, true, new Color(0f, 0f, 0f, 1f));
 		}
 		_convolutionMaterial.SetTexture("_MainTex", _bloomX);
-		_convolutionMaterial.SetFloat("_Threshold", 0f);
 		for (int rectIndex = 0; rectIndex < _bloomRects.Count; rectIndex++)
 		{
 			for (int sampleIndex = 0; sampleIndex < _bloomSamples.Length; sampleIndex++)
@@ -190,8 +199,28 @@ public class LightPostProcessor : MonoBehaviour
 
 	void Composite(RenderTexture source, RenderTexture destination)
 	{
+		// カラーフィルターの有効無効設定
+		if ((_colorOffset == Vector3.zero)
+			&& (_colorScale == Vector3.one)
+			&& (_saturation == 1f))
+		{
+			_compositionMaterial.DisableKeyword("COLOR_FILTER");
+		}
+		else
+		{
+			_compositionMaterial.EnableKeyword("COLOR_FILTER");
+		}
 		_compositionMaterial.SetTexture("_MainTex", source);
-		float strength = _bloomStrength;
+		// 強度定数を計算する
+		float s = 1f;
+		float sSum = 0f;
+		for (int i = 0; i < _bloomRects.Count; i++)
+		{
+			sSum += s;
+			s *= _bloomStrengthMultiplier;
+		}
+		float strengthBase = _bloomStrength / sSum;
+		float strength = strengthBase;
 		for (int i = 0; i < _bloomRects.Count; i++)
 		{
 			var rect = _bloomRects[i];
@@ -257,6 +286,7 @@ public class LightPostProcessor : MonoBehaviour
 		if (RenderTexture.active != to)
 		{
 			RenderTexture.active = to;
+			to.DiscardContents(); // 刺したら必ずDiscard
 		}
 		GL.Begin(GL.QUADS);
 		GL.TexCoord2(u0, v0);
@@ -270,15 +300,11 @@ public class LightPostProcessor : MonoBehaviour
 		GL.End();
 	}
 
-	public float extractionThreshold
+	public float bloomPixelThreshold
 	{
 		set
 		{
-			_extractionThreshold = value;
-			if (_extractionMaterial != null)
-			{
-				_extractionMaterial.SetFloat("_Threshold", _extractionThreshold);
-			}
+			_bloomPixelThreshold = value;
 		}
 	}
 
@@ -300,16 +326,29 @@ public class LightPostProcessor : MonoBehaviour
 
 	void SetupRenderTargets(RenderTexture source)
 	{
-		if ((source != null) && (_prevSource != null) && (source.width == _prevSource.width) && (source.height == _prevSource.height))
+		if (_prevSource != null)
+		{
+			if ((source != null)
+				&& (source.width == _prevSource.width)
+				&& (source.height == _prevSource.height))
+			{
+				return;
+			}
+		}
+		if (_maxBloomLevelCount == 0)
 		{
 			return;
 		}
+#if UNITY_EDITOR
+		_bloomStartLevelOnSetup = _bloomStartLevel;
+		_maxBloomLevelCountOnSetup = _maxBloomLevelCount;
+		_minBloomLevelSizeOnSetup = _minBloomLevelSize;
+#endif
 		var format = RenderTextureFormat.Default;
 		if (SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGB2101010))
 		{
 			format = RenderTextureFormat.ARGB2101010;
 		}
-//format = RenderTextureFormat.ARGBHalf;
 		int topBloomWidth = source.width >> _bloomStartLevel;
 		int topBloomHeight = source.height >> _bloomStartLevel;
 		_sourceWithMip = new RenderTexture(
@@ -330,6 +369,31 @@ public class LightPostProcessor : MonoBehaviour
 			topBloomHeight,
 			16, // TODO: 調整可能にするか?
 			_maxBloomLevelCount);
+		if ((_bloomRects.Count & 0x4) != 0)
+		{
+			_compositionMaterial.EnableKeyword("BLOOM_4");
+		}
+		else
+		{
+			_compositionMaterial.DisableKeyword("BLOOM_4");
+		}
+		if ((_bloomRects.Count & 0x2) != 0)
+		{
+			_compositionMaterial.EnableKeyword("BLOOM_2");
+		}
+		else
+		{
+			_compositionMaterial.DisableKeyword("BLOOM_2");
+		}
+		if ((_bloomRects.Count & 0x1) != 0)
+		{
+			_compositionMaterial.EnableKeyword("BLOOM_1");
+		}
+		else
+		{
+			_compositionMaterial.DisableKeyword("BLOOM_1");
+		}
+		Debug.Log("LightPostProcessor.SetupRenderTargets(): create RTs. " + _sourceWithMip.width + "x" + _sourceWithMip.height + " + " + bloomWidth + "x" + bloomHeight + " levels:" + _bloomRects.Count);
 		_bloomX = new RenderTexture(bloomWidth, bloomHeight, 0, format);
 		_bloomX.name = "bloomX";
 		_bloomX.filterMode = FilterMode.Bilinear;
@@ -455,17 +519,27 @@ public class LightPostProcessor : MonoBehaviour
 				y += height + padding;
 			}
 			isRight = !isRight;
+
+
 			// 4で割れなくなるとサンプリング点がズレて汚なくなるので抜ける。TODO: 理由を明らかにせよ。奇数になるとどうも汚ない。
 			if (((width % 4) != 0) || ((height % 4) != 0))
 			{
-				break;
+//				break;
 			}
 			width /= 2;
 			height /= 2;
+			// 指定サイズ以下なら作らない
+			if ((width < _minBloomLevelSize) || (height < _minBloomLevelSize))
+			{
+				break;
+			}
+
+
 			levelCount--;
 		}
 		widthOut = maxX;
 		heightOut = maxY;
+		_first = true;
 	}
 
 	void SetColorTransform()
@@ -559,9 +633,21 @@ public class LightPostProcessor : MonoBehaviour
 		System.IO.File.WriteAllBytes(path, pngBytes);
 	}
 
+	int _bloomStartLevelOnSetup;
+	int _maxBloomLevelCountOnSetup;
+	int _minBloomLevelSizeOnSetup;
+
 	void OnValidate()
 	{
-		this.extractionThreshold = _extractionThreshold;
+		if ((_bloomStartLevelOnSetup != _bloomStartLevel)
+			|| (_maxBloomLevelCountOnSetup != _maxBloomLevelCount)
+			|| (_minBloomLevelSizeOnSetup != _minBloomLevelSize))
+		{
+			_bloomStartLevelOnSetup = _bloomStartLevel;
+			_maxBloomLevelCountOnSetup = _maxBloomLevelCount;
+			_minBloomLevelSizeOnSetup = _minBloomLevelSize;
+			_prevSource = null; // これで再初期化が走る
+		}
 		SetColorTransform();
 	}
 #endif
