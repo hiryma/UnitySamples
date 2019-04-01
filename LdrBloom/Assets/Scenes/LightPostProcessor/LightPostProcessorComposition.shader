@@ -114,6 +114,7 @@
 		#endif
 	#endif
 #endif
+// return tex2D(_BloomTex, i.bloomUv2) * _BloomWeight2;
 
 #ifdef COLOR_FILTER
 				fixed3 t;

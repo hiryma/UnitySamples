@@ -38,19 +38,13 @@
 			}
 
 			sampler2D _MainTex;
-			float3 _ColorTransform; // xを乗算、yを加算して結果を出す
+			float2 _ColorTransform; // xを乗算、yを加算して結果を出す
 
 			fixed4 frag (v2f i) : SV_Target
 			{
 				fixed4 col = tex2D(_MainTex, i.uv);
-#if 0
-				fixed brightness = (col.r * 0.299) + (col.g * 0.587) + (col.b * 0.114);
-				brightness = pow(brightness, _ColorTransform.z); // 真っ白でないとほぼほぼ光らない
-				col.xyz *= brightness;
-#else
 				col.xyz *= _ColorTransform.x;
 				col.xyz += _ColorTransform.y;
-#endif
 				return col;
 			}
 			ENDCG

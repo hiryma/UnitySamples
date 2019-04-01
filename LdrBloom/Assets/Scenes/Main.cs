@@ -5,7 +5,7 @@ using UnityEngine;
 public class Main : MonoBehaviour
 {
 	[SerializeField]
-	LightPostProcessor _postProcess;
+	Kayac.LightPostProcessor _postProcess;
 	[SerializeField]
 	GameObject _spherePrefab;
 	[SerializeField]
@@ -27,7 +27,15 @@ public class Main : MonoBehaviour
 	[SerializeField]
 	UnityEngine.UI.Toggle _enableToggle;
 	[SerializeField]
+	UnityEngine.UI.Toggle _enableStdToggle;
+	[SerializeField]
 	UnityEngine.UI.Toggle _24fpsToggle;
+	[SerializeField]
+	UnityEngine.UI.Toggle _logToggle;
+	[SerializeField]
+	UnityEngine.UI.Text _logText;
+	[SerializeField]
+	UnityEngine.Rendering.PostProcessing.PostProcessLayer _stdPostProcessLayer;
 
 	const int SphereCount = 100;
 	const int CylinderCount = 100;
@@ -42,9 +50,17 @@ public class Main : MonoBehaviour
 	int _timeIndex;
 	float _count;
 	float _countVelocity;
+	Kayac.DebugSlack _slack;
+	Kayac.MemoryLogHandler _log;
 
 	void Start()
 	{
+		_logText.text = "Start Called.";
+		_log = new Kayac.MemoryLogHandler(1000);
+		_logText.text = "Log Initialized.";
+
+		StartCoroutine(CoSetupSlack());
+
 		_speedSlider.value = 0.5f;
 		_objects = new GameObject[SphereCount + CylinderCount];
 		_velocities = new Vector3[_objects.Length];
@@ -64,6 +80,7 @@ public class Main : MonoBehaviour
 		{
 			var renderer = _objects[i].GetComponent<MeshRenderer>();
 			renderer.sharedMaterial = _material;
+#if true // 動かなくして中央に置きたい時もある
 			block.SetColor(propertyId, new Color(
 				Random.Range(-1f, 1f),
 				Random.Range(-1f, 1f),
@@ -83,18 +100,89 @@ public class Main : MonoBehaviour
 				Random.Range(-1f, 1f),
 				Random.Range(-1f, 1f));
 			_angularVelocities[i] = new Vector3(
-				Random.Range(-5f, 5f),
-				Random.Range(-5f, 5f),
-				Random.Range(-5f, 5f));
+				Random.Range(-10f, 10f),
+				Random.Range(-10f, 10f),
+				Random.Range(-10f, 10f));
+#endif
 		}
 		// 以下ベンチマーク準備
 		_times = new float[60];
 		_fillRenderer.ManualStart();
+		_logText.text = "Start Finished.";
+	}
+
+	IEnumerator CoSetupSlack()
+	{
+		var tokenFilePath = Application.streamingAssetsPath + "/slackToken.txt";
+		if (tokenFilePath.IndexOf("file:///") < 0)
+		{
+			tokenFilePath = "file://" + tokenFilePath;
+		}
+		var req = UnityEngine.Networking.UnityWebRequest.Get(tokenFilePath);
+		req.SendWebRequest();
+		yield return req;
+		if (req.error != null)
+		{
+			Debug.LogError(req.error);
+		}
+		else
+		{
+			var token = req.downloadHandler.text;
+			_slack = new Kayac.DebugSlack(token, "unity-debug");
+		}
+	}
+
+	public void OnClickSendRtButton()
+	{
+		StartCoroutine(CoSendRenderTargets());
+	}
+
+	IEnumerator CoSendRenderTargets()
+	{
+		yield return new WaitForEndOfFrame();
+		yield return _slack.CoPostTextures(
+			_postProcess.EnumerateRenderTexturesForDebug());
+	}
+
+	public void OnClickSaveRtButton()
+	{
+		StartCoroutine(CoSaveRenderTargets());
+	}
+
+	public void OnClickSendLogButton()
+	{
+		StartCoroutine(_slack.CoPostBinary(_log.GetBytes(), "log.txt"));
+	}
+
+	IEnumerator CoSaveRenderTargets()
+	{
+		yield return new WaitForEndOfFrame();
+		foreach (var rt in _postProcess.EnumerateRenderTexturesForDebug())
+		{
+			Debug.Log("Saving: " + rt.name);
+			var bytesList = Kayac.TextureUtil.ConvertAllLevelToFile(rt);
+			for (int level = 0; level < bytesList.Length; level++)
+			{
+				var name = rt.name;
+				if (bytesList.Length > 1)
+				{
+					name += "_" + level;
+				}
+				name += ".png";
+				System.IO.File.WriteAllBytes(name, bytesList[level]);
+			}
+		}
+		Debug.Log("Done");
 	}
 
 	void Update()
 	{
+if (Input.GetKeyDown(KeyCode.S))
+{
+	StartCoroutine(_slack.CoPostScreenshot(null, null, null, null, 0, false, Kayac.TextureUtil.FileType.Jpeg));
+}
 		_postProcess.enabled = _enableToggle.isOn;
+		_stdPostProcessLayer.enabled = _enableStdToggle.isOn;
 		float speed = _speedSlider.value;
 		speed = Mathf.Pow(10f, (speed - 0.5f) * 3);
 		float dt = Time.deltaTime * speed;
@@ -129,6 +217,11 @@ public class Main : MonoBehaviour
 			_fillRenderer.SetCount(0);
 		}
 		_fillRenderer.ManualUpdate();
+		if (_logToggle.isOn)
+		{
+			_logText.text = _log.Tail(30);
+		}
+		_logText.enabled = _logToggle.isOn;
 	}
 
 	void Update(int i, float dt)
