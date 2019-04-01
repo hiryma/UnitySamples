@@ -33,7 +33,6 @@ sysinfo.txt
 
 # Builds
 *.apk
-*.unitypackage
 build/
 build.app
 build.app/
