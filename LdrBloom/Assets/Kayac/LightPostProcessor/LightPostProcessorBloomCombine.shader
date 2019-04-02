@@ -1,4 +1,4 @@
-﻿Shader "Hidden/LightPostProcessorBrightnessExtraction"
+﻿Shader "Hidden/LightPostProcessorBloomCombine"
 {
 	Properties
 	{
@@ -14,41 +14,40 @@
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma multi_compile _ PASS_THROUGH
 
 			#include "UnityCG.cginc"
 
 			struct appdata
 			{
 				float4 vertex : POSITION;
-				float2 uv : TEXCOORD0;
+				float3 sample0 : TEXCOORD0; //x:u y:v z:weight
+				float3 sample1 : TEXCOORD1;
 			};
 
 			struct v2f
 			{
-				float2 uv : TEXCOORD0;
 				float4 vertex : SV_POSITION;
+				float3 sample0 : TEXCOORD0; //x:u y:v z:weight
+				float3 sample1 : TEXCOORD1;
 			};
 
 			v2f vert (appdata v)
 			{
 				v2f o;
 				o.vertex = UnityObjectToClipPos(v.vertex);
-				o.uv = v.uv;
+				o.sample0 = v.sample0;
+				o.sample1 = v.sample1;
 				return o;
 			}
 
 			sampler2D _MainTex;
-			float2 _ColorTransform; // xを乗算、yを加算して結果を出す
 
 			fixed4 frag (v2f i) : SV_Target
 			{
-				fixed4 col = tex2D(_MainTex, i.uv);
-#ifndef PASS_THROUGH
-				col.xyz *= _ColorTransform.x;
-				col.xyz += _ColorTransform.y;
-#endif
-				return col;
+				fixed4 c;
+				c = tex2D(_MainTex, i.sample0.xy) * i.sample0.z;
+				c += tex2D(_MainTex, i.sample1.xy) * i.sample1.z;
+				return c;
 			}
 			ENDCG
 		}

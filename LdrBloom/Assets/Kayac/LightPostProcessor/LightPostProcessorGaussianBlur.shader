@@ -1,4 +1,4 @@
-﻿Shader "Hidden/LightPostProcessorConvolution"
+﻿Shader "Hidden/LightPostProcessorGaussianBlur"
 {
 	Properties
 	{

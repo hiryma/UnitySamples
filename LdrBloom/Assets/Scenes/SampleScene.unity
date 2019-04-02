@@ -891,7 +891,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _extractionShader: {fileID: 4800000, guid: ce4f491524a314cce957bb4e170d0e42, type: 3}
-  _convolutionShader: {fileID: 4800000, guid: 2262cc1d992ef450385885861dd23358, type: 3}
+  _blurShader: {fileID: 4800000, guid: 2262cc1d992ef450385885861dd23358, type: 3}
+  _combineShader: {fileID: 4800000, guid: bcbf0595dff694c01886e154b8c42d74, type: 3}
   _compositionShader: {fileID: 4800000, guid: 099e5bad4c4634f22a361e5dfa6148e7, type: 3}
   _colorOffset: {x: 0, y: 0, z: 0}
   _colorScale: {x: 1, y: 1, z: 1}

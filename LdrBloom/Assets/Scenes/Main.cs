@@ -194,6 +194,13 @@ if (Input.GetKeyDown(KeyCode.S))
 {
 	StartCoroutine(_slack.CoPostScreenshot(null, null, null, null, 0, false, Kayac.TextureUtil.FileType.Jpeg));
 }
+
+if (Input.GetKeyDown(KeyCode.F1))
+{
+	_postProcess.ToggleCombine();
+}
+
+
 		_postProcess.enabled = _enableToggle.isOn;
 		_stdPostProcessLayer.enabled = _enableStdToggle.isOn;
 		float speed = _speedSlider.value;

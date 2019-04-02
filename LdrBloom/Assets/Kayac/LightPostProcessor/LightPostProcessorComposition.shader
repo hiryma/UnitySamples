@@ -3,7 +3,7 @@
 	Properties
 	{
 		_MainTex ("Texture", 2D) = "white" {}
-		_BloomTex ("Gauss", 2D) = "white" {}
+		_BloomTex ("Bloom", 2D) = "white" {}
 		_ColorTransformR ("ColorTransformR", Vector) = (1, 0, 0, 0)
 		_ColorTransformG ("ColorTransformG", Vector) = (0, 1, 0, 0)
 		_ColorTransformB ("ColorTransformB", Vector) = (0, 0, 1, 0)
@@ -93,27 +93,19 @@
 				col += tex2D(_BloomTex, i.bloomUv5) * _BloomWeight5;
 		#ifdef BLOOM_1 // 7
 				col += tex2D(_BloomTex, i.bloomUv6) * _BloomWeight6;
-		#endif // 6
-	#else
-		#ifdef BLOOM_1 // 5
+		#endif // else 6
+	#elif BLOOM_1 // 5
 				col += tex2D(_BloomTex, i.bloomUv4) * _BloomWeight4;
-		#else // 4
-		#endif
-	#endif
-#else
-	#ifdef BLOOM_2
+	#endif // else 4
+#elif BLOOM_2
 				col += tex2D(_BloomTex, i.bloomUv0) * _BloomWeight0;
 				col += tex2D(_BloomTex, i.bloomUv1) * _BloomWeight1;
-		#ifdef BLOOM_1 // 3
+	#ifdef BLOOM_1 // 3
 				col += tex2D(_BloomTex, i.bloomUv2) * _BloomWeight2;
-		#endif // 3
-	#else
-		#ifdef BLOOM_1 // 1
+	#endif // else 2
+#elif BLOOM_1 //1
 				col += tex2D(_BloomTex, i.bloomUv0) * _BloomWeight0;
-		#else // 0
-		#endif
-	#endif
-#endif
+#endif // else 0
 // return tex2D(_BloomTex, i.bloomUv2) * _BloomWeight2;
 
 #ifdef COLOR_FILTER
