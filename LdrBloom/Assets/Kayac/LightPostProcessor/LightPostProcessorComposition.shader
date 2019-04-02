@@ -23,6 +23,7 @@
 			#pragma multi_compile _ BLOOM_2
 			#pragma multi_compile _ BLOOM_4
 			#pragma multi_compile _ BLOOM_COMBINED
+			#pragma multi_compile _ COLOR_FILTER
 
 			#include "UnityCG.cginc"
 
