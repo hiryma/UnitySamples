@@ -899,6 +899,7 @@ MonoBehaviour:
   _saturation: 1
   _bloomPixelThreshold: 0
   _bloomStartLevel: 2
+  _bloomCombineStartLevel: 2
   _maxBloomLevelCount: 7
   _minBloomLevelSize: 16
   _bloomStrength: 4

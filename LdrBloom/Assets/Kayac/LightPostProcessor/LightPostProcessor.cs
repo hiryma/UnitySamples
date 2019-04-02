@@ -7,7 +7,22 @@ namespace Kayac
 {
 	public class LightPostProcessor : MonoBehaviour
 	{
+
+		[SerializeField, Header("Color Filter Settings")]
+		Vector3 _colorOffset = new Vector3(0f, 0f, 0f);
 		[SerializeField]
+		Vector3 _colorScale = new Vector3(1f, 1f, 1f);
+		[SerializeField]
+		float _saturation = 1f;
+
+		[SerializeField, Header("Bloom Settings")]
+		float _bloomPixelThreshold = 0;
+		[SerializeField]
+		float _bloomStrength = 1f;
+		[SerializeField]
+		float _bloomStrengthMultiplier = 2f;
+
+		[SerializeField, Header("Shaders")]
 		Shader _extractionShader;
 		[SerializeField]
 		Shader _blurShader;
@@ -16,24 +31,14 @@ namespace Kayac
 		[SerializeField]
 		Shader _compositionShader;
 
-		[SerializeField]
-		Vector3 _colorOffset = new Vector3(0f, 0f, 0f);
-		[SerializeField]
-		Vector3 _colorScale = new Vector3(1f, 1f, 1f);
-		[SerializeField]
-		float _saturation = 1f;
-		[SerializeField]
-		float _bloomPixelThreshold = 0;
-		[SerializeField]
+		[SerializeField, Header("Advanced Settings")]
 		int _bloomStartLevel = 2;
+		[SerializeField]
+		int _bloomCombineStartLevel = 1;
 		[SerializeField]
 		int _maxBloomLevelCount = 7;
 		[SerializeField]
 		int _minBloomLevelSize = 16;
-		[SerializeField]
-		float _bloomStrength = 1f;
-		[SerializeField]
-		float _bloomStrengthMultiplier = 2f;
 		[SerializeField]
 		float _bloomSigmaInPixel = 3f;
 
@@ -50,11 +55,16 @@ namespace Kayac
 		BloomSample[] _bloomSamples;
 		bool _first = true; // クリアが必要かどうかのために初期化直後かどうかを記録
 		readonly Color _clearColor = new Color(0f, 0f, 0f, 1f);
-		bool _combineEnabled = true;
-		public void ToggleCombine()
+		public int bloomCombineStartLevel
 		{
-			_combineEnabled = !_combineEnabled;
-	Debug.Log(_combineEnabled);
+			get
+			{
+				return _bloomCombineStartLevel;
+			}
+			set
+			{
+				_bloomCombineStartLevel = value;
+			}
 		}
 
 		public IEnumerable<RenderTexture> EnumerateRenderTexturesForDebug()
@@ -67,7 +77,6 @@ namespace Kayac
 
 		void Start()
 		{
-			_maxBloomLevelCount = System.Math.Min(_maxBloomLevelCount, 7); // 最大7。シェーダ的な都合で。
 			if (_blurMaterial == null)
 			{
 				_blurMaterial = new Material(_blurShader);
@@ -90,6 +99,8 @@ namespace Kayac
 
 		void OnRenderImage(RenderTexture source, RenderTexture destination)
 		{
+			_maxBloomLevelCount = System.Math.Min(_maxBloomLevelCount, 7); // 最大7。シェーダ的な都合で。
+
 			SetupRenderTargets(source);
 
 			GL.PushMatrix();
@@ -116,9 +127,9 @@ namespace Kayac
 				brightnessNetWidth,
 				brightnessNetHeight);
 			BlurY(); // _bloomX -> _bloomXY Y方向ガウシアンブラー
-			if (_combineEnabled)
+			if (_bloomCombineStartLevel < (_bloomRects.Count + _bloomStartLevel))
 			{
-				CombineBlur();
+				CombineBloom();
 			}
 			Composite(source, destination); // 最終合成
 			GL.PopMatrix();
@@ -239,74 +250,98 @@ namespace Kayac
 			GL.End();
 		}
 
-		// _bloomXYの各解像度を2つづつ組にして加算する
-		void CombineBlur()
+		// _bloomXYの各解像度を事前に縮小バッファ上で合成して、最終段を高速化する
+		void CombineBloom()
 		{
 			_bloomCombined.DiscardContents();
 			Graphics.SetRenderTarget(_bloomCombined);
 			GL.Clear(false, true, _clearColor);
 			_bloomXY.filterMode = FilterMode.Bilinear;
-			_combineMaterial.SetTexture("_MainTex", _bloomXY);
-			_combineMaterial.SetPass(0);
-			// 小さい方から2枚づつ合成
-			GL.Begin(GL.QUADS);
-			int i = 0;
 
-			while (i < _bloomRects.Count)
+			int combinePassCount = (_bloomRects.Count + _bloomStartLevel) - _bloomCombineStartLevel;
+			combinePassCount = Mathf.Clamp(combinePassCount, 0, _bloomRects.Count);
+			if ((combinePassCount & 0x4) != 0)
 			{
-				// レベル数が奇数の場合、最初のレベルは単純コピーとする。DrawCallを増やしたくないので同じ矩形を2回tex2Dして半分にして吐く。無駄だが許容する。たぶん問題にならない。
-				var rect0 = _bloomRects[i];
-				var rect1 = _bloomRects[i + 1];
-				var weight0 = 1f;
-				var weight1 = _bloomStrengthMultiplier;
-				// 正規化して、現段階で真っ白だった時にあふれないようにする
-				var weightSum = weight0 + weight1;
-				weight0 /= weightSum;
-				weight1 /= weightSum;
-				var advanceI = 2;
-				if ((i == 0) && ((_bloomRects.Count % 2) != 0))
-				{
-					rect1 = rect0;
-					advanceI = 1; // 1しか進めない
-				}
-				float x0 = (float)rect0.x / (float)_bloomCombined.width;
-				float x1 = (float)(rect0.x + rect0.width) / (float)_bloomCombined.width;
-				float y0 = (float)rect0.y / (float)_bloomCombined.height;
-				float y1 = (float)(rect0.y + rect0.height) / (float)_bloomCombined.height;
-
-				float u00 = x0;
-				float u10 = x1;
-				float v00 = y0;
-				float v10 = y1;
-
-				float u01 = (float)rect1.x / (float)_bloomCombined.width;
-				float u11 = (float)(rect1.x + rect1.width) / (float)_bloomCombined.width;
-				float v01 = (float)rect1.y / (float)_bloomCombined.height;
-				float v11 = (float)(rect1.y + rect1.height) / (float)_bloomCombined.height;
-
-				GL.MultiTexCoord3(0, u00, v00, weight0);
-				GL.MultiTexCoord3(1, u01, v01, weight1);
-				GL.Vertex3(x0, y0, 0f);
-
-				GL.MultiTexCoord3(0, u00, v10, weight0);
-				GL.MultiTexCoord3(1, u01, v11, weight1);
-				GL.Vertex3(x0, y1, 0f);
-
-				GL.MultiTexCoord3(0, u10, v10, weight0);
-				GL.MultiTexCoord3(1, u11, v11, weight1);
-				GL.Vertex3(x1, y1, 0f);
-
-				GL.MultiTexCoord3(0, u10, v00, weight0);
-				GL.MultiTexCoord3(1, u11, v01, weight1);
-				GL.Vertex3(x1, y0, 0f);
-
-				i += advanceI;
+				_combineMaterial.EnableKeyword("SAMPLE_4");
 			}
+			else
+			{
+				_combineMaterial.DisableKeyword("SAMPLE_4");
+			}
+			if ((combinePassCount & 0x2) != 0)
+			{
+				_combineMaterial.EnableKeyword("SAMPLE_2");
+			}
+			else
+			{
+				_combineMaterial.DisableKeyword("SAMPLE_2");
+			}
+			if ((combinePassCount & 0x1) != 0)
+			{
+				_combineMaterial.EnableKeyword("SAMPLE_1");
+			}
+			else
+			{
+				_combineMaterial.DisableKeyword("SAMPLE_1");
+			}
+			_combineMaterial.SetTexture("_MainTex", _bloomXY);
+			var toLevel = _bloomRects.Count - combinePassCount; //合成する枚数を引く。7レベルあって7枚なら0
+			var toRect = _bloomRects[toLevel];
+
+			// 正規化係数を計算する
+			float strength = 1f;
+			float strengthSum = 0f;
+			for (int i = 0; i < combinePassCount; i++)
+			{
+				strengthSum += strength;
+				strength *= _bloomStrengthMultiplier;
+			}
+			float normalizeFactor = 1f / strengthSum;
+
+			strength = 1f;
+			for (int i = 0; i < combinePassCount; i++)
+			{
+				var fromLevel = toLevel + i;
+				var fromRect = _bloomRects[fromLevel];
+
+				_combineMaterial.SetFloat("_Weight" + i, strength * normalizeFactor);
+
+				var uvTransform = new Vector4();
+				// toRect.x -> fromRect.x
+				// toRect.y -> fromRect.y
+				// toRect.x + toRect.width -> fromRect.x + fromRect.width
+				// toRect.y + toRect.height -> fromRect.y + fromRect.height
+				// と変換されるような、xy' = (xy * transform.xy) + transform.zwのtransformを求める。
+				uvTransform.x = (float)fromRect.width / (float)toRect.width;
+				uvTransform.y = (float)fromRect.height / (float)toRect.height;
+				uvTransform.z = ((float)fromRect.x - ((float)toRect.x * uvTransform.x)) / (float)_bloomXY.width;
+				uvTransform.w = ((float)fromRect.y - ((float)toRect.y * uvTransform.y)) / (float)_bloomXY.height;
+				_combineMaterial.SetVector("_UvTransform" + i, uvTransform);
+				strength *= _bloomStrengthMultiplier;
+			}
+			_combineMaterial.SetPass(0);
+
+			float x0 = (float)toRect.x / (float)_bloomCombined.width;
+			float x1 = (float)(toRect.x + toRect.width) / (float)_bloomCombined.width;
+			float y0 = (float)toRect.y / (float)_bloomCombined.height;
+			float y1 = (float)(toRect.y + toRect.height) / (float)_bloomCombined.height;
+
+			GL.Begin(GL.QUADS);
+			GL.Vertex3(x0, y0, 0f);
+			GL.Vertex3(x0, y1, 0f);
+			GL.Vertex3(x1, y1, 0f);
+			GL.Vertex3(x1, y0, 0f);
 			GL.End();
 		}
 
 		void Composite(RenderTexture source, RenderTexture destination)
 		{
+			if (destination != null)
+			{
+				destination.DiscardContents();
+			}
+			Graphics.SetRenderTarget(destination);
+
 			// カラーフィルターの有効無効設定
 			if ((_colorOffset == Vector3.zero)
 				&& (_colorScale == Vector3.one)
@@ -318,12 +353,20 @@ namespace Kayac
 			{
 				_compositionMaterial.EnableKeyword("COLOR_FILTER");
 			}
-			int compositeBloomRectCount = _bloomRects.Count;
-			if (_combineEnabled)
+
+			int combinePassCount = (_bloomRects.Count + _bloomStartLevel) - _bloomCombineStartLevel;
+			combinePassCount = Mathf.Clamp(combinePassCount, 0, _bloomRects.Count);
+			int bloomRectCount = _bloomRects.Count - combinePassCount;
+			if (combinePassCount > 0)
 			{
-				compositeBloomRectCount = (compositeBloomRectCount + 1) / 2;
+				_compositionMaterial.EnableKeyword("BLOOM_COMBINED");
 			}
-			if ((compositeBloomRectCount & 0x4) != 0)
+			else
+			{
+				_compositionMaterial.DisableKeyword("BLOOM_COMBINED");
+			}
+
+			if ((bloomRectCount & 0x4) != 0)
 			{
 				_compositionMaterial.EnableKeyword("BLOOM_4");
 			}
@@ -331,7 +374,7 @@ namespace Kayac
 			{
 				_compositionMaterial.DisableKeyword("BLOOM_4");
 			}
-			if ((compositeBloomRectCount & 0x2) != 0)
+			if ((bloomRectCount & 0x2) != 0)
 			{
 				_compositionMaterial.EnableKeyword("BLOOM_2");
 			}
@@ -339,7 +382,7 @@ namespace Kayac
 			{
 				_compositionMaterial.DisableKeyword("BLOOM_2");
 			}
-			if ((compositeBloomRectCount & 0x1) != 0)
+			if ((bloomRectCount & 0x1) != 0)
 			{
 				_compositionMaterial.EnableKeyword("BLOOM_1");
 			}
@@ -348,84 +391,63 @@ namespace Kayac
 				_compositionMaterial.DisableKeyword("BLOOM_1");
 			}
 
-
 			source.filterMode = FilterMode.Point; // ポイントで良い
 			_compositionMaterial.SetTexture("_MainTex", source);
+			_bloomXY.filterMode = FilterMode.Bilinear; // バイリニアが必要
+			_compositionMaterial.SetTexture("_BloomTex", _bloomXY);
+			_bloomCombined.filterMode = FilterMode.Bilinear; // バイリニアが必要
+			_compositionMaterial.SetTexture("_BloomCombinedTex", _bloomCombined);
+
 			// 強度定数を計算する
-			float s = 1f;
-			float sSum = 0f;
-			int i;
-			for (i = 0; i < _bloomRects.Count; i++)
+			float strength = 1f;
+			float strengthSum = 0f;
+			for (int i = 0; i < _bloomRects.Count; i++)
 			{
-				sSum += s;
-				s *= _bloomStrengthMultiplier;
+				strengthSum += strength;
+				strength *= _bloomStrengthMultiplier;
 			}
-			float strengthBase = _bloomStrength / sSum;
-			float strength = strengthBase;
-			if (_combineEnabled)
+			float strengthBase = _bloomStrength / strengthSum;
+			strength = strengthBase;
+
+			// 素で_bloomXYを読む枚数
+			for (int i = 0; i < bloomRectCount; i++)
 			{
-				_bloomCombined.filterMode = FilterMode.Bilinear; // バイリニアが必要
-				_compositionMaterial.SetTexture("_BloomTex", _bloomCombined);
-				float antiNormalizeFactor = 1f + _bloomStrengthMultiplier;
-				i = 0;
-				var propertyIndex = 0;
-				while (i < _bloomRects.Count)
-				{
-					var rect = _bloomRects[i]; // 1個飛ばしになる。飛ばされたものはもうCombine段で足し合わされている
-					_compositionMaterial.SetFloat(_bloomRects[propertyIndex].weightShaderPropertyId, strength * antiNormalizeFactor);
-					Vector4 uvTransform;
-					uvTransform.x = (float)rect.width / (float)_bloomXY.width;
-					uvTransform.y = (float)rect.height / (float)_bloomXY.height;
-					uvTransform.z = (float)rect.x / (float)_bloomXY.width;
-					uvTransform.w = (float)rect.y / (float)_bloomXY.height;
-					_compositionMaterial.SetVector(_bloomRects[propertyIndex].uvTransformShaderPropertyId, uvTransform);
-					// 最初のレベルで、全体が奇数なら、1つしか進めない
-					if ((i == 0) && ((_bloomRects.Count % 2) != 0))
-					{
-						strength *= _bloomStrengthMultiplier;
-						i += 1;
-					}
-					else // その他は2段づつ進む
-					{
-						strength *= _bloomStrengthMultiplier;
-						strength *= _bloomStrengthMultiplier;
-						i += 2;
-					}
-					++propertyIndex;
-				}
+				var rect = _bloomRects[i];
+				_compositionMaterial.SetFloat(rect.weightShaderPropertyId, strength);
+				Vector4 uvTransform;
+				uvTransform.x = (float)rect.width / (float)_bloomXY.width;
+				uvTransform.y = (float)rect.height / (float)_bloomXY.height;
+				uvTransform.z = (float)rect.x / (float)_bloomXY.width;
+				uvTransform.w = (float)rect.y / (float)_bloomXY.height;
+				_compositionMaterial.SetVector(rect.uvTransformShaderPropertyId, uvTransform);
+				strength *= _bloomStrengthMultiplier;
 			}
-			else
+
+			if (combinePassCount > 0)
 			{
-				_bloomXY.filterMode = FilterMode.Bilinear; // バイリニアが必要
-				_compositionMaterial.SetTexture("_BloomTex", _bloomXY);
-				for (i = 0; i < _bloomRects.Count; i++)
+				var combinedStrength = 1f;
+				var combinedStrengthSum = 0f;
+				for (int i = 0; i < combinePassCount; i++)
 				{
-					var rect = _bloomRects[i];
-					_compositionMaterial.SetFloat(rect.weightShaderPropertyId, strength);
-					Vector4 uvTransform;
-					uvTransform.x = (float)rect.width / (float)_bloomXY.width;
-					uvTransform.y = (float)rect.height / (float)_bloomXY.height;
-					uvTransform.z = (float)rect.x / (float)_bloomXY.width;
-					uvTransform.w = (float)rect.y / (float)_bloomXY.height;
-					_compositionMaterial.SetVector(rect.uvTransformShaderPropertyId, uvTransform);
-					strength *= _bloomStrengthMultiplier;
+					combinedStrengthSum += combinedStrength;
+					combinedStrength *= _bloomStrengthMultiplier;
 				}
+				var rect = _bloomRects[_bloomRects.Count - combinePassCount];
+				float weight = strength * combinedStrengthSum;
+				_compositionMaterial.SetFloat("_BloomWeightCombined", weight); // バッファ内は和で除して正規化されているので、和を乗じて戻す。
+				Vector4 uvTransform;
+				uvTransform.x = (float)rect.width / (float)_bloomXY.width;
+				uvTransform.y = (float)rect.height / (float)_bloomXY.height;
+				uvTransform.z = (float)rect.x / (float)_bloomXY.width;
+				uvTransform.w = (float)rect.y / (float)_bloomXY.height;
+				_compositionMaterial.SetVector("_BloomUvTransformCombined", uvTransform);
 			}
 			_compositionMaterial.SetPass(0);
 
-			if (destination != null)
-			{
-				destination.DiscardContents();
-			}
-			Graphics.SetRenderTarget(destination);
 			GL.Begin(GL.QUADS);
-			GL.TexCoord2(0f, 0f);
 			GL.Vertex3(0f, 0f, 0f);
-			GL.TexCoord2(0f, 1f);
 			GL.Vertex3(0f, 1f, 0f);
-			GL.TexCoord2(1f, 1f);
 			GL.Vertex3(1f, 1f, 0f);
-			GL.TexCoord2(1f, 0f);
 			GL.Vertex3(1f, 0f, 0f);
 			GL.End();
 		}
@@ -623,9 +645,9 @@ namespace Kayac
 			_bloomXY = new RenderTexture(bloomWidth, bloomHeight, 0, format);
 			_bloomXY.name = "bloomXY";
 			_bloomXY.filterMode = FilterMode.Bilinear;
+			// TODO: combineする枚数が起動時に来まれば、その時点で最適な解像度に変更できる
 			_bloomCombined = new RenderTexture(bloomWidth, bloomHeight, 0, format);
 			_bloomCombined.name = "bloomCombined";
-
 			_prevSource = source;
 		}
 

@@ -197,7 +197,13 @@ if (Input.GetKeyDown(KeyCode.S))
 
 if (Input.GetKeyDown(KeyCode.F1))
 {
-	_postProcess.ToggleCombine();
+	_postProcess.bloomCombineStartLevel -= 1;
+	Debug.Log(_postProcess.bloomCombineStartLevel);
+}
+if (Input.GetKeyDown(KeyCode.F2))
+{
+	_postProcess.bloomCombineStartLevel += 1;
+	Debug.Log(_postProcess.bloomCombineStartLevel);
 }
 
 
@@ -219,7 +225,7 @@ if (Input.GetKeyDown(KeyCode.F1))
 		}
 		var latest = ((_timeIndex - 1) < 0) ? (_times.Length - 1) : (_timeIndex - 1);
 		var avg = (_times[latest] - _times[_timeIndex]) / (_times.Length - 1);
-		_text.text = "FrameTime: " + (avg * 1000f).ToString("N2") + "\nCount: " + _count.ToString("N2");
+		_text.text = "FrameTime: " + (avg * 1000f).ToString("N2") + "\nCount: " + _count.ToString("N2") + " " + _postProcess.bloomCombineStartLevel;
 
 		// ベンチマーク中は物描かない
 		_objectsRoot.gameObject.SetActive(!_benchmarkToggle.isOn);
@@ -239,7 +245,7 @@ if (Input.GetKeyDown(KeyCode.F1))
 		_fillRenderer.ManualUpdate();
 		if (_logToggle.isOn)
 		{
-			_logText.text = _log.Tail(30);
+			_logText.text = _log.Tail(10);
 		}
 		_logText.enabled = _logToggle.isOn;
 	}
