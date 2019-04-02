@@ -61,6 +61,19 @@ public class Main : MonoBehaviour
 
 		StartCoroutine(CoSetupSlack());
 
+		_benchmarkToggle.onValueChanged.AddListener(toggle =>
+		{
+			if (_benchmarkToggle.isOn)
+			{
+				_count = 1f; //1から始めることでだいぶ収束が速くなる。TODO: 速度も適切な値がありそう。
+			}
+			else
+			{
+				_count = 0f;
+			}
+			_countVelocity = 0f;
+		});
+
 		_speedSlider.value = 0.5f;
 		_objects = new GameObject[SphereCount + CylinderCount];
 		_velocities = new Vector3[_objects.Length];
