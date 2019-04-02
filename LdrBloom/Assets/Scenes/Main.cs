@@ -59,13 +59,15 @@ public class Main : MonoBehaviour
 		_log = new Kayac.MemoryLogHandler(1000);
 		_logText.text = "Log Initialized.";
 
+#if !UNITY_WEBGL //WebGLではSlack初期化しない。なので叩くと死ぬ。
 		StartCoroutine(CoSetupSlack());
+#endif
 
 		_benchmarkToggle.onValueChanged.AddListener(toggle =>
 		{
 			if (_benchmarkToggle.isOn)
 			{
-				_count = 1f; //1から始めることでだいぶ収束が速くなる。TODO: 速度も適切な値がありそう。
+				_count = 0f; //1から始めることでだいぶ収束が速くなる。TODO: 速度も適切な値がありそう。
 			}
 			else
 			{
@@ -236,7 +238,7 @@ if (Input.GetKeyDown(KeyCode.F2))
 			_countVelocity += accel;
 			_count += _countVelocity;
 			_count = Mathf.Clamp(_count, 0f, 10000f);
-			_fillRenderer.SetCount((int)_count);
+			_fillRenderer.SetCount(_count);
 		}
 		else
 		{
