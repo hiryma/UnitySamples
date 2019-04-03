@@ -7,6 +7,45 @@ namespace Kayac
 {
 	public class DebugSlack
 	{
+		// 簡易暗号化
+		public static string EncryptXor(string key, string from)
+		{
+			var fromBytes = System.Text.Encoding.UTF8.GetBytes(from);
+			var keyBytes = System.Text.Encoding.UTF8.GetBytes(key);
+			var toBytes = Xor(keyBytes, fromBytes);
+			return System.Convert.ToBase64String(toBytes);
+		}
+
+		static byte[] Xor(byte[] key, byte[] from)
+		{
+			var to = new byte[from.Length];
+			int fromIndex = 0;
+			while (fromIndex < from.Length)
+			{
+				int keyIndex = 0;
+				while (keyIndex < key.Length)
+				{
+					if (fromIndex >= from.Length)
+					{
+						break;
+					}
+					var xored = from[fromIndex] ^ key[keyIndex];
+					to[fromIndex] = (byte)xored;
+					keyIndex++;
+					fromIndex++;
+				}
+			}
+			return to;
+		}
+
+		public static string DecryptXor(string key, string encrypted)
+		{
+			var fromBytes = System.Convert.FromBase64String(encrypted);
+			var keyBytes = System.Text.Encoding.UTF8.GetBytes(key);
+			var toBytes = Xor(keyBytes, fromBytes);
+			return System.Text.Encoding.UTF8.GetString(toBytes);
+		}
+
 		public DebugSlack(string apiToken, string defaultChannel)
 		{
 			_apiToken = apiToken;

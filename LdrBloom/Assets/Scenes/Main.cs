@@ -59,7 +59,7 @@ public class Main : MonoBehaviour
 		_log = new Kayac.MemoryLogHandler(1000);
 		_logText.text = "Log Initialized.";
 
-#if !UNITY_WEBGL //WebGLではSlack初期化しない。なので叩くと死ぬ。
+#if !UNITY_WEBGL || UNITY_EDITOR //WebGLではSlack初期化しない。なので叩くと死ぬ。
 		StartCoroutine(CoSetupSlack());
 #endif
 
@@ -142,7 +142,8 @@ public class Main : MonoBehaviour
 		}
 		else
 		{
-			var token = req.downloadHandler.text;
+			var encodedToken = req.downloadHandler.text; // DebugSlack.EncryptXorで暗号化したものが入っている。もっとマシな暗号があってもいいと思う。
+			var token = Kayac.DebugSlack.DecryptXor("kodHUuU79PZDZ2U4cktSbuYpaBd5siH", encodedToken); // 復号化が鍵がコード直打ちという手抜き
 			_slack = new Kayac.DebugSlack(token, "unity-debug");
 		}
 	}
@@ -238,12 +239,13 @@ if (Input.GetKeyDown(KeyCode.F2))
 			_countVelocity += accel;
 			_count += _countVelocity;
 			_count = Mathf.Clamp(_count, 0f, 10000f);
-			_fillRenderer.SetCount(_count);
 		}
 		else
 		{
-			_fillRenderer.SetCount(0);
+			_count = 0f;
+			_countVelocity = 0f;
 		}
+		_fillRenderer.SetCount(_count);
 		_fillRenderer.ManualUpdate();
 		if (_logToggle.isOn)
 		{

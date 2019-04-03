@@ -684,6 +684,8 @@ namespace Kayac
 			w23 /= wSum;
 			w45 /= wSum;
 			w67 /= wSum;
+//Debug.Log(w01 + " " + w23 + " " + w45 + " " + w67);
+//Debug.Log(x01 + " " + x23 + " " + x45 + " " + x67);
 			SetGaussSample(0, x01, w01);
 			SetGaussSample(1, x23, w23);
 			SetGaussSample(2, x45, w45);

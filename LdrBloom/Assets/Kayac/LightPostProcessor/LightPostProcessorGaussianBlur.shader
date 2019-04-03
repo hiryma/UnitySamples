@@ -76,7 +76,6 @@
 				c += tex2D(_MainTex, i.sample5.xy) * i.sample5.z;
 				c += tex2D(_MainTex, i.sample6.xy) * i.sample6.z;
 				c += tex2D(_MainTex, i.sample7.xy) * i.sample7.z;
-c.a = 1;
 				return c;
 			}
 			ENDCG
