@@ -119,7 +119,7 @@ public class Main : MonoBehaviour
 			_countVelocity += accel;
 			_count += _countVelocity;
 			_count = Mathf.Clamp(_count, 0f, 10000f);
-			_fillRenderer.SetCount((int)_count);
+			_fillRenderer.SetCount(_count);
 			_fillRenderer.SetMaterial(_fillTestMaterials[_fillTestMaterialIndex]);
 			_fillRenderer.ManualUpdate();
 		}
@@ -149,11 +149,11 @@ public class Main : MonoBehaviour
 		var latest = ((_timeIndex - 1) < 0) ? (_times.Length - 1) : (_timeIndex - 1);
 		var avg = (_times[latest] - _times[_timeIndex]) / (_times.Length - 1);
 		var sb = new System.Text.StringBuilder();
-		sb.Append("v0.2.4: " + SystemInfo.deviceModel + "\n");
+		sb.Append("v0.2.5: " + SystemInfo.deviceModel + "\n");
 		sb.Append("Os: " + SystemInfo.operatingSystem + "\n");
 		sb.Append("Gpu: " + SystemInfo.graphicsDeviceName + "\n");
 		sb.Append("FrameTime: " + (avg * 1000f).ToString("N2") + " frame:" + Time.frameCount + "\n");
-		sb.Append("Count: " + _count.ToString("N0") + "\n");
+		sb.Append("Count: " + _count.ToString("N1") + "\n");
 		GUILayout.Label(sb.ToString());
 		if (_result != null)
 		{
@@ -213,6 +213,8 @@ public class Main : MonoBehaviour
 		sb.Append("\tShadow: " + SystemInfo.supportsShadows + "\n");
 		sb.Append("\tDepthSampling: " + SystemInfo.supportsRawShadowDepthSampling + "\n");
 		sb.Append("\tRenderToCube: " + SystemInfo.supportsRenderToCubemap + "\n");
+		sb.Append("\tARGB2101010 RT: " + SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGB2101010) + "\n");
+		sb.Append("\tRGB111110Float RT: " + SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.RGB111110Float) + "\n");
 		_result = sb.ToString();
 		sb.Length = 0;
 	}
