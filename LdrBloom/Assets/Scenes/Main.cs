@@ -170,6 +170,27 @@ public class Main : MonoBehaviour
 		StartCoroutine(_slack.CoPostBinary(_log.GetBytes(), "log.txt"));
 	}
 
+	public void OnClickColorVfxButton()
+	{
+		StartCoroutine(CoColorVfx());
+	}
+
+	IEnumerator CoColorVfx()
+	{
+		var offset = new Vector3(0.4f, 0.2f, 0f);
+		var scale = new Vector3(1.2f, 0.6f, 0.3f);
+		var saturation = 0f;
+		for (int i = 0; i < 120; i++)
+		{
+			_postProcess.SetColorFilter(offset, scale, saturation);
+			yield return null;
+			offset += -offset * 0.02f;
+			scale += (Vector3.one - scale) * 0.02f;
+			saturation += (1f - saturation) * 0.02f;
+		}
+		_postProcess.SetColorFilter(Vector3.zero, Vector3.one, 1f);
+	}
+
 	IEnumerator CoSaveRenderTargets()
 	{
 		yield return new WaitForEndOfFrame();
