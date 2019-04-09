@@ -211,6 +211,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _prefab: {fileID: 4920220307369702890, guid: cffdbd43a255c4c9a8d3b6f63ebfd0f3, type: 3}
+  _camera: {fileID: 534669904}
 --- !u!4 &266510391
 Transform:
   m_ObjectHideFlags: 0
@@ -255,9 +256,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d263518703dc747bd888a9c930c6d9b1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _shader: {fileID: 4800000, guid: 3fd53d6c6f1f9408880907d69f1837cf, type: 3}
+  _shaderFragmentVersion: {fileID: 4800000, guid: 3fd53d6c6f1f9408880907d69f1837cf,
+    type: 3}
+  _shaderVertexVersion: {fileID: 4800000, guid: d004681beaf1247e2af7f9a6e5727132,
+    type: 3}
   _camera: {fileID: 534669904}
-  _outputFieldOfViewY: 10
+  _outputFieldOfViewY: 0
+  _useFragmentCalculation: 0
+  _meshDivision: 48
+  _viewportDebugEnabled: 0
 --- !u!20 &534669904
 Camera:
   m_ObjectHideFlags: 0
