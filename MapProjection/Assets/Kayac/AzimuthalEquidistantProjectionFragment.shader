@@ -47,7 +47,7 @@
 #endif
 				float2 uv;
 				uv.x = p.x;
-				uv.y = -p.y;
+				uv.y = p.y;
 				float r = (srcR == 0.0) ? 0.0 : tan(theta) * _RcpTanSrcHalfFovY / srcR;
 				uv.xy *= r;
 				uv.x *= _ScreenParams.y / _ScreenParams.x;

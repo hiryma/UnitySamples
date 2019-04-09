@@ -24,10 +24,12 @@ namespace Kayac
 		Material _material;
 		bool _viewportDebugEnabledApplied;
 		Mesh _mesh;
+		bool _currentMaterialIsFragmentVersion;
 
-		void TrySetup(bool force)
+		void TrySetup()
 		{
-			if ((_material == null) || force)
+			if ((_material == null) ||
+				(_currentMaterialIsFragmentVersion != _useFragmentCalculation))
 			{
 				if (_useFragmentCalculation)
 				{
@@ -38,7 +40,9 @@ namespace Kayac
 					_material = new Material(_shaderVertexVersion);
 					TryCreateMesh();
 				}
+				_viewportDebugEnabledApplied = false;
 			}
+			SetViewportDebugEnable(_viewportDebugEnabled);
 		}
 
 		void TryCreateMesh()
@@ -126,7 +130,7 @@ namespace Kayac
 
 		void OnRenderImage(RenderTexture source, RenderTexture destination)
 		{
-			TrySetup(force: false);
+			TrySetup();
 			float outputHalfFieldOfViewYRadian = 0f;
 			if (_outputFieldOfViewY <= 0f)
 			{
@@ -158,7 +162,7 @@ namespace Kayac
 #if UNITY_EDITOR
 		void OnValidate()
 		{
-			TrySetup(force: true);
+			TrySetup();
 			SetViewportDebugEnable(_viewportDebugEnabled);
 		}
 

@@ -39,7 +39,13 @@
 				p /= _ScreenParams.y; // [-aspect, aspect], [-1, 1]
 				float srcR = sqrt((p.x * p.x) + (p.y * p.y));
 				float theta = srcR * _DstHalfFovY;
-				float2 uv = p.xy;
+				float2 uv;
+				uv.x = p.x;
+#if UNITY_UV_STARTS_AT_TOP
+				uv.y = -p.y;
+#else
+				uv.y = p.y;
+#endif
 				float r = (srcR == 0.0) ? 0.0 : tan(theta) * _RcpTanSrcHalfFovY / srcR;
 				uv.xy *= r;
 				uv.x *= _ScreenParams.y / _ScreenParams.x;
