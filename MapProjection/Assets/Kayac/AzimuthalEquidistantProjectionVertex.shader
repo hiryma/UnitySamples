@@ -29,32 +29,28 @@
 				float2 uv : TEXCOORD0;
 			};
 
-			float _RcpTanSrcHalfFovY;
+			float _TanSrcHalfFovY;
 			float _DstHalfFovY;
 
 			v2f vert (appdata v)
 			{
+				float aspect = _ScreenParams.x / _ScreenParams.y;
 				float2 p = v.vertex; // [-1, 1]
-				p *= _ScreenParams.xy; // [-w, w], [-h, h]
-				p /= _ScreenParams.y; // [-aspect, aspect], [-1, 1]
-				float srcR = sqrt((p.x * p.x) + (p.y * p.y));
-				float theta = srcR * _DstHalfFovY;
-				float2 uv;
-				uv.x = p.x;
+				p.x *= aspect; // [-aspect, aspect], [-1, 1]
+				float dstR = sqrt((p.x * p.x) + (p.y * p.y));
+				float theta = dstR * _DstHalfFovY;
 #if UNITY_UV_STARTS_AT_TOP
-				uv.y = -p.y;
-#else
-				uv.y = p.y;
+				p.y = -p.y;
 #endif
-				float r = (srcR == 0.0) ? 0.0 : tan(theta) * _RcpTanSrcHalfFovY / srcR;
-				uv.xy *= r;
-				uv.x *= _ScreenParams.y / _ScreenParams.x;
-				uv.xy *= 0.5;
-				uv.xy += 0.5;
+				float r = (dstR == 0.0) ? 0.0 : (tan(theta) / (_TanSrcHalfFovY * dstR));
+				p *= r;
+				p.x /= aspect;
+				p *= 0.5;
+				p += 0.5;
 
 				v2f o;
 				o.vertex = v.vertex;
-				o.uv = uv;
+				o.uv = p;
 				return o;
 			}
 

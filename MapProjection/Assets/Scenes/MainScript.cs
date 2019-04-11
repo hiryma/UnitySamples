@@ -39,6 +39,8 @@ public class MainScript : MonoBehaviour
 	Kayac.AzimuthalEquidistantProjector _projector;
 	[SerializeField]
 	Slider _fovSlider;
+	[SerializeField]
+	Toggle _zoomEffectToggle;
 
 	// 設定
 	int _width = 12;
@@ -60,6 +62,7 @@ public class MainScript : MonoBehaviour
 	bool _rotation;
 	bool _down;
 	bool _fall;
+	float _fovBackup;
 
 	void Start()
 	{
@@ -99,6 +102,18 @@ public class MainScript : MonoBehaviour
 				_benchmarkImage.enabled = false;
 				_benchmark.Stop();
 				_cellsRoot.gameObject.SetActive(true);
+			}
+		});
+		_zoomEffectToggle.onValueChanged.AddListener((unused) =>
+		{
+			if (_zoomEffectToggle.isOn)
+			{
+				_fovBackup = _fovSlider.value;
+				_fovSlider.value = 179f;
+			}
+			else
+			{
+				_fovSlider.value = _fovBackup;
 			}
 		});
 		_heavyModeToggle.onValueChanged.AddListener((unused) =>
@@ -189,6 +204,10 @@ public class MainScript : MonoBehaviour
 		}
 		_fpsText.text = (_benchmark.averageFrameTime * 1000f).ToString("F2") + " " + _benchmark.count.ToString("F2");
 		_camera3d.fieldOfView = 1f + (_fovSlider.value * 178f);
+		if (_zoomEffectToggle.isOn)
+		{
+			_fovSlider.value += (_fovBackup - _fovSlider.value) * 4f * Time.deltaTime;
+		}
 	}
 
 	void UpdateTitle()

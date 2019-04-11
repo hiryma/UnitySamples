@@ -41,6 +41,7 @@ namespace Kayac
 					TryCreateMesh();
 				}
 				_viewportDebugEnabledApplied = false;
+				_currentMaterialIsFragmentVersion = _useFragmentCalculation;
 			}
 			SetViewportDebugEnable(_viewportDebugEnabled);
 		}
@@ -142,8 +143,8 @@ namespace Kayac
 			}
 
 			var inputHalfFieldOfViewYRadian = _camera.fieldOfView * 0.5f * Mathf.Deg2Rad;
-			var rcpTanHalfFovY = 1f / Mathf.Tan(inputHalfFieldOfViewYRadian);
-			_material.SetFloat("_RcpTanSrcHalfFovY", rcpTanHalfFovY);
+			var tanHalfFovY = Mathf.Tan(inputHalfFieldOfViewYRadian);
+			_material.SetFloat("_TanSrcHalfFovY", tanHalfFovY);
 			_material.SetFloat("_DstHalfFovY", outputHalfFieldOfViewYRadian);
 			if (_useFragmentCalculation)
 			{
