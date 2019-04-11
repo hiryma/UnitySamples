@@ -208,6 +208,7 @@ public class MainScript : MonoBehaviour
 		{
 			_fovSlider.value += (_fovBackup - _fovSlider.value) * 4f * Time.deltaTime;
 		}
+		_heavyModeToggle.gameObject.SetActive(_benchmarkToggle.isOn);
 	}
 
 	void UpdateTitle()

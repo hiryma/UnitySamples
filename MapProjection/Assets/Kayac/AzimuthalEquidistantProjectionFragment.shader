@@ -61,7 +61,6 @@
 				p.x *= _ScreenParams.y / _ScreenParams.x;
 				p *= 0.5;
 				p += 0.5;
-
 #ifdef VIEWPORT_DEBUG
 				if ((p.x < 0.0) || (p.x > 1.0) || (p.y < 0.0) || (p.y > 1.0))
 				{
