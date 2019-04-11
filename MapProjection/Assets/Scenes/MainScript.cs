@@ -206,7 +206,7 @@ public class MainScript : MonoBehaviour
 		_camera3d.fieldOfView = 1f + (_fovSlider.value * 178f);
 		if (_zoomEffectToggle.isOn)
 		{
-			_fovSlider.value += (_fovBackup - _fovSlider.value) * 4f * Time.deltaTime;
+			_fovSlider.value += (_fovBackup - _fovSlider.value) * 2f * Time.deltaTime;
 		}
 		_heavyModeToggle.gameObject.SetActive(_benchmarkToggle.isOn);
 	}
