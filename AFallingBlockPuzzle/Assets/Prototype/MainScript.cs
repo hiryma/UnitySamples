@@ -15,9 +15,9 @@ public class MainScript : MonoBehaviour
 
 	// 設定
 	int _blockSize = 4;
-	bool _cornerAllowed = false;
-	int _width = 8;
-	int _height = 16;
+	bool _cornerAllowed = true;
+	int _width = 10;
+	int _height = 20;
 	int _settingPosition = 0;
 	IFallingBlockPuzzle _puzzle;
 	enum SubScene
