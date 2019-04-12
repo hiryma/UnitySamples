@@ -235,8 +235,6 @@ GameObject:
   m_Component:
   - component: {fileID: 519420032}
   - component: {fileID: 519420031}
-  - component: {fileID: 519420029}
-  - component: {fileID: 519420030}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -244,39 +242,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &519420029
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 519420028}
-  m_Enabled: 1
---- !u!114 &519420030
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 519420028}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 913c0f1fa2f17448891a46334a367b95, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _compositionShader: {fileID: 4800000, guid: 85b0862b5884c40db8aa1b7e765e5518, type: 3}
-  _extractionShader: {fileID: 4800000, guid: 1ff482a19219f4435afbbeccbc3a0dd7, type: 3}
-  _copyShader: {fileID: 4800000, guid: 30eac5a38c2b64f688b1c01a4854cd7f, type: 3}
-  _convolutionShader: {fileID: 4800000, guid: 82e6227ee25e242f1b331f599da0c1f5, type: 3}
-  _extractionThreshold: 0
-  _colorOffset: {x: 0, y: 0, z: 0}
-  _colorScale: {x: 1, y: 1, z: 1}
-  _saturation: 1
-  _bloomStartLevel: 0
-  _maxBloomLevelCount: 7
-  _bloomStrength: 0.05
-  _bloomStrengthMultiplier: 2
-  _bloomSigmaInPixel: 3
 --- !u!20 &519420031
 Camera:
   m_ObjectHideFlags: 0
