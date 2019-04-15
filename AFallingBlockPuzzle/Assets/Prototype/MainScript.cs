@@ -7,9 +7,11 @@ public class MainScript : MonoBehaviour
 	[SerializeField]
 	Transform _cellsRoot;
 	[SerializeField]
-	UnityEngine.UI.Text _titleText;
+	TextMesh _titleText;
 	[SerializeField]
-	UnityEngine.UI.Text _moneyText;
+	TextMesh _moneyText;
+	[SerializeField]
+	GameObject _cellPrefab;
 	[SerializeField]
 	float _InitialFallInterval = 1f;
 
@@ -28,13 +30,13 @@ public class MainScript : MonoBehaviour
 	}
 	SubScene _subScene;
 	Macopay _macopay;
-	List<UnityEngine.UI.Image> _cellImages;
+	List<GameObject> _cells;
 
 	void Start()
 	{
 		_macopay = new Macopay("2p32moff24erpn3s5e58vfpt06otjv36", "http://localhost:8080/");
 		_moneyText.text = "unknown";
-		_cellImages = new List<UnityEngine.UI.Image>();
+		_cells = new List<GameObject>();
 		StartTitle();
 		// お金取得開始
 		StartCoroutine(_macopay.CoAcount(OnMacopayApiComplete));
@@ -44,10 +46,9 @@ public class MainScript : MonoBehaviour
 	{
 		_subScene = SubScene.Title;
 		_titleText.text = "";
-		_titleText.fontSize = 20;
-		for (int i = 0; i < _cellImages.Count; i++)
+		for (int i = 0; i < _cells.Count; i++)
 		{
-			_cellImages[i].enabled = false;
+			_cells[i].SetActive(false);
 		}
 	}
 
@@ -55,7 +56,6 @@ public class MainScript : MonoBehaviour
 	{
 		_subScene = SubScene.GameOver;
 		_titleText.text = "<color=#ff0000>GameOver</color>";
-		_titleText.fontSize = 40;
 	}
 
 	void StartGame()
@@ -267,24 +267,23 @@ public class MainScript : MonoBehaviour
 		var renderWidth = _width + 2; // 壁
 		var renderHeight = _height + 1; // 底
 		var cellSize = Mathf.Min(432f / renderWidth, 768f / renderHeight);
-		int imageIndex = 0;
-		Color color;
+		int cellIndex = 0;
 
 		for (int y = 1; y < _height; y++)
 		{
 			// 左壁
-			DrawCell(0, y, new Color(0.7f, 0.7f, 0.7f, 1f), cellSize, imageIndex);
-			imageIndex++;
+			DrawCell(0, y, cellSize, cellIndex);
+			cellIndex++;
 			// 右壁
-			DrawCell(renderWidth - 1, y, new Color(0.7f, 0.7f, 0.7f, 1f), cellSize, imageIndex);
-			imageIndex++;
+			DrawCell(renderWidth - 1, y, cellSize, cellIndex);
+			cellIndex++;
 		}
 
 		// 底
 		for (int x = 0; x < renderWidth; x++)
 		{
-			DrawCell(x, 0, new Color(0.7f, 0.7f, 0.7f, 1f), cellSize, imageIndex);
-			imageIndex++;
+			DrawCell(x, 0, cellSize, cellIndex);
+			cellIndex++;
 		}
 
 		// 積もったマス
@@ -292,52 +291,44 @@ public class MainScript : MonoBehaviour
 		{
 			for (int x = 0; x < _width; x++)
 			{
-				if (_puzzle.IsVacant(x, y))
+				if (!_puzzle.IsVacant(x, y))
 				{
-					color = new Color(0f, 0f, 0f, 0f);
+					DrawCell(x + 1, y + 1, cellSize, cellIndex);
+					cellIndex++;
 				}
-				else
-				{
-					color = new Color(1f, 1f, 1f, 1f);
-				}
-				DrawCell(x + 1, y + 1, color, cellSize, imageIndex);
-				imageIndex++;
 			}
 		}
 
 		var activeCells = _puzzle.GetActiveCells();
 		foreach (var cell in activeCells)
 		{
-			DrawCell(cell.x + 1, cell.y + 1, new Color(1f, 0f, 0f, 1f), cellSize, imageIndex);
-			imageIndex++;
+			DrawCell(cell.x + 1, cell.y + 1, cellSize, cellIndex);
+			cellIndex++;
 		}
 
 		// 余りを無効化
-		for (int i = imageIndex; i < _cellImages.Count; i++)
+		for (int i = cellIndex; i < _cells.Count; i++)
 		{
-			_cellImages[i].enabled = false;
+			_cells[i].SetActive(false);
 		}
 	}
 
-	void DrawCell(int x, int y, Color color, float cellSize, int imageIndex)
+	void DrawCell(int x, int y, float cellSize, int cellIndex)
 	{
-		UnityEngine.UI.Image image = null;
-		if (imageIndex >= _cellImages.Count)
+		GameObject cell = null;
+		if (cellIndex >= _cells.Count)
 		{
-			var gameObject = new GameObject("cellImage");
-			image = gameObject.AddComponent<UnityEngine.UI.Image>();
-			_cellImages.Add(image);
-			image.rectTransform.SetParent(_cellsRoot, false);
+			cell = Instantiate(_cellPrefab, _cellsRoot, false);
+			_cells.Add(cell);
 		}
 		else
 		{
-			image = _cellImages[imageIndex];
+			cell = _cells[cellIndex];
 		}
 		var xOffset = (cellSize * 0.5f) - 216f;
 		var yOffset = (cellSize * 0.5f) - 384f;
-		image.enabled = true;
-		image.color = color;
-		image.rectTransform.anchoredPosition = new Vector2(xOffset + (x * cellSize), yOffset + (y * cellSize));
-		image.rectTransform.sizeDelta = new Vector2(cellSize - 2f, cellSize - 2f);
+		cell.SetActive(true);
+		cell.transform.localScale = new Vector3(cellSize - 2f, 1f, cellSize - 2f);
+		cell.transform.localPosition = new Vector3(xOffset + (x * cellSize), yOffset + (y * cellSize), 0f);
 	}
 }
