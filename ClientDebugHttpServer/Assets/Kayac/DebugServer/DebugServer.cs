@@ -113,6 +113,7 @@ public class DebugServer
 				Debug.LogException(e);
 				response.StatusCode = 500;
 			}
+
 			if (outputHtml != null)
 			{
 				var outputData = System.Text.Encoding.UTF8.GetBytes(outputHtml);

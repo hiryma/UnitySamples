@@ -14,16 +14,20 @@ public class Main : MonoBehaviour
 	TextAsset debugServerIndexHtmlAsset;
 	[SerializeField]
 	int debugServerPort;
+	[SerializeField]
+	Text logText;
 
-	const float SoundInterval = 2f;
 	string debugServerIndexHtml;
 	DebugServer debugServer;
 	float rotationSpeed;
-	float soundTimer;
+	Coroutine coroutine;
+	bool loadRequested;
 
-	IEnumerator Start()
+	void Start()
 	{
+		Application.logMessageReceived += OnLogReceived;
 		var ipAddress = DebugServer.GetLanIpAddress();
+		Debug.Log("IP: " + ipAddress);
 		debugServerIndexHtml = debugServerIndexHtmlAsset.text;
 		debugServerIndexHtml = debugServerIndexHtml.Replace(
 			"__TO_BE_REPLACED_WITH_ACTUAL_IP_ADDRESS_IN_RUNTIME__",
@@ -36,7 +40,12 @@ public class Main : MonoBehaviour
 		debugServer.RegisterRequestCallback("/upload-file", OnWebRequestUploadFile);
 		debugServer.RegisterRequestCallback("/delete-file", OnWebRequestDeleteFile);
 		debugServer.RegisterRequestCallback("/delete-all-file", OnWebRequestDeleteAllFile);
-		yield return CoLoad();
+		loadRequested = true;
+	}
+
+	void OnLogReceived(string message, string callStack, LogType type)
+	{
+		logText.text += message + '\n';
 	}
 
 	void OnWebRequestRoot(out string outputHtml, string inputText)
@@ -66,8 +75,7 @@ public class Main : MonoBehaviour
 		}
 		var bytes = System.Convert.FromBase64String(arg.contentBase64);
 		DebugServerUtil.SaveOverride(arg.path, bytes);
-		// 再度ロード
-		StartCoroutine(CoLoad());
+		loadRequested = true;
 	}
 
 	void OnWebRequestDeleteFile(out string outputHtml, string inputText)
@@ -85,16 +93,14 @@ public class Main : MonoBehaviour
 			return;
 		}
 		DebugServerUtil.DeleteOverride(arg.path);
-		// 再度ロード
-		StartCoroutine(CoLoad());
+		loadRequested = true;
 	}
 
 	void OnWebRequestDeleteAllFile(out string outputHtml, string inputText)
 	{
 		DebugServerUtil.DeleteAllOverride();
-		// 再度ロード
-		StartCoroutine(CoLoad());
 		outputHtml = null;
+		loadRequested = true;
 	}
 
 	void Update()
@@ -107,18 +113,16 @@ public class Main : MonoBehaviour
 		// 音鳴らす
 		if (!audioSource.isPlaying)
 		{
-			if (soundTimer <= 0f)
-			{
-				audioSource.Play();
-				soundTimer = SoundInterval;
-			}
-			else
-			{
-				soundTimer -= Time.deltaTime;
-			}
+			audioSource.Play();
 		}
-
 		debugServer.ManualUpdate();
+
+		// ロード。重複実行を防ぐ
+		if (loadRequested && (coroutine == null))
+		{
+			loadRequested = false;
+			coroutine = StartCoroutine(CoLoad());
+		}
 	}
 
 
@@ -140,13 +144,37 @@ public class Main : MonoBehaviour
 		audioSource.Stop();
 		var retJson = new CoroutineReturnValue<string>();
 		yield return DebugServerUtil.CoLoad(retJson, "rotation_speed.json");
+		if (retJson.Exception != null)
+		{
+			Debug.LogException(retJson.Exception);
+		}
 		var retImage = new CoroutineReturnValue<Texture2D>();
 		yield return DebugServerUtil.CoLoad(retImage, "image.png");
+		if (retImage.Exception != null)
+		{
+			Debug.LogException(retImage.Exception);
+		}
 		var retSound = new CoroutineReturnValue<AudioClip>();
 		yield return DebugServerUtil.CoLoad(retSound, "sound.wav");
+		if (retSound.Exception != null)
+		{
+			Debug.LogException(retSound.Exception);
+		}
 
-		rotationSpeed = JsonUtility.FromJson<RotationSpeedData>(retJson.Value).rotationSpeed;
-		image.texture = retImage.Value;
-		audioSource.clip = retSound.Value;
+		if (retJson.Value != null)
+		{
+			rotationSpeed = JsonUtility.FromJson<RotationSpeedData>(retJson.Value).rotationSpeed;
+		}
+
+		if (retImage.Value != null)
+		{
+			image.texture = retImage.Value;
+		}
+
+		if (retSound.Value != null)
+		{
+			audioSource.clip = retSound.Value;
+		}
+		coroutine = null;
 	}
 }
