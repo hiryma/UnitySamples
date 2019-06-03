@@ -24,14 +24,14 @@ public class Main : MonoBehaviour
 		public void Attack(float strength)
 		{
 			var pulse = strength * Mathf.Sqrt(Stiffness);
-			this.velocity += pulse;
+			velocity += pulse;
 		}
 		public float Update(float deltaTime)
 		{
-			this.velocity -= this.velocity * Damping * deltaTime;
-			this.velocity -= this.position * Stiffness * deltaTime;
-			this.position += this.velocity * deltaTime;
-			return this.position;
+			velocity -= velocity * Damping * deltaTime;
+			velocity -= position * Stiffness * deltaTime;
+			position += velocity * deltaTime;
+			return position;
 		}
 		public float position;
 		float velocity;
@@ -42,27 +42,27 @@ public class Main : MonoBehaviour
 
 	void Start()
 	{
-		this.deltaTime = 1f / (float)AudioSettings.outputSampleRate;
-		this.running = true;
-		this.oscillators = new Oscillator[88];
+		deltaTime = 1f / (float)AudioSettings.outputSampleRate;
+		running = true;
+		oscillators = new Oscillator[88];
 		var step = Mathf.Pow(2f, 1f / 12f);
 		var f = 440f / 16f;
-		for (int i = 0; i < this.oscillators.Length; i++)
+		for (int i = 0; i < oscillators.Length; i++)
 		{
 			var w = f * 2f * Mathf.PI;
 			var stiffness = w * w;
-			this.oscillators[i].Stiffness = stiffness;
-			this.oscillators[i].Damping = 1f;
+			oscillators[i].Stiffness = stiffness;
+			oscillators[i].Damping = 1f;
 			f *= step;
 		}
 	}
 
 	void Update()
 	{
-		var dampingOn = Mathf.Pow(10f, this.dampingSliderOn.value);
-		var dampingOff = Mathf.Pow(10f, this.dampingSliderOff.value);
-		int startNote = 39 + ((int)this.noteOffsetSlider.value * 12); //C4
-		const float strength = 0.1f;
+		var dampingOn = Mathf.Pow(10f, dampingSliderOn.value);
+		var dampingOff = Mathf.Pow(10f, dampingSliderOff.value);
+		int startNote = 39 + ((int)noteOffsetSlider.value * 12); //C4
+		const float strength = 0.05f;
 		var keys = new KeyCode[]
 		{
 			KeyCode.A,
@@ -98,7 +98,7 @@ public class Main : MonoBehaviour
 			"Gis",
 		};
 		var onKeys = "";
-		var on = new bool[this.oscillators.Length];
+		var on = new bool[oscillators.Length];
 		for (int i = 0; i < keys.Length; i++)
 		{
 			var note = startNote + i;
@@ -113,23 +113,24 @@ public class Main : MonoBehaviour
 			onKeys += "<color=" + (on[note] ? "#ff0000" : "ffffff") + ">";
 			onKeys += noteNames[(startNote + i) % 12] + "</color> ";
 		}
-		this.onKeysText.text = onKeys;
+		onKeysText.text = onKeys;
 
-		for (int i = 0; i < this.oscillators.Length; i++)
+		for (int i = 0; i < oscillators.Length; i++)
 		{
 			var d = on[i] ? dampingOn : dampingOff;
-			this.oscillators[i].Damping = d;
+			oscillators[i].Damping = d;
 		}
 	}
 
 	void Attack(int index, float strength)
 	{
-		this.oscillators[index].Attack(strength);
+		Debug.Log(index);
+		oscillators[index].Attack(strength);
 	}
 
 	void OnAudioFilterRead(float[] data, int channels)
 	{
-		if (!this.running)
+		if (!running)
 		{
 			return;
 		}
@@ -148,9 +149,9 @@ public class Main : MonoBehaviour
 	float UpdateOsccilators()
 	{
 		var v = 0f;
-		for (int i = 0; i < this.oscillators.Length; i++)
+		for (int i = 0; i < oscillators.Length; i++)
 		{
-			v += this.oscillators[i].Update(this.deltaTime);
+			v += oscillators[i].Update(deltaTime);
 		}
 		return v;
 	}
