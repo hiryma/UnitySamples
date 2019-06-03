@@ -37,29 +37,14 @@ namespace Kayac
 			bool overrideEnabled = true)
 		{
 			string url = MakeUrl(pathInStreamingAssets, overrideEnabled);
-			if (url.StartsWith("file:///"))
+			var req = UnityWebRequest.Get(url);
+			yield return req.SendWebRequest();
+			if (req.error != null)
 			{
-				try
-				{
-					var text = File.ReadAllText(url.Replace("file:///", ""));
-					ret.Succeed(text);
-				}
-				catch (System.Exception e)
-				{
-					ret.Fail(e);
-					yield break;
-				}
+				ret.Fail(new System.IO.FileLoadException(url));
 			}
 			else
 			{
-				var req = UnityWebRequest.Get(url);
-				req.SendWebRequest();
-				yield return req;
-				if (req.error != null)
-				{
-					ret.Fail(new System.IO.FileLoadException(url));
-					yield break;
-				}
 				ret.Succeed(req.downloadHandler.text);
 			}
 		}
@@ -71,29 +56,14 @@ namespace Kayac
 			bool overrideEnabled = true)
 		{
 			string url = MakeUrl(pathInStreamingAssets, overrideEnabled);
-			if (url.StartsWith("file:///"))
+			var req = UnityWebRequest.Get(url);
+			yield return req.SendWebRequest();
+			if (req.error != null)
 			{
-				try
-				{
-					var bytes = File.ReadAllBytes(url.Replace("file:///", ""));
-					ret.Succeed(bytes);
-				}
-				catch (System.Exception e)
-				{
-					ret.Fail(e);
-					yield break;
-				}
+				ret.Fail(new System.IO.FileLoadException(url));
 			}
 			else
 			{
-				var req = UnityWebRequest.Get(url);
-				req.SendWebRequest();
-				yield return req;
-				if (req.error != null)
-				{
-					ret.Fail(new System.IO.FileLoadException(url));
-					yield break;
-				}
 				ret.Succeed(req.downloadHandler.data);
 			}
 		}
@@ -105,26 +75,19 @@ namespace Kayac
 			bool overrideEnabled = true,
 			bool readable = false)
 		{
-			//DownloadHandlerTextureを使うとうまくいかないので手抜き
-			var innerRet = new CoroutineReturnValue<byte[]>();
-			yield return CoLoad(innerRet, pathInStreamingAssets, overrideEnabled);
-			if (innerRet.Exception != null)
+			string url = MakeUrl(pathInStreamingAssets, overrideEnabled);
+			var req = new UnityWebRequest(url);
+			req.method = UnityWebRequest.kHttpVerbGET;
+			var handler = new DownloadHandlerTexture(readable);
+			req.downloadHandler = handler;
+			yield return req.SendWebRequest();
+			if (req.error != null)
 			{
-				ret.Fail(innerRet.Exception);
-				yield break;
+				ret.Fail(new System.IO.FileLoadException(url));
 			}
 			else
 			{
-				var texture = new Texture2D(1, 1);
-				Debug.Log("CoLoad<Texture2D> : " + innerRet.Value.Length);
-				if (UnityEngine.ImageConversion.LoadImage(texture, innerRet.Value, markNonReadable: !readable))
-				{
-					ret.Succeed(texture);
-				}
-				else
-				{
-					ret.Fail(new System.IO.InvalidDataException("ImageConversion.LoadImage failed."));
-				}
+				ret.Succeed(handler.texture);
 			}
 		}
 
@@ -150,22 +113,15 @@ namespace Kayac
 			}
 			var handler = new DownloadHandlerAudioClip(url, type);
 			req.downloadHandler = handler;
-			req.SendWebRequest();
-			yield return req;
-			Debug.Assert(req.isDone);
-			while (!req.isDone)
-			{
-				yield return null;
-			}
+			yield return req.SendWebRequest();
 			if (req.error != null)
 			{
 				ret.Fail(new System.IO.FileLoadException(url));
-				yield break;
 			}
-			var clip = handler.audioClip;
-			Debug.Log("Audio: " + handler.isDone + " " + handler.data.Length);
-			Debug.Log(clip.name + " " + clip.length + " " + clip.samples);
-			ret.Succeed(handler.audioClip);
+			else
+			{
+				ret.Succeed(handler.audioClip);
+			}
 		}
 
 		static string MakeUrl(string path, bool overrideEnabled)
@@ -224,9 +180,6 @@ namespace Kayac
 			try
 			{
 				File.WriteAllBytes(path, data);
-				Debug.Log("Save " + path + " " + data.Length + " bytes.");
-				FileInfo fi = new FileInfo(path);
-				Debug.Log(fi.Exists + " " + fi.Length);
 			}
 			catch (System.Exception e)
 			{
@@ -240,7 +193,6 @@ namespace Kayac
 			try
 			{
 				File.Delete(path);
-				Debug.Log("Delete " + path);
 			}
 			catch (System.Exception e)
 			{
