@@ -26,12 +26,7 @@ public class Main : MonoBehaviour
 	void Start()
 	{
 		Application.logMessageReceived += OnLogReceived;
-		var ipAddress = DebugServer.GetLanIpAddress();
-		Debug.Log("IP: " + ipAddress);
 		debugServerIndexHtml = debugServerIndexHtmlAsset.text;
-		debugServerIndexHtml = debugServerIndexHtml.Replace(
-			"__TO_BE_REPLACED_WITH_ACTUAL_IP_ADDRESS_IN_RUNTIME__",
-			ipAddress);
 
 		debugServer = new DebugServer(debugServerPort);
 

@@ -17,9 +17,7 @@
 	</ul>
 	<output id="log">
 	<script>
-		var ipAddress = '__TO_BE_REPLACED_WITH_ACTUAL_IP_ADDRESS_IN_RUNTIME__'
 		var log = document.getElementById('log');
-
 		var onLoad = function (binaryString) {
 			var path = document.getElementById('path').value;
 			var request = new XMLHttpRequest();
@@ -29,7 +27,7 @@
 			request.onerror = function () {
 				log.value = 'アップロード失敗\n';
 			};
-			request.open('PUT', 'http://' + ipAddress + ':8080/upload-file', true);
+			request.open('PUT', document.location.origin + '/upload-file', true);
 
 			var arg = {};
 			arg.path = path;
@@ -66,7 +64,7 @@
 			request.onerror = function () {
 				log.value = '削除失敗\n';
 			};
-			request.open('PUT', 'http://' + ipAddress + ':8080/delete-file', true);
+			request.open('PUT', document.location.origin + '/delete-file', true);
 
 			var arg = {};
 			arg.path = path;
@@ -83,7 +81,7 @@
 			request.onerror = function () {
 				log.value = '全削除失敗\n';
 			};
-			request.open('PUT', 'http://' + ipAddress + ':8080/delete-all-file', true);
+			request.open('PUT', document.location.origin + '/delete-all-file', true);
 			request.send(null);
 		};
 		document.getElementById('upload').addEventListener('click', onUpload, false);

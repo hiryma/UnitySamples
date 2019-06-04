@@ -18,25 +18,6 @@ public class DebugServer
 		callbacks.Add(path, onRequest);
 	}
 
-	public static string GetLanIpAddress()
-	{
-		string ret = null;
-		foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
-		{
-			if ((ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211) || (ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet))
-			{
-				foreach (UnicastIPAddressInformation ip in ni.GetIPProperties().UnicastAddresses)
-				{
-					if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-					{
-						ret = ip.Address.ToString();
-					}
-				}
-			}
-		}
-		return ret;
-	}
-
 	public DebugServer(int port)
 	{
 		if (!HttpListener.IsSupported)
