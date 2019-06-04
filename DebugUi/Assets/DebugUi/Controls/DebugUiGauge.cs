@@ -10,11 +10,11 @@ namespace Kayac
 			Integer,
 			Log10,
 		}
-		public float value{ get; set; }
-		public Color32 textColor{ private get; set; }
-		public Color32 gaugeColor{ protected get; set; }
+		public float value { get; set; }
+		public Color32 textColor { private get; set; }
+		public Color32 gaugeColor { protected get; set; }
 
-		private string _text;
+		string _text;
 		protected float _min;
 		protected float _max;
 		protected Mode _mode;
@@ -75,7 +75,6 @@ namespace Kayac
 			{
 				renderer.AddText(
 					_text,
-					fontSize,
 					offsetX + localLeftX + (borderWidth * 2f),
 					offsetY + localTopY + (borderWidth * 2f),
 					width - (borderWidth * 2f),
@@ -87,12 +86,11 @@ namespace Kayac
 			// 数字は右寄せ
 			renderer.AddText(
 				value.ToString(formatString),
-				fontSize,
-				offsetX + localLeftX + (borderWidth * 2f),
+				offsetX + localLeftX + width - (borderWidth * 2f),
 				offsetY + localTopY + (borderWidth * 2f),
 				width - (borderWidth * 2f),
 				height - (borderWidth * 2f),
-				DebugPrimitiveRenderer.Alignment.Right);
+				DebugPrimitiveRenderer.AlignX.Right);
 		}
 	}
 

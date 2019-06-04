@@ -4,31 +4,27 @@ namespace Kayac
 {
 	public class DebugUiLogWindow : DebugUiControl
 	{
-		public Color32 color{ get; set; }
-		private float _fontSize;
-		private float _lineHeight;
-		private string[] _lines;
-		private Color32[] _colors;
-		private int _nextLinePos;
+		public Color32 color { get; set; }
+		float _fontSize;
+		string[] _lines;
+		Color32[] _colors;
+		int _nextLinePos;
 
-		// 左整列ならwidth,heightが0でも正常に動く
 		public DebugUiLogWindow(
 			float fontSize,
-			float lineHeight,
 			int lineCount,
-			float width) : base("LogWindow")
+			float width,
+			float height,
+			bool borderEnabled = true) : base("LogWindow")
 		{
 			_fontSize = fontSize;
-			_lineHeight = lineHeight;
-
-			float height = ((float)lineHeight * lineCount) + (borderWidth * 4f);
 			SetSize(width, height);
 
 			_lines = new string[lineCount];
 			_colors = new Color32[lineCount];
 			_nextLinePos = 0;
-			backgroundEnabled = true;
-			borderEnabled = true;
+			this.backgroundEnabled = true;
+			this.borderEnabled = borderEnabled;
 			color = new Color32(255, 255, 255, 255);
 		}
 
@@ -59,27 +55,38 @@ namespace Kayac
 			float offsetY,
 			DebugPrimitiveRenderer2D renderer)
 		{
-			float x = offsetX + localLeftX + (2f * borderWidth);
-			float y = offsetY + localTopY + (2f * borderWidth);
-			float textWidth = width - (4f * borderWidth);
+			float margin = borderEnabled ? (2f * borderWidth) : 0f;
+			float x = offsetX + localLeftX + margin;
+			float y = offsetY + localTopY + this.height - margin; // 下端から上へ向かって描画する
+			float textWidth = width - (2f * margin);
 			int lineCount = _lines.Length;
-			for (int i = 0; i < lineCount; i++)
+			int lineIndex = 0;
+			while (lineIndex < lineCount)
 			{
-				int index = i + _nextLinePos;
-				index = (index >= lineCount) ? (index - lineCount) : index;
+				int index = _nextLinePos - 1 - lineIndex;
+				if (index < 0)
+				{
+					index += lineCount;
+				}
+				else if (index >= lineCount)
+				{
+					index -= lineCount;
+				}
 				if (_lines[index] != null)
 				{
-					DrawTextSingleLine(
-						renderer,
+					renderer.color = _colors[index];
+					var lines = renderer.AddText(
 						_lines[index],
-						_colors[index],
-						_fontSize,
 						x,
 						y,
-						textWidth,
-						_lineHeight);
-					y += _lineHeight;
+						_fontSize,
+						width - (2f * margin),
+						y - margin - (offsetY + localTopY),
+						DebugPrimitiveRenderer.AlignX.Left,
+						DebugPrimitiveRenderer.AlignY.Bottom);
+					y -= renderer.CalcLineHeight(_fontSize) * lines;
 				}
+				lineIndex++;
 			}
 		}
 	}

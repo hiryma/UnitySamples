@@ -4,8 +4,8 @@ namespace Kayac
 {
 	public class FrameTimeGauge : DebugUiDualGauge
 	{
-		private FrameTimeWatcher _watcher;
-		private bool _watcherIsMine;
+		FrameTimeWatcher _watcher;
+		bool _watcherIsMine;
 
 		public FrameTimeGauge(
 			float width,
@@ -31,9 +31,9 @@ namespace Kayac
 			}
 		}
 
-		public override void Update()
+		public override void Update(float deltaTime)
 		{
-			base.Update();
+			base.Update(deltaTime);
 			if (_watcherIsMine)
 			{
 				_watcher.Update();

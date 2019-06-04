@@ -4,12 +4,12 @@ namespace Kayac
 {
 	public class FrameTimeWatcher
 	{
-		private long[] _times;
-		private int _timeIndex;
-		private float _averageFrameTime;
-		private float _maxFrameTime;
-		private long _startTime;
-		private int _frameCount;
+		long[] _times;
+		int _timeIndex;
+		float _averageFrameTime;
+		float _maxFrameTime;
+		long _startTime;
+		int _frameCount;
 
 		public delegate string OnSpikeLabelRequest();
 
@@ -57,7 +57,7 @@ namespace Kayac
 		{
 			float tickToSecond = 1.0f / (float)(System.TimeSpan.TicksPerSecond);
 			long now = System.DateTime.Now.Ticks;
- 			long oldest = _times[_timeIndex];
+			long oldest = _times[_timeIndex];
 			_times[_timeIndex] = now;
 			// 最大間隔を探す。O(LogN)のアルゴリズムはある(heap)が、余計なメモリを消費する上に、N=60であれば線形検索の方が速い。
 			// インデクスの巻き戻しに伴う分岐削減のためにループを2分しておく

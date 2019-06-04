@@ -11,11 +11,11 @@ namespace Kayac
 				_headerPanel.backgroundColor = value;
 			}
 		}
-		private DebugUiPanel _headerPanel;
-		private DebugUiPanel _contentPanel;
-		private float _prevPointerX;
-		private float _prevPointerY;
-		private const float DefaultHeaderSize = 50f;
+		DebugUiPanel _headerPanel;
+		DebugUiPanel _contentPanel;
+		float _prevPointerX;
+		float _prevPointerY;
+		const float DefaultHeaderSize = 50f;
 
 		public float lineSpace
 		{
@@ -27,16 +27,16 @@ namespace Kayac
 
 		// TODO: とある事情によりmanagerが必要
 		public DebugUiWindow(
-			DebugUiManager manager,
-			string title,
-			float headerHeight = DefaultHeaderSize) : base(string.IsNullOrEmpty(title) ? "Window" : title)
+				DebugUiManager manager,
+				string title,
+				float headerHeight = DefaultHeaderSize) : base(string.IsNullOrEmpty(title) ? "Window" : title)
 		{
 			_headerPanel = new DebugUiPanel(
-				float.MaxValue,
-				float.MaxValue,
-				true,
-				true,
-				true);
+					float.MaxValue,
+					float.MaxValue,
+					true,
+					true,
+					true);
 			_headerPanel.backgroundColor = new Color32(0, 0, 128, 128);
 			_headerPanel.draggable = true;
 			_headerPanel.onDragStart = () =>
@@ -51,26 +51,26 @@ namespace Kayac
 			};
 
 			var closeButton = new DebugUiButton(
-				"Ｘ",
-				DefaultHeaderSize,
-				DefaultHeaderSize);
+					"Ｘ",
+					DefaultHeaderSize,
+					DefaultHeaderSize);
 			closeButton.onClick = () =>
 			{
 				enabled = false;
 			};
-			_headerPanel.AddChildAuto(closeButton);
+			_headerPanel.AddAuto(closeButton);
 
 			var minimizeButton = new DebugUiButton(
-				"＿",
-				DefaultHeaderSize,
-				DefaultHeaderSize);
+					"＿",
+					DefaultHeaderSize,
+					DefaultHeaderSize);
 			minimizeButton.onClick = () =>
 			{
 				ToggleMinimize();
 			};
-			_headerPanel.AddChildAuto(minimizeButton);
-			var titleText = new DebugUiText(manager, title, DefaultHeaderSize * 0.75f);
-			_headerPanel.AddChildAuto(titleText);
+			_headerPanel.AddAuto(minimizeButton);
+			var titleText = new DebugUiText(manager, title, headerHeight * 0.75f);
+			_headerPanel.AddAuto(titleText);
 			_headerPanel.AdjustSize();
 			base.AddChild(_headerPanel);
 
@@ -89,7 +89,7 @@ namespace Kayac
 		{
 		}
 
-		public sealed override void Update()
+		public sealed override void Update(float deltaTime)
 		{
 			if (_headerPanel.isDragging)
 			{
@@ -97,7 +97,7 @@ namespace Kayac
 				float dy = pointerY - _prevPointerY;
 				_prevPointerX = pointerX;
 				_prevPointerY = pointerY;
-                SetLocalPosition(localLeftX + dx, Mathf.Max(0, localTopY + dy));
+				SetLocalPosition(localLeftX + dx, Mathf.Max(0, localTopY + dy));
 			}
 			UpdateWindow();
 		}
@@ -105,9 +105,11 @@ namespace Kayac
 		public override void AddChild(
 			DebugUiControl child,
 			float offsetX = 0f,
-			float offsetY = 0f)
+			float offsetY = 0f,
+			AlignX alignX = AlignX.Left,
+			AlignY alignY = AlignY.Top)
 		{
-			_contentPanel.AddChild(child, offsetX, offsetY);
+			_contentPanel.AddChild(child, offsetX, offsetY, alignX, alignY);
 		}
 
 		public override void RemoveChild(DebugUiControl child)
@@ -119,7 +121,7 @@ namespace Kayac
 		{
 			// 一旦無限に広げて配置後、再配置
 			_contentPanel.SetSize(float.MaxValue, float.MaxValue);
-			_contentPanel.AddChildAuto(child);
+			_contentPanel.AddAuto(child);
 			_contentPanel.AdjustSize();
 			Layout();
 		}
@@ -150,7 +152,7 @@ namespace Kayac
 			_contentPanel.SetAutoPosition(x, y);
 		}
 
-		private void Layout()
+		void Layout()
 		{
 			// 幅を大きい方に合わせる
 			float contentWidth = 0f;

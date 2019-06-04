@@ -1,18 +1,80 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 namespace Kayac
 {
-	public class DebugUiManager : Graphic
+	public class DebugUiManager : BaseRaycaster
 		, IPointerClickHandler
 		, IPointerDownHandler
 		, IPointerUpHandler
 		, IBeginDragHandler
 		, IDragHandler
-		, ICanvasRaycastFilter
 	{
-		private DebugUiControl _root;
+		public override Camera eventCamera
+		{
+			get
+			{
+				return _camera;
+			}
+		}
+		public override void Raycast(
+			PointerEventData eventData,
+			List<RaycastResult> resultAppendList)
+		{
+			if ((_renderer == null) || !inputEnabled)
+			{
+				return;
+			}
+			// 何かに当たるならイベントを取り、何にも当たらないならスルーする
+			var sp = eventData.position;
+			float x = sp.x;
+			float y = sp.y;
+			ConvertCoordFromUnityScreen(ref x, ref y);
+			bool ret = false;
+
+			// ドラッグ中ならtrueにする。でないと諸々のイベントが取れなくなる
+			if (isDragging)
+			{
+				ret = true;
+			}
+			// 何かに当たればtrue
+			else if (_root.RaycastRecursive(0, 0, x, y))
+			{
+				ret = true;
+			}
+			else
+			{
+				// 外れたら離したものとみなす。
+				_input.isPointerDown = false;
+				_input.pointerX = -float.MaxValue;
+				_input.pointerY = -float.MaxValue;
+				ret = false;
+			}
+			// 当たったらraycastResult足す
+			if (ret)
+			{
+				var result = new RaycastResult
+				{
+					gameObject = gameObject, // 自分
+					module = this,
+					distance = _screenPlaneDistance,
+					worldPosition = _camera.transform.position + (_camera.transform.forward * _screenPlaneDistance),
+					worldNormal = -_camera.transform.forward,
+					screenPosition = eventData.position,
+					index = resultAppendList.Count,
+					sortingLayer = 0,
+					sortingOrder = 32767
+				};
+				resultAppendList.Add(result);
+			}
+		}
+
+		DebugUiControl _root;
+		int _referenceScreenWidth;
+		int _referenceScreenHeight;
+
 		public class Input
 		{
 			// 以下はフレームをまたいで状態が保たれる。扱いに注意
@@ -27,8 +89,12 @@ namespace Kayac
 			public DebugUiControl eventConsumer;
 		}
 
-		private Input _input;
-		private DebugPrimitiveRenderer2D _renderer;
+		Input _input;
+		DebugPrimitiveRenderer2D _renderer;
+		Camera _camera;
+		Transform _meshTransform;
+		float _screenPlaneDistance;
+
 		public DebugPrimitiveRenderer2D primitiveRenderer
 		{
 			get
@@ -56,41 +122,65 @@ namespace Kayac
 			}
 		}
 
-		public Vector2 unityPointerPosition
-		{
-			get
-			{
-				Vector2 ret;
-				ret.x = _input.pointerX;
-				ret.y = _input.pointerY;
-				ConvertCoordToUnityScreen(ref ret.x, ref ret.y);
-				return ret;
-			}
-		}
+		public float scale { private get; set; }
 
 		public static DebugUiManager Create(
-			GameObject parentGameObject,
-			DebugPrimitiveRenderer2D renderer)
+			Camera camera,
+			Shader textShader,
+			Shader texturedShader,
+			Font font,
+			int referenceScreenWidth,
+			int referenceScreenHeight,
+			float screenPlaneDistance,
+			int triangleCapacity)
 		{
-			var self = parentGameObject.AddComponent<DebugUiManager>();
-			self.Initialize(renderer);
-			Debug.Assert(self.rectTransform != null, "RectTransformがない!canvasの下にあるGameObjectを指定してください!");
-			if (self.rectTransform != null)
-			{
-				self.rectTransform.anchorMin = new Vector2(0f, 0f);
-				self.rectTransform.anchorMax = new Vector2(1f, 1f);
-				self.rectTransform.offsetMin = new Vector2(0f, 0f);
-				self.rectTransform.offsetMax = new Vector2(0f, 0f);
-			}
+			var gameObject = new GameObject("DebugUi");
+			gameObject.transform.SetParent(camera.gameObject.transform, false);
+
+			var self = gameObject.AddComponent<DebugUiManager>();
+
+			var meshObject = new GameObject("debugUiMesh");
+			meshObject.transform.SetParent(gameObject.transform, false);
+			var meshRenderer = meshObject.AddComponent<MeshRenderer>();
+			meshRenderer.sortingOrder = 32767;
+			var meshFilter = meshObject.AddComponent<MeshFilter>();
+
+			var renderer = new Kayac.DebugPrimitiveRenderer2D(
+				textShader,
+				texturedShader,
+				font,
+				meshRenderer,
+				meshFilter,
+				triangleCapacity);
+
+			self.Initialize(
+				renderer,
+				camera,
+				meshObject.transform,
+				referenceScreenWidth,
+				referenceScreenHeight,
+				screenPlaneDistance);
 			return self;
 		}
 
-		public void Initialize(DebugPrimitiveRenderer2D renderer)
+		void Initialize(
+			DebugPrimitiveRenderer2D renderer,
+			Camera camera,
+			Transform meshTransform,
+			int referenceScreenWidth,
+			int referenceScreenHeight,
+			float screenPlaneDistance)
 		{
+			this.scale = 1f;
 			_renderer = renderer;
+			_camera = camera;
+			_screenPlaneDistance = screenPlaneDistance;
+			_meshTransform = meshTransform;
+			_referenceScreenHeight = referenceScreenHeight;
+			_referenceScreenWidth = referenceScreenWidth;
 			_root = new DebugUiControl();
+			_root.SetSize(referenceScreenWidth, referenceScreenHeight);
 			_input = new Input();
-			this.raycastTarget = true;
 			inputEnabled = true;
 		}
 
@@ -114,14 +204,16 @@ namespace Kayac
 			}
 		}
 
-		public bool inputEnabled{ private get; set; }
+		public bool inputEnabled { private get; set; }
 
 		public void Add(
 			DebugUiControl control,
 			float offsetX = 0f,
-			float offsetY = 0)
+			float offsetY = 0,
+			DebugUi.AlignX alignX = DebugUi.AlignX.Left,
+			DebugUi.AlignY alignY = DebugUi.AlignY.Top)
 		{
-			_root.AddChild(control, offsetX, offsetY);
+			_root.AddChild(control, offsetX, offsetY, alignX, alignY);
 		}
 
 		public void Remove(DebugUiControl control)
@@ -149,7 +241,7 @@ namespace Kayac
 			_input.hasJustDragStarted = false;
 
 			UnityEngine.Profiling.Profiler.BeginSample("DebugUiManager.UpdateRecursize");
-			_root.UpdateRecursive();
+			_root.UpdateRecursive(deltaTime);
 			UnityEngine.Profiling.Profiler.EndSample();
 
 			UnityEngine.Profiling.Profiler.BeginSample("DebugUiManager.DrawRecursive");
@@ -168,10 +260,62 @@ namespace Kayac
 					consumer.onEventConsume();
 				}
 			}
+			// 描画本体
+			UnityEngine.Profiling.Profiler.BeginSample("DebugPrimitiveRenderer2D.LateUpdate");
+			_renderer.UpdateMesh();
+			UnityEngine.Profiling.Profiler.EndSample();
+			UpdateTransform();
 			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
-		private void DrawDragMark(DebugUiControl dragged)
+		void UpdateTransform()
+		{
+			// カメラ追随処理
+			var refAspect = (float)_referenceScreenWidth / (float)_referenceScreenHeight;
+			var aspect = (float)Screen.width / (float)Screen.height;
+			float goalScale;
+			if (_camera.orthographic)
+			{
+				if (refAspect > aspect)
+				{
+					goalScale = _camera.orthographicSize * aspect / ((float)_referenceScreenWidth * 0.5f);
+				}
+				else
+				{
+					goalScale = _camera.orthographicSize / ((float)_referenceScreenHeight * 0.5f);
+				}
+			}
+			else
+			{
+				var halfHeight = _screenPlaneDistance * Mathf.Tan(_camera.fieldOfView * Mathf.Deg2Rad * 0.5f);
+				if (refAspect > aspect)
+				{
+					goalScale = halfHeight * aspect / ((float)_referenceScreenWidth * 0.5f);
+				}
+				else
+				{
+					goalScale = halfHeight / ((float)_referenceScreenHeight * 0.5f);
+				}
+			}
+
+			float offsetX = -_referenceScreenWidth * 0.5f;
+			float offsetY = -_referenceScreenHeight * 0.5f;
+			if (refAspect > aspect) // Yが余る
+			{
+				offsetY = -(_referenceScreenWidth / aspect) * 0.5f;
+			}
+			else // Xが余る
+			{
+				offsetX = -(_referenceScreenHeight * aspect) * 0.5f;
+			}
+			_meshTransform.localPosition = new Vector3(offsetX, offsetY, 0f);
+			gameObject.transform.localPosition = new Vector3(0f, 0f, _screenPlaneDistance);
+
+			goalScale *= this.scale;
+			gameObject.transform.localScale = new Vector3(goalScale, -goalScale, 1f); // Y反転
+		}
+
+		void DrawDragMark(DebugUiControl dragged)
 		{
 			float s = dragged.dragMarkSize;
 			float x0 = _input.pointerX;
@@ -192,11 +336,11 @@ namespace Kayac
 				_renderer.color = dragged.dragMarkLetterColor;
 				_renderer.AddText(
 					new string(dragged.dragMarkLetter, 1),
+					x0,
+					y0,
 					s * 0.5f,
-					x0 - (s * 0.25f),
-					y1,
-					dragged.dragMarkSize,
-					dragged.dragMarkSize);
+					DebugPrimitiveRenderer.AlignX.Center,
+					DebugPrimitiveRenderer.AlignY.Center);
 			}
 		}
 
@@ -241,7 +385,7 @@ namespace Kayac
 			_input.isPointerDown = true;
 		}
 
-		private void UpdatePointer(Vector2 screenPosition)
+		void UpdatePointer(Vector2 screenPosition)
 		{
 			float x = screenPosition.x;
 			float y = screenPosition.y;
@@ -250,77 +394,21 @@ namespace Kayac
 			_input.pointerY = y;
 		}
 
-		// このカーソル位置でレイをスルーするか否か。内部のイベントを取るコントロールと一つでも当たるかどうかを調べる。
-		public bool IsRaycastLocationValid(Vector2 sp, Camera eventCamera)
-		{
-			if ((_renderer == null) || !inputEnabled)
-			{
-				return false;
-			}
-			// 何かに当たるならイベントを取り、何にも当たらないならスルーする
-			float x = sp.x;
-			float y = sp.y;
-			ConvertCoordFromUnityScreen(ref x, ref y);
-			bool ret = false;
-
-			// ドラッグ中ならtrueにする。でないと諸々のイベントが取れなくなる
-			if (isDragging)
-			{
-				ret = true;
-			}
-			// 何かに当たればtrue
-			else if (_root.RaycastRecursive(0, 0, x, y))
-			{
-				ret = true;
-			}
-			else
-			{
-				// 外れたら離したものとみなす。
-				_input.isPointerDown = false;
-				_input.pointerX = -float.MaxValue;
-				_input.pointerY = -float.MaxValue;
-				ret = false;
-			}
-			return ret;
-		}
-
 		// UnityのEventSystemの座標をY下向きの仮想解像度座標系に変換
 		public void ConvertCoordFromUnityScreen(ref float x, ref float y)
 		{
 			Debug.Assert(_renderer != null, "call SetRenderer()");
-			// 座標系を仮想解像度向け(1136x640とかでY下向き)に変換
-			float referenceHeight = _renderer.referenceScreenHeight;
-			float referenceWidth = _renderer.referenceScreenWidth;
-			float actualWidth = (float)Screen.width;
-			float actualHeight = (float)Screen.height;
 
-			// Xはスケールするだけ
-			x = x * referenceWidth / actualWidth;
-			// Yはスケールして反転
-			y = referenceHeight - (y * referenceHeight / actualHeight);
-		}
-
-		// Y下向きの仮想解像度座標系からUnityのEventSystemの座標系に変換
-		public void ConvertCoordToUnityScreen(ref float x, ref float y)
-		{
-			Debug.Assert(_renderer != null, "call SetRenderer()");
-			// 座標系を仮想解像度向け(1136x640とかでY下向き)に変換
-			float referenceHeight = _renderer.referenceScreenHeight;
-			float referenceWidth = _renderer.referenceScreenWidth;
-			float actualWidth = (float)Screen.width;
-			float actualHeight = (float)Screen.height;
-
-			// Xはスケールするだけ
-			x = x * actualWidth / referenceWidth;
-			// Yはスケールして反転
-			y = actualHeight - (y * actualHeight / referenceHeight);
-		}
-
-		// 以下UI.Graphicのデフォルト挙動を殺すためのコード。
-		// 素のGraphicでもRectTransformのサイズに合わせて4頂点作って描画するので頂点を消してやる必要がある!!!
-		protected override void OnPopulateMesh(VertexHelper vh)
-		{
-			vh.Clear();
+			var ray = _camera.ScreenPointToRay(new Vector3(x, y, 0f));
+			var t = _screenPlaneDistance / ray.direction.z;
+			x = ray.origin.x + (ray.direction.x * t);
+			y = ray.origin.y + (ray.direction.y * t);
+			var scale = gameObject.transform.localScale;
+			x /= scale.x;
+			y /= scale.y;
+			var offset = _meshTransform.localPosition;
+			x -= offset.x;
+			y -= offset.y;
 		}
 	}
 }

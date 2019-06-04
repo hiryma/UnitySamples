@@ -1,121 +1,151 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Kayac
 {
 	// 等サイズのボタンが一列に並んだもの。木を構成できる。
-	public class DebugUiMenu : DebugUiControl
+	public class DebugUiMenu : DebugUiSubMenu
 	{
-		public enum Direction
-		{
-			Left,
-			Right,
-			Up,
-			Down,
-		}
-		private float _x;
-		private float _y;
-		private float _itemWidth;
-		private float _itemHeight;
-		private Direction _direction;
-		private List<DebugUiMenu> _subMenus;
+		public Color32 selectedTextColor { get; set; }
+		public Color32 selectedColor { get; set; }
+		DebugUiSubMenu _activeMenu;
+		int _activeIndex;
+		bool _justClicked;
 
 		// 109x44はmiuraのデバグボタンのサイズ
 		public DebugUiMenu(
 			float itemWidth = 109f,
 			float itemHeight = 44f,
 			Direction direction = Direction.Right,
-			string name = "") : base(string.IsNullOrEmpty(name) ? "Menu" : name)
+			string name = "") : base(itemWidth, itemHeight, direction, name)
 		{
-			_itemWidth = itemWidth;
-			_itemHeight = itemHeight;
-			_subMenus = new List<DebugUiMenu>();
-			_direction = direction;
+			_activeIndex = 0;
+			_activeMenu = this;
+			selectedColor = new Color32(128, 128, 128, 192);
+			selectedTextColor = new Color32(0, 0, 0, 255);
 		}
 
-		public DebugUiMenu AddMenu(
-			string name,
-			DebugUiMenu subMenu,
-			Direction subMenuDirection = Direction.Down)
+		public bool ActivateNext()
 		{
-			subMenu.enabled = false;
-			var button = new DebugUiButton(name, _itemWidth, _itemHeight);
-			button.onClick = () =>
+			var ret = false;
+			if ((_activeIndex >= 0) && (_activeIndex < _activeMenu.itemCount))
 			{
-				// サブメニューを閉じる
-				bool opened = subMenu.enabled;
-				CloseSubMenus();
-				if (!opened)
+				_activeIndex++;
+				if (_activeIndex >= _activeMenu.itemCount)
 				{
-					subMenu.enabled = true;
+					_activeIndex = 0;
 				}
-			};
-			AddChild(button, _x, _y);
-			float subX = _x;
-			float subY = _y;
-			float dw = (_itemWidth + borderWidth);
-			float dh = (_itemHeight + borderWidth);
-			switch (subMenuDirection)
-			{
-				case Direction.Left: subX -= dw; break;
-				case Direction.Right: subX += dw; break;
-				case Direction.Up: subY -= dh; break;
-				case Direction.Down: subY += dh; break;
+				ret = true;
 			}
-			AddChild(subMenu, subX, subY);
-			_subMenus.Add(subMenu);
-			Enlarge();
-			return this;
+			return ret;
 		}
 
-		public DebugUiMenu AddItem(string name, Action action)
+		public bool ActivatePrev()
 		{
-			var button = new DebugUiButton(name, _itemWidth, _itemHeight);
-			button.onClick = () =>
+			var ret = false;
+			if ((_activeIndex >= 0) && (_activeIndex < _activeMenu.itemCount))
 			{
-				// サブメニューを閉じる
-				CloseSubMenus();
-				if (action != null)
+				_activeIndex--;
+				if (_activeIndex < 0)
 				{
-					action();
+					_activeIndex = _activeMenu.itemCount - 1;
 				}
-			};
-			AddChild(button, _x, _y);
-			Enlarge();
-			return this;
-		}
-
-		private void Enlarge()
-		{
-			float dw = (_itemWidth + borderWidth);
-			float dh = (_itemHeight + borderWidth);
-			switch (_direction)
-			{
-				case Direction.Left:
-					_x -= dw;
-					SetSize(width + dw, _itemHeight);
-					break;
-				case Direction.Right:
-					_x += dw;
-					SetSize(width + dw, _itemHeight);
-					break;
-				case Direction.Up:
-					_y -= dh;
-					SetSize(_itemWidth, height + dh);
-					break;
-				case Direction.Down:
-					_y += dh;
-					SetSize(_itemWidth, height + dh);
-					break;
+				ret = true;
 			}
+			return ret;
 		}
 
-		private void CloseSubMenus()
+		public bool ToChild()
 		{
-			foreach (var menu in _subMenus)
+			var ret = false;
+			if ((_activeIndex >= 0) && (_activeIndex < _activeMenu.itemCount))
 			{
-				menu.CloseSubMenus();
-				menu.enabled = false;
+				var item = _activeMenu.GetItem(_activeIndex);
+				if (item.menu != null)
+				{
+					item.button.Click();
+					_activeMenu = item.menu;
+					_activeIndex = 0;
+				}
+				ret = true;
+			}
+			return ret;
+		}
+
+		public bool ToParent()
+		{
+			var ret = false;
+			var parent = _activeMenu.parent;
+			if (parent != null)
+			{
+				parent.CloseSub();
+				int newIndex = 0;
+				for (int i = 0; i < parent.itemCount; i++)
+				{
+					var item = parent.GetItem(i);
+					if (item.menu == _activeMenu) // 見つかったらその番号に戻す
+					{
+						newIndex = i;
+						break;
+					}
+				}
+				_activeMenu = parent;
+				_activeIndex = newIndex;
+				ret = true;
+			}
+			return ret;
+		}
+
+		public bool ClickActivated()
+		{
+			var ret = false;
+			if ((_activeIndex >= 0) && (_activeIndex < _activeMenu.itemCount))
+			{
+				var item = _activeMenu.GetItem(_activeIndex);
+				item.button.Click();
+				_justClicked = true;
+				if (item.menu != null)
+				{
+					_activeMenu = item.menu;
+					_activeIndex = 0;
+				}
+				ret = true;
+			}
+			return ret;
+		}
+
+		public override void Update(float deltaTime)
+		{
+			if ((_activeIndex >= 0) && (_activeIndex < _activeMenu.itemCount))
+			{
+				var item = _activeMenu.GetItem(_activeIndex);
+				var button = item.button;
+				if (_justClicked)
+				{
+					button.color = this.pointerDownColor;
+					button.textColor = this.pointerDownTextColor;
+				}
+				else
+				{
+					button.color = this.selectedColor;
+					button.textColor = this.selectedTextColor;
+				}
+			}
+			_justClicked = false;
+		}
+
+		public override void DrawPostChild(
+			float offsetX,
+			float offsetY,
+			DebugPrimitiveRenderer2D renderer)
+		{
+			if ((_activeIndex >= 0) && (_activeIndex < _activeMenu.itemCount))
+			{
+				var item = _activeMenu.GetItem(_activeIndex);
+				var button = item.button;
+				button.color = this.color;
+				button.textColor = this.textColor;
 			}
 		}
 	}

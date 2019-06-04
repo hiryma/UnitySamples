@@ -1,5 +1,5 @@
-﻿using UnityEngine;
-using System;
+﻿using System;
+using UnityEngine;
 
 namespace Kayac
 {
@@ -26,17 +26,13 @@ namespace Kayac
 			}
 		}
 
-		private bool _rotateToVertical;
-
 		public DebugUiButton(
 			string text,
 			float width = 80f,
-			float height = 50f,
-			bool rotateToVertical = false) : base(string.IsNullOrEmpty(text) ? "Button" : text)
+			float height = 50f) : base(string.IsNullOrEmpty(text) ? "Button" : text)
 		{
 			SetSize(width, height);
 			this.text = text;
-			_rotateToVertical = rotateToVertical;
 			// イベント取ります
 			eventEnabled = true;
 			backgroundEnabled = false;
@@ -48,7 +44,7 @@ namespace Kayac
 			pointerDownTextColor = new Color32(0, 0, 0, 255);
 		}
 
-		public override void Update()
+		public override void Update(float deltaTime)
 		{
 			if (hasJustClicked)
 			{
@@ -94,15 +90,15 @@ namespace Kayac
 			}
 
 			Color32 tmpTextColor = (isPointerDown) ? pointerDownTextColor : textColor;
-			DrawTextAuto(
-				renderer,
+			renderer.color = tmpTextColor;
+			renderer.AddText(
 				text,
-				tmpTextColor,
-				offsetX + localLeftX + (borderWidth * 2f),
-				offsetY + localTopY + (borderWidth * 2f),
+				offsetX + localLeftX + (width * 0.5f),
+				offsetY + localTopY + (height * 0.5f),
 				width - (borderWidth * 4f),
 				height - (borderWidth * 4f),
-				_rotateToVertical);
+				DebugPrimitiveRenderer.AlignX.Center,
+				DebugPrimitiveRenderer.AlignY.Center);
 		}
 	}
 }

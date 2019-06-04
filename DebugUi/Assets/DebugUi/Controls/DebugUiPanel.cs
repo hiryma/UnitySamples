@@ -5,17 +5,36 @@ namespace Kayac
 	/// 自動レイアウト機能付き。ただし左揃えのみ。
 	public class DebugUiPanel : DebugUiControl
 	{
-		private float _x;
-		private float _y;
-		private float _currentLineHeight;
-		public float lineSpace{ get; set; }
+		float _x;
+		float _y;
+		float _currentLineSize; // 現在のライン(縦横いずれか)のサイズ
+
+		public float lineSpace { get; set; }
+		public enum Direction
+		{
+			RightDown, // 左上原点。まず右、はみ出したら左に戻して下
+			RightUp, // 左下原点。まず右、はみ出したら左に戻して上
+			LeftDown, // 右上原点。まず左、はみ出したら右に戻して下
+			LeftUp, // 右下原点。まず左、はみ出したら右に戻して上
+			DownRight, // 左上原点。まず下、はみ出したら上に戻して右
+			DownLeft, // 右上原点。まず下、はみ出したら上に戻して左
+			UpRight, // 左下原点。まず上、はみ出したら下に戻して右
+			UpLeft, // 右下原点。まず上、はみ出したら下に戻して左
+		}
+		public Direction direction { get; private set; }
+
+		public void SetDirection(Direction direction)
+		{
+			SetAutoPosition(0f, 0f);
+			this.direction = direction;
+		}
 
 		public DebugUiPanel(
-			float width = float.MaxValue,
-			float height = float.MaxValue,
-			bool borderEnabled = true,
-			bool backgroundEnabled = true,
-			bool blockRaycast = false) : base("Panel")
+				float width = float.MaxValue,
+				float height = float.MaxValue,
+				bool borderEnabled = true,
+				bool backgroundEnabled = true,
+				bool blockRaycast = false) : base("Panel")
 		{
 			SetSize(width, height);
 			this.backgroundEnabled = backgroundEnabled;
@@ -23,17 +42,62 @@ namespace Kayac
 
 			_x = (borderEnabled) ? (borderWidth * 2f) : 0f;
 			_y = _x;
-			_currentLineHeight = 0f;
-			lineSpace = borderWidth;
-			eventEnabled = blockRaycast;
+			_currentLineSize = 0f;
+			this.lineSpace = borderWidth;
+			this.eventEnabled = blockRaycast;
+			this.direction = Direction.RightDown;
 		}
 
 		// 自動レイアウトを改行する
 		public void BreakLine()
 		{
-			_y += _currentLineHeight + lineSpace;
-			_x = (borderEnabled) ? (borderWidth * 2f) : 0f;
-			_currentLineHeight = 0f;
+			float move = _currentLineSize + lineSpace;
+			float borderOffset = borderEnabled ? (borderWidth * 2f) : 0f;
+			switch (direction)
+			{
+				case Direction.RightDown:
+				case Direction.LeftDown:
+					_y += move;
+					break;
+				case Direction.RightUp:
+				case Direction.LeftUp:
+					_y -= move;
+					break;
+			}
+			switch (direction)
+			{
+				case Direction.DownRight:
+				case Direction.UpRight:
+					_x += move;
+					break;
+				case Direction.DownLeft:
+				case Direction.UpLeft:
+					_x -= move;
+					break;
+			}
+			switch (direction)
+			{
+				case Direction.RightDown:
+				case Direction.RightUp:
+					_x = borderOffset;
+					break;
+				case Direction.LeftDown:
+				case Direction.LeftUp:
+					_x = this.width - borderOffset;
+					break;
+			}
+			switch (direction)
+			{
+				case Direction.DownRight:
+				case Direction.DownLeft:
+					_y = borderOffset;
+					break;
+				case Direction.UpRight:
+				case Direction.UpLeft:
+					_y = this.height - borderOffset;
+					break;
+			}
+			_currentLineSize = 0f;
 		}
 
 		/// 自動配置位置を上書き
@@ -41,30 +105,91 @@ namespace Kayac
 		{
 			_x = x;
 			_y = y;
+			_currentLineSize = 0f;
 		}
 
-		public void AddChildAuto(DebugUiControl control)
+		public void Add(
+			DebugUiControl child,
+			float offsetX = 0f,
+			float offsetY = 0f,
+			AlignX alignX = AlignX.Left,
+			AlignY alignY = AlignY.Top)
 		{
-			// 今の位置に入れて入るかを判定
-			float childWidth = control.width;
-			float childHeight = control.height;
-			float childRight = _x + borderWidth + childWidth;
-			float maxRight = width;
-			float maxBottom = height;
+			base.AddChild(child, offsetX, offsetY, alignX, alignY);
+		}
+
+		public void AddAuto(DebugUiControl child)
+		{
+			float minX = 0f;
+			float minY = 0f;
+			float maxX = width;
+			float maxY = height;
+			float borderOffset = borderEnabled ? (borderWidth * 2f) : 0f;
 			if (borderEnabled)
 			{
-				maxRight -= borderWidth * 2f;
-				maxBottom -= borderWidth * 2f;
+				minX += borderOffset;
+				minY += borderOffset;
+				maxX -= borderOffset;
+				maxY -= borderOffset;
 			}
-			// 右にあふれた。改行する。
-			if (childRight > maxRight)
+			// 右
+			float dx = 0f;
+			float dy = 0f;
+			float size = 0f;
+			AlignX alignX = AlignX.Left;
+			AlignY alignY = AlignY.Top;
+			if ((direction == Direction.RightDown) || (direction == Direction.RightUp))
 			{
-				BreakLine();
+				alignX = AlignX.Left;
+				alignY = (direction == Direction.RightDown) ? AlignY.Top : AlignY.Bottom;
+				float childRight = _x + borderWidth + child.width;
+				if (childRight > maxX) // あふれた。改行する。
+				{
+					BreakLine();
+				}
+				dx = child.width + borderWidth;
+				size = child.height;
 			}
-			// 下にあふれる分には使い手の責任とする。
-			AddChild(control, _x, _y);
-			_x += childWidth + borderWidth;
-			_currentLineHeight = Mathf.Max(_currentLineHeight, childHeight);
+			else if ((direction == Direction.LeftDown) || (direction == Direction.LeftUp))
+			{
+				alignX = AlignX.Right;
+				alignY = (direction == Direction.LeftDown) ? AlignY.Top : AlignY.Bottom;
+				float childLeft = _x - borderWidth - child.width;
+				if (childLeft < minX) // あふれた。改行する。
+				{
+					BreakLine();
+				}
+				dx = -child.width - borderWidth;
+				size = child.height;
+			}
+			else if ((direction == Direction.DownRight) || (direction == Direction.DownLeft))
+			{
+				alignY = AlignY.Top;
+				alignX = (direction == Direction.DownRight) ? AlignX.Left : AlignX.Right;
+				float childBottom = _y + borderWidth + child.height;
+				if (childBottom > maxY) // あふれた。改行する。
+				{
+					BreakLine();
+				}
+				dy = child.height + borderWidth;
+				size = child.width;
+			}
+			else if ((direction == Direction.UpRight) || (direction == Direction.UpLeft))
+			{
+				alignY = AlignY.Bottom;
+				alignX = (direction == Direction.UpRight) ? AlignX.Left : AlignX.Right;
+				float childTop = _y - borderWidth - child.height;
+				if (childTop < minY) // あふれた。改行する。
+				{
+					BreakLine();
+				}
+				dy = -child.height - borderWidth;
+				size = child.width;
+			}
+			AddChild(child, _x, _y, alignX, alignY);
+			_x += dx;
+			_y += dy;
+			_currentLineSize = Mathf.Max(_currentLineSize, size);
 		}
 
 		public void AddToNextX(float dx)

@@ -4,29 +4,25 @@ namespace Kayac
 {
 	public class DebugUiText : DebugUiControl
 	{
-		public const float DefaultLineHeight = DebugPrimitiveRenderer.DefaultLineHeight;
-		public Color32 color{ get; set; }
-		public float lineHeight{ get; set; }
-		public string text{ get; set; }
-		private float _fontSize;
-		private bool _rotateToVertical;
+		public Color32 color { get; set; }
+		public float lineSpacing { get; set; }
+		public string text { get; set; }
+		public AlignX alignX { get; set; }
+		public AlignY alignY { get; set; }
+		float _fontSize;
 
 		public DebugUiText(
 			string text,
 			float fontSize,
 			float width,
 			float height,
-			bool rotateToVertical = false,
 			bool backgroundEnabled = false) : base(string.IsNullOrEmpty(text) ? "Text" : text)
 		{
+			Debug.Assert(height > (fontSize * 1.1f), "fontSize might be too large relative to height.");
 			SetSize(width, height);
 			this.text = text;
 			_fontSize = fontSize;
-			_rotateToVertical = rotateToVertical;
-			lineHeight = DefaultLineHeight;
-			this.backgroundEnabled = backgroundEnabled;
-			borderEnabled = false;
-			color = new Color32(255, 255, 255, 255);
+			Initialize();
 		}
 
 		// 自動測定にはmanagerが必要。TODO: どうにかしたい
@@ -34,30 +30,25 @@ namespace Kayac
 			DebugUiManager manager,
 			string text,
 			float fontSize,
-			float lineHeight = DefaultLineHeight,
-			bool rotateToVertical = false,
 			bool backgroundEnabled = false) : base(string.IsNullOrEmpty(text) ? "Text" : text)
 		{
 			this.text = text;
-			this.lineHeight = lineHeight;
 			_fontSize = fontSize;
-			_rotateToVertical = rotateToVertical;
-			borderEnabled = false;
-			this.backgroundEnabled = backgroundEnabled;
-			color = new Color32(255, 255, 255, 255);
-
-			var size = manager.primitiveRenderer.MeasureText(text, fontSize, lineHeight);
+			var size = manager.primitiveRenderer.MeasureText(text, fontSize, lineSpacing);
 			// ギリギリだと自動改行が不規則に走り得るので少し余裕をもたせる TODO: ちゃんと計算しろ
 			size.x += fontSize * 0.2f;
 			size.y += fontSize * 0.1f;
-			if (_rotateToVertical)
-			{
-				SetSize(size.y, size.x);
-			}
-			else
-			{
-				SetSize(size.x, size.y);
-			}
+			SetSize(size.x, size.y);
+		}
+
+		void Initialize()
+		{
+			this.lineSpacing = DebugPrimitiveRenderer.DefaultLineSpacingRatio;
+			this.backgroundEnabled = false;
+			this.borderEnabled = false;
+			this.color = new Color32(255, 255, 255, 255);
+			this.alignX = AlignX.Left;
+			this.alignY = AlignY.Top;
 		}
 
 		public override void Draw(
@@ -65,18 +56,43 @@ namespace Kayac
 			float offsetY,
 			DebugPrimitiveRenderer2D renderer)
 		{
-			DrawTextMultiLine(
-				renderer,
-				text,
-				color,
-				_fontSize,
-				offsetX + localLeftX,
-				offsetY + localTopY,
-				width,
-				height,
-				true,
-				_rotateToVertical,
-				lineHeight);
+			float x = offsetX + this.localLeftX;
+			float y = offsetY + this.localTopY;
+			var primAlignX = DebugPrimitiveRenderer.AlignX.Left;
+			var primAlignY = DebugPrimitiveRenderer.AlignY.Top;
+			switch (this.alignX)
+			{
+				case AlignX.Center:
+					x += this.width * 0.5f;
+					primAlignX = DebugPrimitiveRenderer.AlignX.Center;
+					break;
+				case AlignX.Right:
+					x += this.width;
+					primAlignX = DebugPrimitiveRenderer.AlignX.Right;
+					break;
+			}
+			switch (this.alignY)
+			{
+				case AlignY.Center:
+					y += this.height * 0.5f;
+					primAlignY = DebugPrimitiveRenderer.AlignY.Center;
+					break;
+				case AlignY.Bottom:
+					y += this.height;
+					primAlignY = DebugPrimitiveRenderer.AlignY.Bottom;
+					break;
+			}
+			renderer.color = this.color;
+			renderer.AddText(
+				 this.text,
+				 x,
+				 y,
+				 _fontSize,
+				 this.width,
+				 this.height,
+				 primAlignX,
+				 primAlignY,
+				 this.lineSpacing);
 		}
 	}
 }

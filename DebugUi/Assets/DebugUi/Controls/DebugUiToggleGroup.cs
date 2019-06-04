@@ -1,6 +1,5 @@
 ﻿namespace Kayac
 {
-
 	public class DebugUiToggleGroup
 	{
 		public delegate void OnSelect(DebugUiToggle newSelected, DebugUiToggle oldSelected);

@@ -21,7 +21,7 @@ namespace Kayac
 			draggable = true;
 		}
 
-		public override void Update()
+		public override void Update(float deltaTime)
 		{
 			if (isDragging)
 			{

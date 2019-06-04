@@ -6,15 +6,15 @@ namespace Kayac
 	// 数字は左がsecondary、右がprimary
 	public class DebugUiDualGauge : DebugUiControl
 	{
-		public float primaryValue{ private get; set; }
-		public float secondaryValue{ private get; set; }
-		public Color32 textColor{ private get; set; }
-		public Color32 primaryGaugeColor{ private get; set; }
-		public Color32 secondaryGaugeColor{ private get; set; }
-		private float _min;
-		private float _max;
-		public string label{ private get; set; }
-		private bool _asInteger;
+		public float primaryValue { private get; set; }
+		public float secondaryValue { private get; set; }
+		public Color32 textColor { private get; set; }
+		public Color32 primaryGaugeColor { private get; set; }
+		public Color32 secondaryGaugeColor { private get; set; }
+		float _min;
+		float _max;
+		public string label { private get; set; }
+		bool _asInteger;
 
 		public DebugUiDualGauge(
 			float min,
@@ -54,45 +54,37 @@ namespace Kayac
 				// primaryは左寄せ
 				renderer.AddText(
 					primaryValue.ToString(format),
-					fontSize,
 					offsetX + localLeftX + (borderWidth * 2f),
 					offsetY + localTopY + (borderWidth * 2f),
-					width - (borderWidth * 2f),
-					height - (borderWidth * 2f));
+					fontSize);
 
 				// secondaryは右寄せ
 				renderer.AddText(
 					secondaryValue.ToString(format),
-					fontSize,
-					offsetX + localLeftX + (borderWidth * 2f),
+					offsetX + localLeftX + width - (borderWidth * 2f),
 					offsetY + localTopY + (borderWidth * 2f),
-					width - (borderWidth * 2f),
-					height - (borderWidth * 2f),
-					DebugPrimitiveRenderer.Alignment.Right);
+					fontSize,
+					DebugPrimitiveRenderer.AlignX.Right);
 			}
 			else // ラベルがあれば左にラベル、右にプライマリの数値
 			{
 				renderer.AddText(
 					label,
-					fontSize,
 					offsetX + localLeftX + (borderWidth * 2f),
 					offsetY + localTopY + (borderWidth * 2f),
-					width - (borderWidth * 2f),
-					height - (borderWidth * 2f));
+					fontSize);
 
 				// 数字は右寄せ
 				renderer.AddText(
 					primaryValue.ToString(format),
-					fontSize,
-					offsetX + localLeftX + (borderWidth * 2f),
+					offsetX + localLeftX + width - (borderWidth * 2f),
 					offsetY + localTopY + (borderWidth * 2f),
-					width - (borderWidth * 2f),
-					height - (borderWidth * 2f),
-					DebugPrimitiveRenderer.Alignment.Right);
+					fontSize,
+					DebugPrimitiveRenderer.AlignX.Right);
 			}
 		}
 
-		private void DrawGauge(
+		void DrawGauge(
 			float offsetX,
 			float offsetY,
 			DebugPrimitiveRenderer2D renderer,

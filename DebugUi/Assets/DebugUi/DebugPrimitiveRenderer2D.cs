@@ -10,83 +10,14 @@ namespace Kayac
 {
 	public class DebugPrimitiveRenderer2D : DebugPrimitiveRenderer
 	{
-		private float _toCoordScale;
-		private float _toCoordScaleX;
-		private float _toCoordScaleY;
-		private float _toCoordOffsetX;
-		private float _toCoordOffsetY;
-
-		public float referenceScreenWidth{ get; private set; }
-		public float referenceScreenHeight{ get; private set; }
-
 		public DebugPrimitiveRenderer2D(
 			Shader textShader,
 			Shader texturedShader,
 			Font font,
-			Camera camera,
-			int capacity = DefaultTriangleCapacity) : base(textShader, texturedShader, font, camera, capacity)
+			MeshRenderer meshRenderer,
+			MeshFilter meshFilter,
+			int capacity = DefaultTriangleCapacity) : base(textShader, texturedShader, font, meshRenderer, meshFilter, capacity)
 		{
-			// 初期値
-			if (camera.aspect >= 16f / 9f)
-			{
-				SetReferenceScreenHeight(640); // 仮
-			}
-			else
-			{
-				SetReferenceScreenWidth(1136);
-			}
-		}
-
-		private void ToCoord(ref float x, ref float y)
-		{
-			x *= _toCoordScaleX;
-			x += _toCoordOffsetX;
-			y *= _toCoordScaleY;
-			y += _toCoordOffsetY;
-		}
-
-		// 仮想解像度のうち、縦横どちらかを指定する。
-		// 例えば1136x640で作り、横を一定にするならば、1136を指定する。
-		// TODO: 縦横比が異なる端末に対応するにはこれでは不十分。配置に基準点を指定できないとダメ。
-		public void SetReferenceScreenHeight(int rHeight)
-		{
-			referenceScreenHeight = (float)rHeight;
-			int screenWidth = Screen.width;
-			int screenHeight = Screen.height;
-			referenceScreenWidth = referenceScreenHeight * (float)screenWidth / (float)screenHeight;
-			InitializeTransform();
-		}
-
-		public void SetReferenceScreenWidth(int rWidth)
-		{
-			referenceScreenWidth = (float)rWidth;
-			int screenWidth = Screen.width;
-			int screenHeight = Screen.height;
-			referenceScreenHeight = referenceScreenWidth * (float)screenHeight / (float)screenWidth;
-			InitializeTransform();
-		}
-
-		private void InitializeTransform()
-		{
-			// カメラがなければ設定できない
-			if (_camera == null)
-			{
-				return;
-			}
-			float cameraScreenHalfHeight = _camera.orthographicSize;
-			float cameraScreenHalfWidth = cameraScreenHalfHeight * referenceScreenWidth / referenceScreenHeight;
-
-			_toCoordScale = 2f * cameraScreenHalfHeight / referenceScreenHeight;
-			_toCoordOffsetX = -cameraScreenHalfWidth;
-			_toCoordOffsetY = cameraScreenHalfHeight;
-			_toCoordScaleX = _toCoordScale;
-			_toCoordScaleY = -_toCoordScale;
-		}
-
-		protected override void OnLateUpdate()
-		{
-			// カメラが差し直されるかもしれんので毎フレームやっておく
-			InitializeTransform();
 		}
 
 		public bool AddQuadraticBezier(
@@ -107,10 +38,6 @@ namespace Kayac
 			}
 			SetTexture(fontTexture);
 
-			ToCoord(ref startX, ref startY);
-			ToCoord(ref endX, ref endY);
-			ToCoord(ref controlPointX, ref controlPointY);
-			width *= _toCoordScale;
 			float halfWidth = width * 0.5f;
 			/*
 			両端をp0(x0,y0), p1(x1,y1)とし、
@@ -182,21 +109,16 @@ namespace Kayac
 			}
 			SetTexture(fontTexture);
 
-			ToCoord(ref leftX, ref topY);
-			width *= _toCoordScale;
-			height *= _toCoordScale;
-			lineWidth *= _toCoordScale;
-
 			// 外側
 			float x0o = leftX;
 			float x1o = leftX + width;
 			float y0o = topY;
-			float y1o = topY - height;
+			float y1o = topY + height;
 			// 内側
 			float x0i = x0o + lineWidth;
 			float x1i = x1o - lineWidth;
-			float y0i = y0o - lineWidth;
-			float y1i = y1o + lineWidth;
+			float y0i = y0o + lineWidth;
+			float y1i = y1o - lineWidth;
 
 			// 頂点は外側の左上から時計回り、内側の左上から時計回り
 			_vertices[_vertexCount + 0] = new Vector3(x0o, y0o, 0f);
@@ -236,15 +158,11 @@ namespace Kayac
 			}
 			SetTexture(fontTexture);
 
-			ToCoord(ref leftX, ref y);
-			length *= _toCoordScale;
-			lineWidth *= _toCoordScale;
-
 			float halfWidth = lineWidth * 0.5f;
 			float x0 = leftX;
 			float x1 = leftX + length;
 			float y0 = y + halfWidth;
-			float y1 = y - halfWidth;
+			float y1 = y + halfWidth;
 			AddRectangleInternal(x0, x1, y0, y1);
 			return true;
 		}
@@ -263,16 +181,50 @@ namespace Kayac
 			}
 			SetTexture(fontTexture);
 
-			ToCoord(ref x, ref topY);
-			length *= _toCoordScale;
-			lineWidth *= _toCoordScale;
-
 			float halfWidth = lineWidth * 0.5f;
 			float x0 = x - halfWidth;
 			float x1 = x + halfWidth;
 			float y0 = topY;
-			float y1 = topY - length;
+			float y1 = topY + length;
 			AddRectangleInternal(x0, x1, y0, y1);
+			return true;
+		}
+
+		// AddLineの直後に呼ばない限り動作は保証しない。
+		public bool ContinueLine(
+			float x,
+			float y,
+			float lineWidth)
+		{
+			if (
+			((_vertexCount + 2) > _capacity)
+			|| ((_indexCount + 6) > _capacity))
+			{
+				return false;
+			}
+
+			var prev0 = _vertices[_vertexCount - 2];
+			var prev1 = _vertices[_vertexCount - 1];
+			Vector2 prev;
+			prev.x = (prev0.x + prev1.x) * 0.5f;
+			prev.y = (prev0.y + prev1.y) * 0.5f;
+			float tx = x - prev.x;
+			float ty = y - prev.y;
+			float nx = -ty;
+			float ny = tx;
+			float l = Mathf.Sqrt((nx * nx) + (ny * ny));
+			nx *= lineWidth * 0.5f / l;
+			ny *= lineWidth * 0.5f / l;
+
+			_vertices[_vertexCount + 0] = new Vector3(x - nx, y - ny, 0f);
+			_vertices[_vertexCount + 1] = new Vector3(x + nx, y + ny, 0f);
+			for (int i = 0; i < 2; i++)
+			{
+				_uv[_vertexCount + i] = _whiteUv;
+				_colors[_vertexCount + i] = color;
+			}
+			this.AddQuadIndices(-2, 0, 1, -1);
+			_vertexCount += 2;
 			return true;
 		}
 
@@ -290,10 +242,6 @@ namespace Kayac
 				return false;
 			}
 			SetTexture(fontTexture);
-
-			ToCoord(ref x0, ref y0);
-			ToCoord(ref x1, ref y1);
-			lineWidth *= _toCoordScale;
 
 			float tx = x1 - x0;
 			float ty = y1 - y0;
@@ -334,10 +282,6 @@ namespace Kayac
 			}
 			SetTexture(fontTexture);
 
-			ToCoord(ref x0, ref y0);
-			ToCoord(ref x1, ref y1);
-			ToCoord(ref x2, ref y2);
-
 			_vertices[_vertexCount + 0] = new Vector3(x0, y0, 0f);
 			_vertices[_vertexCount + 1] = new Vector3(x1, y1, 0f);
 			_vertices[_vertexCount + 2] = new Vector3(x2, y2, 0f);
@@ -368,11 +312,6 @@ namespace Kayac
 				return false;
 			}
 			SetTexture(fontTexture);
-
-			ToCoord(ref x0, ref y0);
-			ToCoord(ref x1, ref y1);
-			ToCoord(ref x2, ref y2);
-			lineWidth *= _toCoordScale;
 
 			// 重心算出
 			float gx = (x0 + x1 + x2) / 3f;
@@ -438,11 +377,7 @@ namespace Kayac
 			}
 			SetTexture(fontTexture);
 
-			ToCoord(ref leftX, ref topY);
-			width *= _toCoordScale;
-			height *= _toCoordScale;
-
-			AddRectangleInternal(leftX, leftX + width, topY, topY - height);
+			AddRectangleInternal(leftX, leftX + width, topY, topY + height);
 			return true;
 		}
 
@@ -481,7 +416,6 @@ namespace Kayac
 				y = pivot.y - y;
 				x += leftX;
 				y += topY;
-				ToCoord(ref x, ref y);
 				_vertices[_vertexCount + i] = new Vector3(x, y, 0f);
 				_uv[_vertexCount + i] = uv[i];
 				_colors[_vertexCount + i] = color;
@@ -507,13 +441,9 @@ namespace Kayac
 			}
 			SetTexture(texture);
 
-			ToCoord(ref leftX, ref topY);
-			width *= _toCoordScale;
-			height *= _toCoordScale;
-
 			// 頂点は左上から時計回り
 			var right = leftX + width;
-			var bottom = topY - height;
+			var bottom = topY + height;
 			_vertices[_vertexCount + 0] = new Vector3(leftX, topY, 0f);
 			_vertices[_vertexCount + 1] = new Vector3(right, topY, 0f);
 			_vertices[_vertexCount + 2] = new Vector3(right, bottom, 0f);
@@ -553,9 +483,6 @@ namespace Kayac
 			}
 			SetTexture(fontTexture);
 
-			ToCoord(ref centerX, ref centerY);
-			radius *= _toCoordScale;
-
 			float thetaStep = Mathf.PI * 2f / div;
 			for (int i = 0; i < div; i++)
 			{
@@ -585,17 +512,13 @@ namespace Kayac
 			return true;
 		}
 
-		public Vector2 MeasureText(string text, float fontSize, float lineHeight = DefaultLineHeight)
+		public Vector2 MeasureText(string text, float fontSize, float lineSpacing = 0.2f)
 		{
 			_font.RequestCharactersInTexture(text);
 			int length = text.Length;
-			float scale = (fontSize / _font.fontSize) * _toCoordScale;
+			float scale = (fontSize / _font.fontSize);
 
-			if (float.IsNaN(lineHeight))
-			{
-				lineHeight = (float)(_font.lineHeight) * scale;
-			}
-
+			var lineHeight = fontSize * (1f + lineSpacing);
 			float maxLineWidth = 0f;
 			float x = 0f;
 			float y = 0f;
@@ -620,501 +543,154 @@ namespace Kayac
 				maxLineWidth = Mathf.Max(maxLineWidth, x);
 				y += lineHeight;
 			}
-			maxLineWidth /= _toCoordScale;
-			y /= _toCoordScale;
 			return new Vector2(maxLineWidth, y);
 		}
 
-		// 最後がtrueだと縦書き内横書きのように90度回転させる。改行は無視される。
-		public void AddText(
+		// fontsize, width, heightをすべて指定する場合は折り返し
+		public int AddText(
 			string text,
-			float fontSize,
 			float leftX,
 			float topY,
-			float width,
-			float height,
-			Alignment alignment = Alignment.Left,
-			bool rotateToVertical = false)
+			float fontSize,
+			float boxWidth,
+			float boxHeight,
+			AlignX alignX = AlignX.Left,
+			AlignY alignY = AlignY.Top,
+			float lineSpacingRatio = DefaultLineSpacingRatio)
 		{
-			ToCoord(ref leftX, ref topY);
-			width *= _toCoordScale;
-			height *= _toCoordScale;
-			int letterCount = text.Length;
-
-			_font.RequestCharactersInTexture(text);
-			SetTexture(fontTexture);
-
-			// 各グリフ寸法に乗ずるスケールを計算する。
-			float scale = (fontSize / _font.fontSize) * _toCoordScale;
-			if (alignment == Alignment.Left)
-			{
-				if (rotateToVertical)
-				{
-					AddTextVerticalSingleLine(text, leftX, topY, width, height, scale, true);
-				}
-				else
-				{
-					AddTextHorizontalSingleLine(text, leftX, topY, width, height, scale, true);
-				}
-			}
-/*
-			if (alignment == Alignment.Center)
-			{
-				if (rotateToVertical)
-				{
-					AddTextCenterAlignVertical(text, leftX, topY, width, height, scale, autoLineBreak);
-				}
-				else
-				{
-					AddTextCenterAlignHorizontal(text, leftX, topY, width, height, scale, autoLineBreak);
-				}
-			}
-*/
-			else if (alignment == Alignment.Right)
-			{
-				if (rotateToVertical)
-				{
-					AddTextVerticalSingleLine(text, leftX, topY, width, height, scale, false);
-				}
-				else
-				{
-					AddTextHorizontalSingleLine(text, leftX, topY, width, height, scale, false);
-				}
-			}
-			else
-			{
-				Debug.Assert(false);
-			}
+			return AddText(
+				text,
+				leftX,
+				topY,
+				fontSize,
+				boxWidth,
+				boxHeight,
+				alignX,
+				alignY,
+				TextOverflow.Wrap,
+				lineSpacingRatio);
 		}
 
-		// 最後がtrueだと縦書き内横書きのように90度回転させる。改行も処理される。
-		public void AddTextMultiLine(
+		// fontsizeのみ指定する場合、オーバーフロー処理は行わない
+		public int AddText(
 			string text,
-			float fontSize,
 			float leftX,
 			float topY,
-			float width,
-			float height,
-			bool autoLineBreak = false,
-			bool rotateToVertical = false,
-			float lineHeight = DefaultLineHeight)
+			float fontSize,
+			AlignX alignX = AlignX.Left,
+			AlignY alignY = AlignY.Top,
+			float lineSpacingRatio = DefaultLineSpacingRatio)
 		{
-			ToCoord(ref leftX, ref topY);
-			width *= _toCoordScale;
-			height *= _toCoordScale;
-			lineHeight *= _toCoordScale;
-			int letterCount = text.Length;
-
-			_font.RequestCharactersInTexture(text);
-			SetTexture(fontTexture);
-
-			// 各グリフ寸法に乗ずるスケールを計算する。
-			float scale = (fontSize / _font.fontSize) * _toCoordScale;
-			if (rotateToVertical)
-			{
-				AddTextVerticalMultiLine(text, leftX, topY, width, height, scale, autoLineBreak, lineHeight);
-			}
-			else
-			{
-				AddTextHorizontalMultiLine(text, leftX, topY, width, height, scale, autoLineBreak, lineHeight);
-			}
+			return AddText(
+				text,
+				leftX,
+				topY,
+				fontSize,
+				float.MaxValue,
+				float.MaxValue,
+				alignX,
+				alignY,
+				TextOverflow.Wrap,
+				lineSpacingRatio);
 		}
 
-		// 左上(0,0) 右下(w, h)の矩形に、左上もしくは右上から順に字を詰める。
-		// 座標変換(Y逆転やオフセット)は上流で行うこと
-		private struct LayoutState
-		{
-			private float _lineHeight;
-			private float _scale;
-			// xは文字の左端または右端
-			public float x{ get; private set; }
-			// yは行の上端
-			public float y{ get; private set; }
-			private float _width;
-			private float _height;
-			private bool _leftAlign;
-
-			// lineHeightはNaNならデフォルト値
-			public void Initialize(
-				Font font,
-				float width,
-				float height,
-				float scale,
-				bool leftAlign,
-				float lineHeight = float.NaN)
-			{
-				_width = width;
-				_height = height;
-				_scale = scale;
-				if (float.IsNaN(lineHeight))
-				{
-					_lineHeight = (float)(font.lineHeight) * scale;
-				}
-				else
-				{
-					_lineHeight = lineHeight;
-				}
-				_leftAlign = leftAlign;
-				x = (_leftAlign) ? 0f : _width;
-				y = 0f;
-			}
-
-			// 次の行が範囲内ならtrueを返す
-			public bool BreakLine()
-			{
-				x = (_leftAlign) ? 0f : _width;
-				y += _lineHeight;
-				return (y <= _height);
-			}
-
-			// 入れようとした文字が入ればtrueを返す
-			public bool TryPut(ref CharacterInfo ch)
-			{
-				float tmpX = x;
-				if (_leftAlign)
-				{
-					float x1 = tmpX + ((float)(ch.maxX) * _scale);
-					return (x1 <= _width);
-				}
-				else
-				{
-					tmpX -= ((float)(ch.advance) * _scale);
-					float x0 = tmpX + ((float)(ch.minX) * _scale);
-					return (x0 >= 0f);
-				}
-			}
-
-			public void Put(ref CharacterInfo ch)
-			{
-				float advance = (float)(ch.advance) * _scale;
-				x += (_leftAlign) ? advance : -advance;
-			}
-		}
-
-		// 座標は変換後。Yは上がプラス!
-		private void AddTextHorizontalSingleLine(
+		// 箱サイズのみ指定する場合、スケールで合わせる
+		public int AddText(
 			string text,
-			float left,
-			float top,
-			float width,
-			float height,
-			float scale,
-			bool leftAlign)
+			float leftX,
+			float topY,
+			float boxWidth,
+			float boxHeight,
+			AlignX alignX = AlignX.Left,
+			AlignY alignY = AlignY.Top,
+			float lineSpacingRatio = DefaultLineSpacingRatio)
 		{
-			int letterCount = text.Length;
-			LayoutState layout = new LayoutState();
-			layout.Initialize(_font, width, height, scale, leftAlign);
-			float ascent = (float)(_font.ascent) * scale;
-
-			int i = (leftAlign) ? 0 : (letterCount - 1);
-			int endI = (leftAlign) ? letterCount : -1;
-			int di = (leftAlign) ? 1 : -1;
-			while (i != endI)
-			{
-				CharacterInfo ch;
-				char c = text[i];
-				if (c == '\t')
-				{
-					c = ' ';
-				}
-
-				if (c == '\n')
-				{
-					break;
-				}
-				else if (_font.GetCharacterInfo(c, out ch) == true)
-				{
-					if (layout.TryPut(ref ch) == false)
-					{
-						break;
-					}
-
-					if (leftAlign == false)
-					{
-						layout.Put(ref ch);
-					}
-
-					if (AddChar(
-						left + layout.x,
-						top - layout.y - ascent,
-						scale,
-						ref ch) == false)
-					{
-						break;
-					}
-
-					if (leftAlign)
-					{
-						layout.Put(ref ch);
-					}
-				}
-				i += di;
-			}
+			return AddText(
+				text,
+				leftX,
+				topY,
+				0f,
+				boxWidth,
+				boxHeight,
+				alignX,
+				alignY,
+				TextOverflow.Scale,
+				lineSpacingRatio);
 		}
 
-		// 座標は変換後。Yは上がプラス!
-		private void AddTextHorizontalMultiLine(
+		public int AddText(
 			string text,
-			float left,
-			float top,
-			float width,
-			float height,
-			float scale,
-			bool autoLineBreak,
-			float lineHeight)
+			float leftX,
+			float topY,
+			float fontSize,
+			float boxWidth,
+			float boxHeight,
+			AlignX alignX,
+			AlignY alignY,
+			TextOverflow overflow,
+			float lineSpacingRatio)
 		{
-			int letterCount = text.Length;
-			if (letterCount == 0)
+			int verticesBegin = _vertexCount;
+
+			float width, height;
+			float scale = 0f;
+			bool wrap;
+			float normalizedBoxWidth, normalizedBoxHeight;
+			if (overflow == TextOverflow.Wrap)
 			{
-				return;
+				Debug.Assert(fontSize > 0f);
+				scale = fontSize / (float)_font.fontSize;
+				normalizedBoxWidth = boxWidth / scale;
+				normalizedBoxHeight = boxHeight / scale;
+				wrap = true;
 			}
-			LayoutState layout = new LayoutState();
-			layout.Initialize(_font, width, height, scale, true, lineHeight);
-			float ascent = (float)(_font.ascent) * scale;
-
-			for (int i = 0; i < letterCount; i++)
+			else //if (overflow == TextOverflow.Scale)
 			{
-				CharacterInfo ch;
-				// 改行検出
-				char c = text[i];
-				if (c == '\t')
-				{
-					c = ' ';
-				}
-
-				if (c == '\n')
-				{
-					// 下にはみ出したら抜ける
-					if (layout.BreakLine() == false)
-					{
-						break;
-					}
-				}
-				else if (_font.GetCharacterInfo(c, out ch) == true)
-				{
-					// 行はみ出した
-					if (layout.TryPut(ref ch) == false)
-					{
-						// 自動改行でないなら抜ける。改行してみてはみ出したら抜ける
-						if (!autoLineBreak || (layout.BreakLine() == false))
-						{
-							break;
-						}
-					}
-
-					if (AddChar(
-						left + layout.x,
-						top - layout.y - ascent,
-						scale,
-						ref ch) == false)
-					{
-						break;
-					}
-					layout.Put(ref ch);
-				}
+				normalizedBoxWidth = normalizedBoxHeight = float.MaxValue;
+				wrap = false;
 			}
+			var drawnLines = AddTextNormalized(out width, out height, text, normalizedBoxWidth, normalizedBoxHeight, lineSpacingRatio, wrap);
+			if (drawnLines <= 0) // 何も書いてないなら抜ける
+			{
+				return drawnLines;
+			}
+
+			if (overflow == TextOverflow.Scale)
+			{
+				var scaleX = boxWidth / width;
+				var scaleY = boxHeight / height;
+				scale = Mathf.Min(scaleX, scaleY);
+			}
+
+			// TODO: 以下の計算はまだ仮
+			var offset = Vector2.zero;
+			switch (alignX)
+			{
+				case AlignX.Center: offset.x = -width * 0.5f; break;
+				case AlignX.Right: offset.x = -width; break;
+			}
+			switch (alignY)
+			{
+				case AlignY.Center: offset.y = -height * 0.5f; break;
+				case AlignY.Bottom: offset.y = -height; break;
+			}
+			offset *= scale;
+			offset.x += leftX;
+			offset.y += topY;
+			TransformVertices(verticesBegin, scale, ref offset);
+			return drawnLines;
 		}
 
-		// 座標は変換後。Yは上がプラス!
-		private void AddTextVerticalSingleLine(
-			string text,
-			float left,
-			float top,
-			float width,
-			float height,
-			float scale,
-			bool leftAlign)
+		public float CalcLineHeight(float fontSize, float lineSpacingRatio = DefaultLineSpacingRatio)
 		{
-			int letterCount = text.Length;
-			// x,yを置換してレイアウトさせる
-			LayoutState layout = new LayoutState();
-			layout.Initialize(_font, height, width, scale, leftAlign);
-			float ascent = (float)(_font.ascent) * scale;
-
-			int i = (leftAlign) ? 0 : (letterCount - 1);
-			int endI = (leftAlign) ? letterCount : -1;
-			int di = (leftAlign) ? 1 : -1;
-			float right = left + width;
-			while (i != endI)
-			{
-				CharacterInfo ch;
-				char c = text[i];
-				if (c == '\t')
-				{
-					c = ' ';
-				}
-
-				if (c == '\n')
-				{
-					break;
-				}
-				else if (_font.GetCharacterInfo(c, out ch) == true)
-				{
-					if (layout.TryPut(ref ch) == false)
-					{
-						break;
-					}
-
-					if (leftAlign == false)
-					{
-						layout.Put(ref ch);
-					}
-
-					// x,yを入れ換えている
-					if (AddCharRotated(
-						right - layout.y - ascent,
-						top - layout.x,
-						scale,
-						ref ch) == false)
-					{
-						break;
-					}
-
-					if (leftAlign)
-					{
-						layout.Put(ref ch);
-					}
-				}
-				i += di;
-			}
+			var scale = fontSize / (float)_font.fontSize;
+			var ret = scale * (float)_font.lineHeight * (1f + lineSpacingRatio);
+			return ret;
 		}
 
-		// 座標は変換後。Yは上がプラス!
-		private void AddTextVerticalMultiLine(
-			string text,
-			float left,
-			float top,
-			float width,
-			float height,
-			float scale,
-			bool autoLineBreak,
-			float lineHeight)
-		{
-			int letterCount = text.Length;
-			if (letterCount == 0)
-			{
-				return;
-			}
-			// x,yを置換してレイアウトさせる
-			LayoutState layout = new LayoutState();
-			layout.Initialize(_font, height, width, scale, true, lineHeight);
-			float ascent = (float)(_font.ascent) * scale;
-
-			float right = left + width;
-			for (int i = 0; i < letterCount; i++)
-			{
-				char c = text[i];
-				if (c == '\t')
-				{
-					c = ' ';
-				}
-
-				CharacterInfo ch;
-				// 改行検出
-				if (c == '\n')
-				{
-					// 下にはみ出したので抜ける
-					if (layout.BreakLine() == false)
-					{
-						break;
-					}
-				}
-				else if (_font.GetCharacterInfo(c, out ch) == true)
-				{
-					// 行はみ出した
-					if (layout.TryPut(ref ch) == false)
-					{
-						// 自動改行でないなら抜ける。改行してみてはみ出したら抜ける
-						if (!autoLineBreak || (layout.BreakLine() == false))
-						{
-							break;
-						}
-					}
-
-					// x,yを入れ換えている
-					if (AddCharRotated(
-						right - layout.y - ascent,
-						top - layout.x,
-						scale,
-						ref ch) == false)
-					{
-						break;
-					}
-					layout.Put(ref ch);
-				}
-			}
-		}
-
-		private bool AddChar(float x, float y, float scale, ref CharacterInfo ch)
-		{
-			if (
-			((_vertexCount + 4) > _capacity)
-			|| ((_indexCount + 6) > _capacity))
-			{
-				return false;
-			}
-			float x0 = x + ((float)ch.minX * scale);
-			float x1 = x + ((float)ch.maxX * scale);
-			float y0 = y + ((float)ch.maxY * scale);
-			float y1 = y + ((float)ch.minY * scale);
-
-			// 頂点は左上から時計回り
-			_vertices[_vertexCount + 0] = new Vector3(x0, y0, 0f);
-			_vertices[_vertexCount + 1] = new Vector3(x1, y0, 0f);
-			_vertices[_vertexCount + 2] = new Vector3(x1, y1, 0f);
-			_vertices[_vertexCount + 3] = new Vector3(x0, y1, 0f);
-
-			_uv[_vertexCount + 0] = ch.uvTopLeft;
-			_uv[_vertexCount + 1] = ch.uvTopRight;
-			_uv[_vertexCount + 2] = ch.uvBottomRight;
-			_uv[_vertexCount + 3] = ch.uvBottomLeft;
-
-			_colors[_vertexCount + 0] = color;
-			_colors[_vertexCount + 1] = color;
-			_colors[_vertexCount + 2] = color;
-			_colors[_vertexCount + 3] = color;
-
-			AddQuadIndices(0, 1, 2, 3);
-			_vertexCount += 4;
-			return true;
-		}
-
-		private bool AddCharRotated(float x, float y, float scale, ref CharacterInfo ch)
-		{
-			if (
-			((_vertexCount + 4) > _capacity)
-			|| ((_indexCount + 6) > _capacity))
-			{
-				return false;
-			}
-			float x0 = x + ((float)ch.minY * scale);
-			float x1 = x + ((float)ch.maxY * scale);
-			float y0 = y - ((float)ch.minX * scale);
-			float y1 = y - ((float)ch.maxX * scale);
-
-			// 頂点は左上から時計回り
-			_vertices[_vertexCount + 0] = new Vector3(x0, y0, 0f);
-			_vertices[_vertexCount + 1] = new Vector3(x1, y0, 0f);
-			_vertices[_vertexCount + 2] = new Vector3(x1, y1, 0f);
-			_vertices[_vertexCount + 3] = new Vector3(x0, y1, 0f);
-
-			_uv[_vertexCount + 0] = ch.uvBottomLeft;
-			_uv[_vertexCount + 1] = ch.uvTopLeft;
-			_uv[_vertexCount + 2] = ch.uvTopRight;
-			_uv[_vertexCount + 3] = ch.uvBottomRight;
-
-			_colors[_vertexCount + 0] = color;
-			_colors[_vertexCount + 1] = color;
-			_colors[_vertexCount + 2] = color;
-			_colors[_vertexCount + 3] = color;
-
-			AddQuadIndices(0, 1, 2, 3);
-			_vertexCount += 4;
-			return true;
-		}
 
 		// 内部座標でもらっており、チェックもしない
-		private void AddRectangleInternal(
+		void AddRectangleInternal(
 			float left,
 			float right,
 			float top,
@@ -1125,7 +701,6 @@ namespace Kayac
 			_vertices[_vertexCount + 1] = new Vector3(right, top, 0f);
 			_vertices[_vertexCount + 2] = new Vector3(right, bottom, 0f);
 			_vertices[_vertexCount + 3] = new Vector3(left, bottom, 0f);
-
 			for (int i = 0; i < 4; i++)
 			{
 				_uv[_vertexCount + i] = _whiteUv;

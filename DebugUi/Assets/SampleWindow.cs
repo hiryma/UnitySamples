@@ -34,12 +34,12 @@ namespace Kayac
 			};
 			AddChildAuto(toggles[1]);
 
-			var text = new DebugUiText("テキスト", fontSize: 20f, width: 80f, height: 20f);
+			var text = new DebugUiText("テキスト", fontSize: 20f, width: 80f, height: 25f);
 			AddChildAuto(text);
 
 			BreakLine();
 
-			_log = new DebugUiLogWindow(fontSize: 20f, lineHeight: 22f, lineCount: 10, width: 800f);
+			_log = new DebugUiLogWindow(fontSize: 20f, lineCount: 10, width: 800f, height: 220f);
 			AddChildAuto(_log);
 
 			BreakLine();

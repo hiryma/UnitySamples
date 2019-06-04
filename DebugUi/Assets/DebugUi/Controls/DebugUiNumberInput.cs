@@ -4,7 +4,7 @@ namespace Kayac
 {
 	public class DebugUiNumberInput : DebugUiPanel
 	{
-		private int _value;
+		int _value;
 		public int value
 		{
 			get { return _value; }
@@ -14,11 +14,10 @@ namespace Kayac
 				UpdateDigits();
 			}
 		}
-		private DebugUiButton[] _digits; // 簡易実装
+		DebugUiButton[] _digits; // 簡易実装
 
 		public Color32 activeColor { get; set; }
-		private Color32 defaultColor;
-
+		Color32 defaultColor;
 		public delegate void UpdateCallback(int value);
 		public UpdateCallback onUpdate;
 
@@ -32,7 +31,7 @@ namespace Kayac
 			for (int i = 0; i < digitCount; i++)
 			{
 				var digit = new DebugUiButton("0", height * 0.6f, height);
-				AddChildAuto(digit);
+				AddAuto(digit);
 				digit.onClick = () =>
 				{
 					OnClickDigit(digit);
@@ -48,7 +47,7 @@ namespace Kayac
 			defaultColor = backgroundColor;
 		}
 
-		private void OnClickDigit(DebugUiButton digit)
+		void OnClickDigit(DebugUiButton digit)
 		{
 			// 何桁目が押されたか識別
 			int index = -1;
@@ -81,7 +80,7 @@ namespace Kayac
 			UpdateDigits();
 		}
 
-		private void UpdateDigits()
+		void UpdateDigits()
 		{
 			int scale = 1;
 			for (int i = 0; i < _digits.Length - 1; i++)
@@ -104,9 +103,9 @@ namespace Kayac
 			}
 		}
 
-		public override void Update()
+		public override void Update(float deltaTime)
 		{
-			base.Update();
+			base.Update(deltaTime);
 
 			bool focus = hasFocus;
 			foreach (var digit in _digits)

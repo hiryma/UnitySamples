@@ -1,17 +1,17 @@
-﻿using UnityEngine;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Kayac
 {
-	public class DebugUiControl : IDisposable
+	public class DebugUiControl : DebugUi, IDisposable
 	{
 		// デバグ用にしか使っていない
-		public string name{ get; private set; }
-		public Action onDragEnd{ get; set; }
-		public Action onDragStart{ get; set; }
+		public string name { get; private set; }
+		public Action onDragEnd { get; set; }
+		public Action onDragStart { get; set; }
 		// 押された時など、そのフレームでイベントを消費したコントロールになった時。呼ばれるのはフレームの末尾。TODO: 名前とかどうにかしたい
-		public Action onEventConsume{ get; set; }
+		public Action onEventConsume { get; set; }
 		// 有効無効化
 		public bool enabled
 		{
@@ -29,40 +29,40 @@ namespace Kayac
 				}
 			}
 		}
-		public bool draggable{ get; set; }
+		public bool draggable { get; set; }
 
 		// イベント状態取得
-		public bool hasJustClicked{ get; private set; }
-		public bool hasJustDragStarted{ get; private set; }
+		public bool hasJustClicked { get; private set; }
+		public bool hasJustDragStarted { get; private set; }
 		public bool hasFocus { get; private set; }
-		public bool isPointerDown{ get; private set; }
+		public bool isPointerDown { get; private set; }
 		/// 単にこの矩形の上にポインタがあるかどうかを返す。イベント無効でも動作。
-		public bool isPointerOver{ get; private set; }
-		public bool isDragging{ get; set; }
+		public bool isPointerOver { get; private set; }
+		public bool isDragging { get; set; }
 
 		// スタイル
-		public Color32 backgroundColor{ get; set; }
-		public Color32 borderColor{ get; set; }
-		public float borderWidth{ get; set; }
-		public Color32 dragMarkColor{ get; set; }
-		public float dragMarkSize{ get; set; }
-		public char dragMarkLetter{ get; set; }
-		public Color32 dragMarkLetterColor{ get; set; }
+		public Color32 backgroundColor { get; set; }
+		public Color32 borderColor { get; set; }
+		public float borderWidth { get; set; }
+		public Color32 dragMarkColor { get; set; }
+		public float dragMarkSize { get; set; }
+		public char dragMarkLetter { get; set; }
+		public Color32 dragMarkLetterColor { get; set; }
 
 		// 派生から設定する特徴変数
-		protected bool eventEnabled{ get; set; }
-		protected bool borderEnabled{ get; set; }
-		protected bool backgroundEnabled{ get; set; }
+		protected bool eventEnabled { get; set; }
+		protected bool borderEnabled { get; set; }
+		protected bool backgroundEnabled { get; set; }
 		// 位置とサイズ情報
-		public float localLeftX{ get; private set; }
-		public float localTopY{ get; private set; }
-		public float leftX{ get; private set; }
-		public float topY{ get; private set; }
-		public float width{ get; private set; }
-		public float height{ get; private set; }
+		public float localLeftX { get; private set; }
+		public float localTopY { get; private set; }
+		public float leftX { get; private set; }
+		public float topY { get; private set; }
+		public float width { get; private set; }
+		public float height { get; private set; }
 		// Update内で使うためのローカルポインタ座標(コントロール内ではない)
-		protected float localPointerX{ get; private set; }
-		protected float localPointerY{ get; private set; }
+		protected float localPointerX { get; private set; }
+		protected float localPointerY { get; private set; }
 		protected float pointerX
 		{
 			get
@@ -77,16 +77,16 @@ namespace Kayac
 				return localPointerY - localTopY + topY;
 			}
 		}
+		// Clickが呼ばれたか
+		protected bool clickedFromCode { get; private set; }
 
 		// 木を成すための情報
-		private DebugUiControl _previousBrother;
-		private DebugUiControl _nextBrother;
-		private DebugUiControl _firstChild;
-		private DebugUiControl _lastChild;
-		private DebugUiControl _parent;
-
-		private bool _enabled;
-
+		DebugUiControl _previousBrother;
+		DebugUiControl _nextBrother;
+		DebugUiControl _firstChild;
+		DebugUiControl _lastChild;
+		DebugUiControl _parent;
+		bool _enabled;
 
 		public DebugUiControl(string name = "")
 		{
@@ -107,7 +107,7 @@ namespace Kayac
 			dragMarkLetterColor = new Color32(255, 255, 255, 255);
 		}
 
-		private void Destroy()
+		void Destroy()
 		{
 			RemoveAllChild();
 			_parent = _nextBrother = _previousBrother = null;
@@ -127,7 +127,7 @@ namespace Kayac
 			}
 		}
 
-		private void SetAsLastChild(DebugUiControl child)
+		void SetAsLastChild(DebugUiControl child)
 		{
 			UnlinkChild(child);
 			LinkChildToTail(child);
@@ -141,7 +141,7 @@ namespace Kayac
 			}
 		}
 
-		private void SetAsFirstChild(DebugUiControl child)
+		void SetAsFirstChild(DebugUiControl child)
 		{
 			UnlinkChild(child);
 			LinkChildToHead(child);
@@ -155,6 +155,11 @@ namespace Kayac
 		// 必要なら上層で実装
 		protected virtual void OnEnable()
 		{
+		}
+
+		public void Click()
+		{
+			this.clickedFromCode = true;
 		}
 
 		public void OnEnableRecursive()
@@ -227,11 +232,25 @@ namespace Kayac
 		public virtual void AddChild(
 			DebugUiControl child,
 			float offsetX = 0f,
-			float offsetY = 0f)
+			float offsetY = 0f,
+			AlignX alignX = AlignX.Left,
+			AlignY alignY = AlignY.Top)
 		{
+			float x = 0f;
+			switch (alignX)
+			{
+				case AlignX.Center: x = (this.width - child.width) * 0.5f; break;
+				case AlignX.Right: x = this.width - child.width; break;
+			}
+			float y = 0f;
+			switch (alignY)
+			{
+				case AlignY.Center: y = (this.height - child.height) * 0.5f; break;
+				case AlignY.Bottom: y = (this.height - child.height); break;
+			}
 			child.SetLocalPosition(
-				child.localLeftX + offsetX,
-				child.localTopY + offsetY);
+				child.localLeftX + offsetX + x,
+				child.localTopY + offsetY + y);
 			LinkChildToTail(child);
 			child._parent = this;
 		}
@@ -408,22 +427,28 @@ namespace Kayac
 			return false;
 		}
 
-		public virtual void Update()
+		public virtual void Update(float deltaTime)
 		{
 		}
 
-		public void UpdateRecursive()
+		public void UpdateRecursive(float deltaTime)
 		{
 			if (!_enabled)
 			{
 				return;
 			}
-			Update();
+			// 手動クリックされていれば、クリックされたことにする
+			if (this.clickedFromCode)
+			{
+				this.hasJustClicked = true;
+				this.clickedFromCode = false;
+			}
+			Update(deltaTime);
 
 			var child = _firstChild;
 			while (child != null)
 			{
-				child.UpdateRecursive();
+				child.UpdateRecursive(deltaTime);
 				child = child._nextBrother;
 			}
 		}
@@ -432,6 +457,13 @@ namespace Kayac
 			float offsetX,
 			float offsetY,
 			DebugPrimitiveRenderer2D renderer)
+		{
+		}
+
+		public virtual void DrawPostChild(
+		   float offsetX,
+		   float offsetY,
+		   DebugPrimitiveRenderer2D renderer)
 		{
 		}
 
@@ -477,162 +509,11 @@ namespace Kayac
 				child.DrawRecursive(globalLeftX, globalTopY, renderer);
 				child = child._nextBrother;
 			}
-		}
-
-		protected static void DrawTextSingleLine(
-			DebugPrimitiveRenderer2D renderer,
-			string text,
-			Color32 color,
-			float fontSize,
-			float leftX,
-			float topY,
-			float width,
-			float height,
-			bool leftAlign = true,
-			bool rotateToVertical = false)
-		{
-			if (string.IsNullOrEmpty(text))
-			{
-				return;
-			}
-			renderer.color = color;
-			float x = leftX;
-			float y = topY;
-			DebugPrimitiveRenderer.Alignment align;
-			if (leftAlign)
-			{
-				align = DebugPrimitiveRenderer.Alignment.Left;
-			}
-			else
-			{
-				if (rotateToVertical)
-				{
-					y = topY + height;
-				}
-				else
-				{
-					x = leftX + width;
-				}
-				align = DebugPrimitiveRenderer.Alignment.Right;
-			}
-
-			renderer.AddText(
-				text,
-				fontSize,
-				x,
-				y,
-				width,
-				height,
-				align,
-				rotateToVertical);
-		}
-
-		protected static void DrawTextMultiLine(
-			DebugPrimitiveRenderer2D renderer,
-			string text,
-			Color32 color,
-			float fontSize,
-			float leftX,
-			float topY,
-			float width,
-			float height,
-			bool autoLineBreak = false,
-			bool rotateToVertical = false,
-			float lineHeight = DebugPrimitiveRenderer.DefaultLineHeight)
-		{
-			if (string.IsNullOrEmpty(text))
-			{
-				return;
-			}
-			renderer.color = color;
-			renderer.AddTextMultiLine(
-				text,
-				fontSize,
-				leftX,
-				topY,
-				width,
-				height,
-				autoLineBreak,
-				rotateToVertical,
-				lineHeight);
-		}
-
-		/// フォントサイズ自動計算。lineSpacingRatioは自動計算されたフォントサイズを基準にした行間スペース
-		protected static void DrawTextAuto(
-			DebugPrimitiveRenderer2D renderer,
-			string text,
-			Color32 color,
-			float leftX,
-			float topY,
-			float width,
-			float height,
-			bool rotateToVertical = false,
-			float lineSpacingRatio = 0.2f)
-		{
-			int textLength = text.Length;
-			if (textLength <= 0)
-			{
-				return;
-			}
-
-			// ボタンの縦横比と文字数から妥当な行数を決める
-			float fontSize;
-			if (rotateToVertical)
-			{
-				fontSize = CalcOptimalFontSize(height, width, textLength, lineSpacingRatio);
-			}
-			else
-			{
-				fontSize = CalcOptimalFontSize(width, height, textLength, lineSpacingRatio);
-			}
-			fontSize *= 0.9f; //入り切らないことがあるので少し小さく
-			DrawTextMultiLine(
-				renderer,
-				text,
-				color,
-				fontSize,
-				leftX,
-				topY,
-				width,
-				height,
-				true,
-				rotateToVertical,
-				fontSize * (1f + lineSpacingRatio));
-		}
-
-		private static float CalcOptimalFontSize(
-			float width,
-			float height,
-			int textLength,
-			float lineSpacingRatio)
-		{
-			float lineHeightRatio = 1f + lineSpacingRatio;
-			Debug.Assert(textLength > 0);
-			Debug.Assert(width > 0f);
-			Debug.Assert(height > 0f);
-			float ret = 0f;
-			for (int lineCount = 1; lineCount <= textLength; lineCount++)
-			{
-				int charsInLine = (textLength + lineCount - 1) / lineCount;
-				// 幅から計算したフォントサイズ
-				float sizeW = width / (float)charsInLine;
-				// 高さから計算したフォントサイズ
-				float sizeH = height / ((float)lineCount * lineHeightRatio); // 行間少し空ける。てきとー
-				float size = Mathf.Min(sizeW, sizeH);
-				if (size <= ret)
-				{
-					break;
-				}
-				else
-				{
-					ret = size;
-				}
-			}
-			return ret;
+			DrawPostChild(offsetX, offsetY, renderer);
 		}
 
 		// リストのつなぎ換えだけ
-		private void LinkChildToHead(DebugUiControl child)
+		void LinkChildToHead(DebugUiControl child)
 		{
 			child._previousBrother = null;
 			// 先頭がnullの場合、末尾もnull。
@@ -652,7 +533,7 @@ namespace Kayac
 		}
 
 		// リストのつなぎ換えだけ
-		private void LinkChildToTail(DebugUiControl child)
+		void LinkChildToTail(DebugUiControl child)
 		{
 			child._nextBrother = null;
 			// 末尾がnullの場合、先頭もnull。
@@ -665,6 +546,10 @@ namespace Kayac
 			// 末尾が非nullの場合、リンクを生成
 			else
 			{
+				if (_lastChild == child) // 同じものを二連続足したバグは無限ループして厄介なので検出して殺してやる
+				{
+					throw new System.InvalidOperationException("same object added. it must be BUG.");
+				}
 				_lastChild._nextBrother = child;
 				child._previousBrother = _lastChild;
 				_lastChild = child;
@@ -672,7 +557,7 @@ namespace Kayac
 		}
 
 		// リストのつなぎ換えだけ
-		private void UnlinkChild(DebugUiControl child)
+		void UnlinkChild(DebugUiControl child)
 		{
 			Debug.Assert(child._parent == this, "それは樸の子じゃないよ!");
 			// 前と後を取得

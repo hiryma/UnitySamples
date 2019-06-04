@@ -15,9 +15,9 @@ Shader "Miura/DebugPrimitiveText"
 		Blend SrcAlpha OneMinusSrcAlpha
 		Tags
 		{
-			 "Queue" = "Transparent"
-			 "RenderType" = "Transparent"
-			 "DisableBatching" = "True"
+			"Queue" = "Transparent"
+			"RenderType" = "Transparent"
+			"DisableBatching" = "True"
 		}
 		Pass
 		{
@@ -55,16 +55,16 @@ Shader "Miura/DebugPrimitiveText"
 
 			fixed4 frag (v2f i) : SV_Target
 			{
-//return fixed4(1,0,0,1);
-//return fixed4(i.uv.xy * 8.0, 0, 1);
-//return fixed4(0,0,0,1);
-//return i.color;
-//i.color.xyz = 1.0;
+				//return fixed4(1,0,0,1);
+				//return fixed4(i.uv.xy * 8.0, 0, 1);
+				//return fixed4(0,0,0,1);
+				//return i.color;
+				//i.color.xyz = 1.0;
 				// フォントテクスチャはアルファだけしか入ってない
 				fixed tAlpha = tex2D(_MainTex, i.uv).w;
 				fixed vAlpha = i.color.w;
 				fixed alpha = tAlpha * vAlpha;
-//return fixed4(alpha, alpha, alpha, 1);
+				//return fixed4(alpha, alpha, alpha, 1);
 				return fixed4(i.color.xyz, alpha);
 			}
 			ENDCG

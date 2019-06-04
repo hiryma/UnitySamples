@@ -22,12 +22,12 @@ namespace Kayac
 					_cells[row, col].Asign(ref value);
 				}
 			}
-			private Cell[,] _cells;
+			Cell[,] _cells;
 		}
 
 		public struct Cell
 		{
-			private enum Type
+			enum Type
 			{
 				Int,
 				Float,
@@ -140,19 +140,19 @@ namespace Kayac
 			}
 
 			public string text{ get; private set; }
-			private Type _type;
-			private float _float;
-			private int _int;
-			private bool _bool;
+			Type _type;
+			float _float;
+			int _int;
+			bool _bool;
 		}
 
 		public Color32 textColor{ get; set; }
 		public int columnCount{ get; private set; }
 		public int rowCount{ get; private set; }
 		public Cells cells{ get; private set; }
-		private float[] _widths;
-		private float[] _heights;
-		private float _fontSize;
+		float[] _widths;
+		float[] _heights;
+		float _fontSize;
 
 		public DebugUiTable(
 			float fontSize,
@@ -171,7 +171,7 @@ namespace Kayac
 			Initialize(fontSize, widths, heights, 0, 0);
 		}
 
-		private void Initialize(
+		void Initialize(
 			float fontSize,
 			IList<float> widths,
 			IList<float> heights,
@@ -270,16 +270,12 @@ namespace Kayac
 					var cell = cells[rowIndex, colIndex];
 					if (string.IsNullOrEmpty(cell.text) == false)
 					{
-						DrawTextMultiLine(
-							renderer,
-							cell.text,
-							textColor,
-							_fontSize,
-							x,
-							y,
-							cellWidth,
-							cellHeight,
-							true);
+                        renderer.color = textColor;
+                        renderer.AddText(
+                            cell.text,
+                            x,
+                            y,
+                            _fontSize);
 					}
 					x += cellWidth + borderWidth;
 				}

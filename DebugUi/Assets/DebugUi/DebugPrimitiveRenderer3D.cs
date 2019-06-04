@@ -6,13 +6,18 @@ namespace Kayac
 {
 	public class DebugPrimitiveRenderer3D : DebugPrimitiveRenderer
 	{
+		Camera _camera;
+
 		public DebugPrimitiveRenderer3D(
 			Shader textShader,
 			Shader texturedShader,
 			Font font,
 			Camera camera,
-			int capacity = DefaultTriangleCapacity) : base(textShader, texturedShader, font, camera, capacity)
+			MeshRenderer meshRenderer,
+			MeshFilter meshFilter,
+			int capacity = DefaultTriangleCapacity) : base(textShader, texturedShader, font, meshRenderer, meshFilter, capacity)
 		{
+			_camera = camera;
 		}
 
 		public bool AddQuadraticBezier(
@@ -147,131 +152,187 @@ namespace Kayac
 			return AddParallelogram(p, right, up);
 		}
 
-		// rightVectorとdownVectorが直交していないと平行四辺形に歪むので注意
-		public bool AddText(
-			Vector3 topLeft,
+		// fontsize, width, heightをすべて指定する場合は折り返し
+		public int AddText(
+			string text,
+			Vector3 origin,
 			Vector3 rightVector,
 			Vector3 downVector,
 			float fontSize,
-			string text)
+			float boxWidth,
+			float boxHeight,
+			AlignX alignX = AlignX.Left,
+			AlignY alignY = AlignY.Top,
+			float lineSpacingRatio = DefaultLineSpacingRatio)
 		{
-			int letterCount = text.Length;
-			int vertexCount = letterCount * 4;
-			int indexCount = letterCount * 6;
-			if (
-			((_vertexCount + vertexCount) > _capacity)
-			|| ((_indexCount + indexCount) > _capacity))
-			{
-				return false;
-			}
-			_font.RequestCharactersInTexture(text);
-			SetTexture(fontTexture);
-
-			rightVector.Normalize();
-			downVector.Normalize();
-
-			// フォント内整数座標→ワールド座標のスケール
-			float scale = fontSize / (float)(_font.fontSize);
-			Vector3 p = topLeft + (downVector * (float)(_font.ascent) * scale);
-			Vector3 upVector = -downVector;
-
-			for (int i = 0; i < letterCount; i++)
-			{
-				CharacterInfo ch;
-				if (_font.GetCharacterInfo(text[i], out ch) == true)
-				{
-					AddChar(p, rightVector, upVector, scale, ref ch);
-					p += rightVector * (ch.advance * scale);
-				}
-			}
-			return true;
+			return AddText(
+				text,
+				origin,
+				rightVector,
+				downVector,
+				fontSize,
+				boxWidth,
+				boxHeight,
+				alignX,
+				alignY,
+				TextOverflow.Wrap,
+				lineSpacingRatio);
 		}
 
-		public bool AddBillboardText(
+		// fontsizeのみ指定する場合、オーバーフロー処理は行わない
+		public int AddText(
+			string text,
+			Vector3 origin,
+			Vector3 rightVector,
+			Vector3 downVector,
+			float fontSize,
+			AlignX alignX = AlignX.Left,
+			AlignY alignY = AlignY.Top,
+			float lineSpacingRatio = DefaultLineSpacingRatio)
+		{
+			return AddText(
+				text,
+				origin,
+				rightVector,
+				downVector,
+				fontSize,
+				float.MaxValue,
+				float.MaxValue,
+				alignX,
+				alignY,
+				TextOverflow.Wrap,
+				lineSpacingRatio);
+		}
+
+		// 箱サイズのみ指定する場合、スケールで合わせる
+		public int AddText(
+			string text,
+			Vector3 origin,
+			Vector3 rightVector,
+			Vector3 downVector,
+			float boxWidth,
+			float boxHeight,
+			AlignX alignX = AlignX.Left,
+			AlignY alignY = AlignY.Top,
+			float lineSpacingRatio = DefaultLineSpacingRatio)
+		{
+			return AddText(
+				text,
+				origin,
+				rightVector,
+				downVector,
+				0f,
+				boxWidth,
+				boxHeight,
+				alignX,
+				alignY,
+				TextOverflow.Scale,
+				lineSpacingRatio);
+		}
+
+		// rightVectorとdownVectorが正規直交していないと平行四辺形に歪むので注意
+		int AddText(
+			string text,
+			Vector3 origin,
+			Vector3 rightVector,
+			Vector3 downVector,
+			float fontSize,
+			float boxWidth,
+			float boxHeight,
+			AlignX alignX,
+			AlignY alignY,
+			TextOverflow overflow,
+			float lineSpacingRatio)
+		{
+			int verticesBegin = _vertexCount;
+
+			float width, height;
+			var scale = 0f;
+			bool wrap;
+			float normalizedBoxWidth, normalizedBoxHeight;
+			if (overflow == TextOverflow.Wrap)
+			{
+				Debug.Assert(fontSize > 0f);
+				scale = fontSize / (float)_font.fontSize;
+				normalizedBoxWidth = boxWidth * scale;
+				normalizedBoxHeight = boxHeight * scale;
+				wrap = true;
+			}
+			else //if (overflow == TextOverflow.Scale)
+			{
+				normalizedBoxWidth = normalizedBoxHeight = float.MaxValue;
+				wrap = false;
+			}
+			var drawnLines = AddTextNormalized(out width, out height, text, normalizedBoxWidth, normalizedBoxHeight, lineSpacingRatio, wrap);
+			if (drawnLines <= 0) // 何も書いてないなら抜ける
+			{
+				return drawnLines;
+			}
+
+			if (overflow == TextOverflow.Scale)
+			{
+				var scaleX = boxWidth / width;
+				var scaleY = boxHeight / height;
+				scale = Mathf.Min(scaleX, scaleY);
+			}
+
+			var matrix = Matrix4x4.Translate(origin);
+			var rotation = Matrix4x4.identity;
+			rotation.m00 = rightVector.x;
+			rotation.m10 = rightVector.y;
+			rotation.m20 = rightVector.z;
+			rotation.m01 = -downVector.x;
+			rotation.m11 = -downVector.y;
+			rotation.m21 = -downVector.z;
+			var up = Vector3.Cross(downVector, rightVector);
+			rotation.m02 = up.x;
+			rotation.m12 = up.y;
+			rotation.m22 = up.z;
+			matrix *= rotation;
+
+			matrix *= Matrix4x4.Scale(new Vector3(scale, -scale, 1f));
+			// TODO: 以下の計算はまだ仮
+			float offsetX = 0f;
+			switch (alignX)
+			{
+				case AlignX.Center: offsetX = -width * 0.5f; break;
+				case AlignX.Right: offsetX = -width; break;
+			}
+			float offsetY = 0f;
+			switch (alignY)
+			{
+				case AlignY.Center: offsetY = -height * 0.5f; break;
+				case AlignY.Bottom: offsetY = -height; break;
+			}
+			matrix *= Matrix4x4.Translate(new Vector3(offsetX, offsetY, 0f));
+			TransformVertices(verticesBegin, ref matrix);
+			return drawnLines;
+		}
+
+		public int AddBillboardText(
+			string text,
 			Vector3 center,
 			float width,
-			float height,
-			string text)
+			float height)
 		{
-			int letterCount = text.Length;
-			int vertexCount = letterCount * 4;
-			int indexCount = letterCount * 6;
-			if (
-			((_vertexCount + vertexCount) > _capacity)
-			|| ((_indexCount + indexCount) > _capacity))
-			{
-				return false;
-			}
-			_font.RequestCharactersInTexture(text);
-			SetTexture(fontTexture);
-			// TODO: 文字列測定しない。全文字等サイズ正方形として考える。
 			var transform = _camera.gameObject.transform;
-			var forwardVector = transform.forward;
+			var forwardVector = center - transform.position;
+			forwardVector.Normalize();
 			var upVector = transform.up;
-
-			// TODO: 改行対応
-			float charWidth = width / letterCount;
-			float fontSize = (charWidth < height) ? charWidth : height;
-			// フォント内整数座標→ワールド座標のスケール
-			float scale = fontSize / (float)(_font.fontSize);
-
-			// TODO: 右ベクタ、上ベクタは前計算可能
 			// 右ベクタ、上ベクタを生成 axisX = cross(axisY, axisZ)
 			Vector3 right = Vector3.Cross(upVector, forwardVector);
 			right.Normalize();
-			// ビルボード空間の上ベクタを計算
-			Vector3 up = Vector3.Cross(forwardVector, right);
+			Vector3 down = Vector3.Cross(right, forwardVector);
 
-			// レイアウト開始点を計算
-			Vector3 p = center - (right * (width * 0.5f)) - (up * (height * 0.5f));
-
-			for (int i = 0; i < letterCount; i++)
-			{
-				CharacterInfo ch;
-				if (_font.GetCharacterInfo(text[i], out ch) == true)
-				{
-					AddChar(p, right, up, scale, ref ch);
-					p += right * (ch.advance * scale);
-				}
-			}
-			return true;
-		}
-
-		private void AddChar(
-			Vector3 p, // 左下点
-			Vector3 right, //右単位ベクタ
-			Vector3 up, //上単位ベクタ
-			float scale,
-			ref CharacterInfo ch)
-		{
-			float x = (float)(ch.minX) * scale;
-			float y = (float)(ch.maxY) * scale;
-			float w = (float)(ch.maxX - ch.minX) * scale;
-			float h = (float)(ch.minY - ch.maxY) * scale;
-
-			Vector3 p0 = p + (right * x) + (up * y);
-			Vector3 p1 = p0 + (right * w);
-			Vector3 p2 = p1 + (up * h);
-			Vector3 p3 = p0 + (up * h);
-
-			// 頂点は左上から時計回り
-			_vertices[_vertexCount + 0] = p0;
-			_vertices[_vertexCount + 1] = p1;
-			_vertices[_vertexCount + 2] = p2;
-			_vertices[_vertexCount + 3] = p3;
-
-			_uv[_vertexCount + 0] = ch.uvTopLeft;
-			_uv[_vertexCount + 1] = ch.uvTopRight;
-			_uv[_vertexCount + 2] = ch.uvBottomRight;
-			_uv[_vertexCount + 3] = ch.uvBottomLeft;
-
-			for (int j = 0; j < 4; j++)
-			{
-				_colors[_vertexCount + j] = color;
-			}
-
-			AddQuadIndices(0, 1, 2, 3);
-			_vertexCount += 4;
+			return AddText(
+				text,
+				center,
+				right,
+				down,
+				width,
+				height,
+				AlignX.Center,
+				AlignY.Center);
 		}
 
 		public bool AddBillbordFrame(
@@ -296,6 +357,173 @@ namespace Kayac
 			Vector3 p = center - (right * 0.5f) + (up * 0.5f);
 
 			return AddParallelogramFrame(p, right, up, lineWidth);
+		}
+
+		public bool AddGrid3d(
+			Vector3 p,
+			Vector3 axis0,
+			Vector3 axis1,
+			Vector3 axis2,
+			int div0,
+			int div1,
+			int div2,
+			float lineWidth = 1f)
+		{
+			// 線の本数
+			int lineCount = ((div0 + 1) * (div1 + 1))
+				+ ((div1 + 1) * (div2 + 1))
+				+ ((div2 + 1) * (div0 + 1));
+			if (((_vertexCount + (lineCount * 4)) > _capacity)
+				|| ((_indexCount + (lineCount * 6)) > _capacity))
+			{
+				return false;
+			}
+			SetTexture(fontTexture);
+			var transform = _camera.gameObject.transform;
+			var diff = p - transform.position;
+			var normalVector0 = Vector3.Cross(diff, axis0);
+			var normalVector1 = Vector3.Cross(diff, axis1);
+			var normalVector2 = Vector3.Cross(diff, axis2);
+			normalVector0.Normalize();
+			normalVector1.Normalize();
+			normalVector2.Normalize();
+			normalVector0 *= lineWidth * 0.5f;
+			normalVector1 *= lineWidth * 0.5f;
+			normalVector2 *= lineWidth * 0.5f;
+
+			for (int i = 0; i < (lineCount * 4); i++)
+			{
+				_colors[_vertexCount + i] = color;
+				_uv[_vertexCount + i] = _whiteUv;
+			}
+
+			// axis0
+			for (int i1 = 0; i1 <= div1; i1++)
+			{
+				var a = p + (axis1 * ((float)i1 / (float)div1));
+				for (int i2 = 0; i2 <= div2; i2++)
+				{
+					var b = a + (axis2 * ((float)i2 / (float)div2));
+					var c = b + axis0;
+					var p0 = b - normalVector0;
+					var p1 = b + normalVector0;
+					var p2 = c - normalVector0;
+					var p3 = c + normalVector0;
+					_vertices[_vertexCount + 0] = p0;
+					_vertices[_vertexCount + 1] = p1;
+					_vertices[_vertexCount + 2] = p2;
+					_vertices[_vertexCount + 3] = p3;
+					AddQuadIndices(0, 1, 3, 2);
+					_vertexCount += 4;
+				}
+			}
+			// axis1
+			for (int i0 = 0; i0 <= div0; i0++)
+			{
+				var a = p + (axis0 * ((float)i0 / (float)div0));
+				for (int i2 = 0; i2 <= div2; i2++)
+				{
+					var b = a + (axis2 * ((float)i2 / (float)div2));
+					var c = b + axis1;
+					var p0 = b - normalVector1;
+					var p1 = b + normalVector1;
+					var p2 = c - normalVector1;
+					var p3 = c + normalVector1;
+
+					_vertices[_vertexCount + 0] = p0;
+					_vertices[_vertexCount + 1] = p1;
+					_vertices[_vertexCount + 2] = p2;
+					_vertices[_vertexCount + 3] = p3;
+					AddQuadIndices(0, 1, 3, 2);
+					_vertexCount += 4;
+				}
+			}
+			// axis2
+			for (int i0 = 0; i0 <= div0; i0++)
+			{
+				var a = p + (axis0 * ((float)i0 / (float)div0));
+				for (int i1 = 0; i1 <= div1; i1++)
+				{
+					var b = a + (axis1 * ((float)i1 / (float)div1));
+					var c = b + axis2;
+					var p0 = b - normalVector2;
+					var p1 = b + normalVector2;
+					var p2 = c - normalVector2;
+					var p3 = c + normalVector2;
+
+					_vertices[_vertexCount + 0] = p0;
+					_vertices[_vertexCount + 1] = p1;
+					_vertices[_vertexCount + 2] = p2;
+					_vertices[_vertexCount + 3] = p3;
+					AddQuadIndices(0, 1, 3, 2);
+					_vertexCount += 4;
+				}
+			}
+			return true;
+		}
+
+		public bool AddGrid2d(
+			Vector3 p,
+			Vector3 axis0,
+			Vector3 axis1,
+			int div0,
+			int div1,
+			float lineWidth = 1f)
+		{
+			// 線の本数
+			int lineCount = ((div0 + 1) * (div1 + 1));
+			if (((_vertexCount + (lineCount * 4)) > _capacity)
+				|| ((_indexCount + (lineCount * 6)) > _capacity))
+			{
+				return false;
+			}
+			SetTexture(fontTexture);
+			var transform = _camera.gameObject.transform;
+			var diff = p - transform.position;
+			var normalVector0 = axis0;
+			var normalVector1 = axis1;
+			normalVector0.Normalize();
+			normalVector1.Normalize();
+			normalVector0 *= lineWidth * 0.5f;
+			normalVector1 *= lineWidth * 0.5f;
+
+			for (int i = 0; i < (lineCount * 4); i++)
+			{
+				_colors[_vertexCount + i] = color;
+				_uv[_vertexCount + i] = _whiteUv;
+			}
+
+			for (int i = 0; i <= div0; i++)
+			{
+				var a = p + (axis0 * ((float)i / (float)div0));
+				var b = a + axis1;
+				var p0 = a - normalVector0;
+				var p1 = a + normalVector0;
+				var p2 = b - normalVector0;
+				var p3 = b + normalVector0;
+				_vertices[_vertexCount + 0] = p0;
+				_vertices[_vertexCount + 1] = p1;
+				_vertices[_vertexCount + 2] = p2;
+				_vertices[_vertexCount + 3] = p3;
+				AddQuadIndices(0, 1, 3, 2);
+				_vertexCount += 4;
+			}
+			for (int i = 0; i <= div1; i++)
+			{
+				var a = p + (axis1 * ((float)i / (float)div1));
+				var b = a + axis0;
+				var p0 = a - normalVector1;
+				var p1 = a + normalVector1;
+				var p2 = b - normalVector1;
+				var p3 = b + normalVector1;
+				_vertices[_vertexCount + 0] = p0;
+				_vertices[_vertexCount + 1] = p1;
+				_vertices[_vertexCount + 2] = p2;
+				_vertices[_vertexCount + 3] = p3;
+				AddQuadIndices(0, 1, 3, 2);
+				_vertexCount += 4;
+			}
+			return true;
 		}
 
 		// 三角形描く

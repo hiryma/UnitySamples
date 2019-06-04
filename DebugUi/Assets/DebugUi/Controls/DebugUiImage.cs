@@ -4,7 +4,7 @@ namespace Kayac
 {
 	public class DebugUiImage : DebugUiControl
 	{
-		private Texture _texture;
+		Texture _texture;
 		public Texture texture
 		{
 			set
@@ -13,7 +13,7 @@ namespace Kayac
 				_texture = value;
 			}
 		}
-		private Sprite _sprite;
+		Sprite _sprite;
 		public Sprite sprite
 		{
 			set

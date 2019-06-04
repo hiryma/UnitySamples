@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using Kayac;
 
-public class Sample : MonoBehaviour
+public class Main : MonoBehaviour
 {
-	[SerializeField]
-	GameObject _gameObjectForDebugUiManager;
 	[SerializeField]
 	Shader _textShader;
 	[SerializeField]
@@ -22,15 +20,15 @@ public class Sample : MonoBehaviour
 
 	void Start()
 	{
-		_renderer = new DebugPrimitiveRenderer2D(
+		_debugUi = DebugUiManager.Create(
+			_camera,
 			_textShader,
 			_texturedShader,
 			_font,
-			_camera,
-			capacity: 8192);
-		_debugUi = DebugUiManager.Create(
-			_gameObjectForDebugUiManager,
-			_renderer);
+			referenceScreenWidth: 1136,
+			referenceScreenHeight: 640,
+			screenPlaneDistance: 100f,
+			triangleCapacity: 8192);
 		_sampleWindow = new SampleWindow(_debugUi);
 		_debugUi.Add(_sampleWindow);
 	}
@@ -38,10 +36,5 @@ public class Sample : MonoBehaviour
 	void Update()
 	{
 		_debugUi.ManualUpdate(Time.deltaTime);
-	}
-
-	void LateUpdate()
-	{
-		_renderer.LateUpdate();
 	}
 }
