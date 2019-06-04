@@ -15,8 +15,8 @@ namespace Kayac
 
 		// 109x44はmiuraのデバグボタンのサイズ
 		public DebugUiMenu(
-			float itemWidth = 109f,
-			float itemHeight = 44f,
+			float itemWidth = 100f,
+			float itemHeight = 40f,
 			Direction direction = Direction.Right,
 			string name = "") : base(itemWidth, itemHeight, direction, name)
 		{

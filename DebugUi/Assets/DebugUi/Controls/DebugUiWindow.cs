@@ -102,14 +102,14 @@ namespace Kayac
 			UpdateWindow();
 		}
 
-		public override void AddChild(
+		public void Add(
 			DebugUiControl child,
 			float offsetX = 0f,
 			float offsetY = 0f,
 			AlignX alignX = AlignX.Left,
 			AlignY alignY = AlignY.Top)
 		{
-			_contentPanel.AddChild(child, offsetX, offsetY, alignX, alignY);
+			_contentPanel.Add(child, offsetX, offsetY, alignX, alignY);
 		}
 
 		public override void RemoveChild(DebugUiControl child)
@@ -117,7 +117,7 @@ namespace Kayac
 			_contentPanel.RemoveChild(child);
 		}
 
-		public void AddChildAuto(DebugUiControl child)
+		public void AddAuto(DebugUiControl child)
 		{
 			// 一旦無限に広げて配置後、再配置
 			_contentPanel.SetSize(float.MaxValue, float.MaxValue);

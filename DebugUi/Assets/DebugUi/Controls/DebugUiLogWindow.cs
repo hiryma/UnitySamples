@@ -9,13 +9,15 @@ namespace Kayac
 		string[] _lines;
 		Color32[] _colors;
 		int _nextLinePos;
+		bool _captureUnityLog;
 
 		public DebugUiLogWindow(
 			float fontSize,
 			int lineCount,
 			float width,
 			float height,
-			bool borderEnabled = true) : base("LogWindow")
+			bool borderEnabled = true,
+			bool captureUnityLog = false) : base("LogWindow")
 		{
 			_fontSize = fontSize;
 			SetSize(width, height);
@@ -26,6 +28,32 @@ namespace Kayac
 			this.backgroundEnabled = true;
 			this.borderEnabled = borderEnabled;
 			color = new Color32(255, 255, 255, 255);
+			_captureUnityLog = captureUnityLog;
+
+			if (captureUnityLog)
+			{
+				Application.logMessageReceivedThreaded += OnLogReceived;
+			}
+		}
+
+		public override void Dispose()
+		{
+			if (_captureUnityLog)
+			{
+				Application.logMessageReceivedThreaded -= OnLogReceived;
+			}
+		}
+
+		void OnLogReceived(string text, string callStack, LogType type)
+		{
+			Color32 color;
+			switch (type)
+			{
+				case LogType.Log: color = new Color32(255, 255, 255, 255); break;
+				case LogType.Warning: color = new Color32(255, 255, 0, 255); break;
+				default: color = new Color32(255, 0, 64, 255); break;
+			}
+			Add(text, color);
 		}
 
 		public void Add(string text)
@@ -44,10 +72,13 @@ namespace Kayac
 
 		public void Add(string text, Color32 lineColor)
 		{
-			_lines[_nextLinePos] = text;
-			_colors[_nextLinePos] = lineColor;
-			_nextLinePos++;
-			_nextLinePos = (_nextLinePos >= _lines.Length) ? 0 : _nextLinePos;
+			lock (_lines)
+			{
+				_lines[_nextLinePos] = text;
+				_colors[_nextLinePos] = lineColor;
+				_nextLinePos++;
+				_nextLinePos = (_nextLinePos >= _lines.Length) ? 0 : _nextLinePos;
+			}
 		}
 
 		public override void Draw(

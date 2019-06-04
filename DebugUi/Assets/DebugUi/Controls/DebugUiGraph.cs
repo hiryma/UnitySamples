@@ -57,6 +57,7 @@ namespace Kayac
 
 		public void AddData(int seriesIndex, float v)
 		{
+			Debug.Assert(seriesIndex < _series.Count, "call AddSeries(). invalid seriesIndex.");
 			var series = _series[seriesIndex];
 			var now = Time.time;
 			series.data.Add(new Data(now, v));
