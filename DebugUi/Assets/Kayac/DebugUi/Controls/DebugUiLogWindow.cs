@@ -13,7 +13,6 @@ namespace Kayac
 
 		public DebugUiLogWindow(
 			float fontSize,
-			int lineCount,
 			float width,
 			float height,
 			bool borderEnabled = true,
@@ -21,6 +20,7 @@ namespace Kayac
 		{
 			_fontSize = fontSize;
 			SetSize(width, height);
+			var lineCount = Mathf.CeilToInt(height / fontSize);
 
 			_lines = new string[lineCount];
 			_colors = new Color32[lineCount];

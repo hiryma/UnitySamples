@@ -418,7 +418,7 @@ namespace Kayac
 			Debug.Assert(_renderer != null, "call SetRenderer()");
 
 			var ray = _camera.ScreenPointToRay(new Vector3(x, y, 0f));
-			var t = _screenPlaneDistance / ray.direction.z;
+			var t = (_screenPlaneDistance - _camera.nearClipPlane) / ray.direction.z;
 			x = ray.origin.x + (ray.direction.x * t);
 			y = ray.origin.y + (ray.direction.y * t);
 			var scale = gameObject.transform.localScale;
