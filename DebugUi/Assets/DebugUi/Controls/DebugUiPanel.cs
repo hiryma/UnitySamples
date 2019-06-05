@@ -3,7 +3,7 @@
 namespace Kayac
 {
 	/// 自動レイアウト機能付き。ただし左揃えのみ。
-	public class DebugUiPanel : DebugUiControl
+	public class DebugUiPanel : DebugUiContainer
 	{
 		float _x;
 		float _y;
@@ -30,11 +30,12 @@ namespace Kayac
 		}
 
 		public DebugUiPanel(
-				float width = float.MaxValue,
-				float height = float.MaxValue,
-				bool borderEnabled = true,
-				bool backgroundEnabled = true,
-				bool blockRaycast = false) : base("Panel")
+			float width = float.MaxValue,
+			float height = float.MaxValue,
+			bool borderEnabled = true,
+			bool backgroundEnabled = true,
+			bool blockRaycast = false,
+			string name = "Panel") : base(name)
 		{
 			SetSize(width, height);
 			this.backgroundEnabled = backgroundEnabled;
@@ -101,24 +102,14 @@ namespace Kayac
 		}
 
 		/// 自動配置位置を上書き
-		public void SetAutoPosition(float x, float y)
+		public virtual void SetAutoPosition(float x, float y)
 		{
 			_x = x;
 			_y = y;
 			_currentLineSize = 0f;
 		}
 
-		public void Add(
-			DebugUiControl child,
-			float offsetX = 0f,
-			float offsetY = 0f,
-			AlignX alignX = AlignX.Left,
-			AlignY alignY = AlignY.Top)
-		{
-			base.AddChild(child, offsetX, offsetY, alignX, alignY);
-		}
-
-		public void AddAuto(DebugUiControl child)
+		public virtual void AddAuto(DebugUiControl child)
 		{
 			float minX = 0f;
 			float minY = 0f;
@@ -186,7 +177,7 @@ namespace Kayac
 				dy = -child.height - borderWidth;
 				size = child.width;
 			}
-			AddChild(child, _x, _y, alignX, alignY);
+			Add(child, _x, _y, alignX, alignY);
 			_x += dx;
 			_y += dy;
 			_currentLineSize = Mathf.Max(_currentLineSize, size);

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Kayac
 {
-	public class DebugUiControl : DebugUi, IDisposable
+	public abstract class DebugUiControl : DebugUi, IDisposable
 	{
 		// デバグ用にしか使っていない
 		public string name { get; private set; }
@@ -80,13 +80,13 @@ namespace Kayac
 		// Clickが呼ばれたか
 		protected bool clickedFromCode { get; private set; }
 
+
 		// 木を成すための情報
 		DebugUiControl _previousBrother;
 		DebugUiControl _nextBrother;
-		DebugUiControl _firstChild;
-		DebugUiControl _lastChild;
-		DebugUiControl _parent;
 		bool _enabled;
+		public DebugUiControl nextBrother { get { return _nextBrother; } }
+		public DebugUiControl previousBrother { get { return _previousBrother; } }
 
 		public DebugUiControl(string name = "")
 		{
@@ -107,44 +107,16 @@ namespace Kayac
 			dragMarkLetterColor = new Color32(255, 255, 255, 255);
 		}
 
-		void Destroy()
+		public void Destroy()
 		{
-			RemoveAllChild();
-			_parent = _nextBrother = _previousBrother = null;
+			Dispose();
+			_nextBrother = _previousBrother = null;
 			_enabled = false;
 			// 以下まともな値が取れないようにしてバグを発覚しやすく
 			localLeftX = float.NaN;
 			localTopY = float.NaN;
 			width = float.NaN;
 			height = float.NaN;
-		}
-
-		public void SetAsLastSibling()
-		{
-			if (_parent != null)
-			{
-				_parent.SetAsLastChild(this);
-			}
-		}
-
-		void SetAsLastChild(DebugUiControl child)
-		{
-			UnlinkChild(child);
-			LinkChildToTail(child);
-		}
-
-		public void SetAsFirstSibling()
-		{
-			if (_parent != null)
-			{
-				_parent.SetAsFirstChild(this);
-			}
-		}
-
-		void SetAsFirstChild(DebugUiControl child)
-		{
-			UnlinkChild(child);
-			LinkChildToHead(child);
 		}
 
 		// 必要なら上層で実装
@@ -162,20 +134,17 @@ namespace Kayac
 			this.clickedFromCode = true;
 		}
 
+		// Panelの派生でのみ実装される
+		protected virtual void EnableChildren()
+		{
+		}
+
 		public void OnEnableRecursive()
 		{
 			Debug.Assert(_enabled);
 			OnEnable(); // 自分を呼ぶ
 
-			var child = _firstChild;
-			while (child != null)
-			{
-				if (child.enabled)
-				{
-					child.OnEnableRecursive();
-				}
-				child = child._nextBrother;
-			}
+			EnableChildren();
 		}
 
 		public void SetLocalPosition(
@@ -202,80 +171,12 @@ namespace Kayac
 			return ret;
 		}
 
-		/// 子を全て含むギリギリのサイズに調整する。遅いので注意。width,heightしかいじらない。
-		public virtual void AdjustSize()
+		protected virtual void UpdateEventChildren(
+			float offsetX,
+			float offsetY,
+			DebugUiManager.Input input,
+			bool parentEnabled)
 		{
-			float maxX = 0f;
-			float maxY = 0f;
-			var child = _firstChild;
-			while (child != null)
-			{
-				if (child.enabled)
-				{
-					float right = child.localLeftX + child.width;
-					float bottom = child.localTopY + child.height;
-					maxX = Mathf.Max(maxX, right);
-					maxY = Mathf.Max(maxY, bottom);
-				}
-				child = child._nextBrother;
-			}
-
-			if (borderEnabled)
-			{
-				maxX += borderWidth * 2f;
-				maxY += borderWidth * 2f;
-			}
-			SetSize(maxX, maxY);
-		}
-
-		// offsetはLocalPositionに足されるので注意
-		public virtual void AddChild(
-			DebugUiControl child,
-			float offsetX = 0f,
-			float offsetY = 0f,
-			AlignX alignX = AlignX.Left,
-			AlignY alignY = AlignY.Top)
-		{
-			float x = 0f;
-			switch (alignX)
-			{
-				case AlignX.Center: x = (this.width - child.width) * 0.5f; break;
-				case AlignX.Right: x = this.width - child.width; break;
-			}
-			float y = 0f;
-			switch (alignY)
-			{
-				case AlignY.Center: y = (this.height - child.height) * 0.5f; break;
-				case AlignY.Bottom: y = (this.height - child.height); break;
-			}
-			child.SetLocalPosition(
-				child.localLeftX + offsetX + x,
-				child.localTopY + offsetY + y);
-			LinkChildToTail(child);
-			child._parent = this;
-		}
-
-		public virtual void RemoveChild(DebugUiControl child)
-		{
-			// リストから切断
-			UnlinkChild(child);
-			// まず内部を破棄
-			child.Dispose();
-			child.Destroy();
-		}
-
-		public void RemoveAllChild()
-		{
-			var child = _firstChild;
-			while (child != null)
-			{
-				var next = child._nextBrother;
-				child.Dispose();
-				child.Destroy();
-
-				child = next;
-			}
-			_firstChild = _lastChild = null;
 		}
 
 		public void UpdateEventRecursive(
@@ -295,16 +196,7 @@ namespace Kayac
 			leftX = offsetX + localLeftX;
 			topY = offsetY + localTopY;
 			// 逆順で更新。後のものほど手前に描画されるので、手前のものを優先してイベントを処理する。
-			var child = _lastChild;
-			while (child != null)
-			{
-				child.UpdateEventRecursive(
-					leftX,
-					topY,
-					input,
-					parentEnabled && enabled);
-				child = child._previousBrother;
-			}
+			UpdateEventChildren(leftX, topY, input, parentEnabled && enabled);
 			// 無効なら以降処理しない。ここまでは初期化が絡むので毎回やらねばならない。
 			if ((parentEnabled && enabled) == false)
 			{
@@ -379,6 +271,16 @@ namespace Kayac
 			}
 		}
 
+		// 子要素に対してレイキャストして、当たりを発見し次第抜けてtrueを返す。
+		protected virtual bool RaycastChildren(
+			float offsetX,
+			float offsetY,
+			float pointerX,
+			float pointerY)
+		{
+			return false;
+		}
+
 		public bool RaycastRecursive(
 			float offsetX,
 			float offsetY,
@@ -393,20 +295,9 @@ namespace Kayac
 			// グローバル座標を計算して子に回す
 			float globalLeftX = offsetX + localLeftX;
 			float globalTopY = offsetY + localTopY;
-
-			var child = _firstChild;
-			while (child != null)
+			if (RaycastChildren(globalLeftX, globalTopY, pointerX, pointerY))
 			{
-				bool result = child.RaycastRecursive(
-					globalLeftX,
-					globalTopY,
-					pointerX,
-					pointerY);
-				if (result)
-				{
-					return true;
-				}
-				child = child._nextBrother;
+				return true;
 			}
 
 			// イベント取る場合のみ判定
@@ -431,6 +322,10 @@ namespace Kayac
 		{
 		}
 
+		protected virtual void UpdateChildren(float deltaTime)
+		{
+		}
+
 		public void UpdateRecursive(float deltaTime)
 		{
 			if (!_enabled)
@@ -444,13 +339,7 @@ namespace Kayac
 				this.clickedFromCode = false;
 			}
 			Update(deltaTime);
-
-			var child = _firstChild;
-			while (child != null)
-			{
-				child.UpdateRecursive(deltaTime);
-				child = child._nextBrother;
-			}
+			UpdateChildren(deltaTime);
 		}
 
 		public virtual void Draw(
@@ -465,6 +354,61 @@ namespace Kayac
 		   float offsetY,
 		   DebugPrimitiveRenderer2D renderer)
 		{
+		}
+
+		protected virtual void DrawChildren(
+			float offsetX,
+			float offsetY,
+			DebugPrimitiveRenderer2D renderer)
+		{
+		}
+
+		public void InsertAfter(DebugUiControl newNode)
+		{
+			Debug.Assert(newNode._previousBrother == null, "already in tree.");
+			Debug.Assert(newNode._nextBrother == null, "already in tree.");
+			var next = _nextBrother;
+			newNode._previousBrother = this;
+			newNode._nextBrother = next;
+			_nextBrother = newNode;
+			if (next != null)
+			{
+				next._previousBrother = newNode;
+			}
+		}
+
+		public void InsertBefore(DebugUiControl newNode)
+		{
+			Debug.Assert(newNode._previousBrother == null, "already in tree.");
+			Debug.Assert(newNode._nextBrother == null, "already in tree.");
+			var prev = _previousBrother;
+			newNode._nextBrother = this;
+			newNode._previousBrother = prev;
+			_previousBrother = newNode;
+			if (prev != null)
+			{
+				prev._nextBrother = newNode;
+			}
+		}
+
+		public void Unlink()
+		{
+			var prev = _previousBrother;
+			var next = _nextBrother;
+			_previousBrother = _nextBrother = null;
+			if (prev != null)
+			{
+				prev._nextBrother = next;
+			}
+			if (next != null)
+			{
+				next._previousBrother = prev;
+			}
+		}
+
+		public void ClearLink()
+		{
+			_previousBrother = _nextBrother = null;
 		}
 
 		public void DrawRecursive(
@@ -503,96 +447,8 @@ namespace Kayac
 			float globalLeftX = offsetX + localLeftX;
 			float globalTopY = offsetY + localTopY;
 
-			var child = _firstChild;
-			while (child != null)
-			{
-				child.DrawRecursive(globalLeftX, globalTopY, renderer);
-				child = child._nextBrother;
-			}
+			DrawChildren(globalLeftX, globalTopY, renderer);
 			DrawPostChild(offsetX, offsetY, renderer);
-		}
-
-		// リストのつなぎ換えだけ
-		void LinkChildToHead(DebugUiControl child)
-		{
-			child._previousBrother = null;
-			// 先頭がnullの場合、末尾もnull。
-			if (_firstChild == null)
-			{
-				Debug.Assert(_lastChild == null);
-				_firstChild = _lastChild = child;
-				child._nextBrother = null;
-			}
-			// 先頭が非nullの場合、リンクを生成
-			else
-			{
-				_firstChild._previousBrother = child;
-				child._nextBrother = _firstChild;
-				_firstChild = child;
-			}
-		}
-
-		// リストのつなぎ換えだけ
-		void LinkChildToTail(DebugUiControl child)
-		{
-			child._nextBrother = null;
-			// 末尾がnullの場合、先頭もnull。
-			if (_lastChild == null)
-			{
-				Debug.Assert(_firstChild == null);
-				_firstChild = _lastChild = child;
-				child._previousBrother = null;
-			}
-			// 末尾が非nullの場合、リンクを生成
-			else
-			{
-				if (_lastChild == child) // 同じものを二連続足したバグは無限ループして厄介なので検出して殺してやる
-				{
-					throw new System.InvalidOperationException("same object added. it must be BUG.");
-				}
-				_lastChild._nextBrother = child;
-				child._previousBrother = _lastChild;
-				_lastChild = child;
-			}
-		}
-
-		// リストのつなぎ換えだけ
-		void UnlinkChild(DebugUiControl child)
-		{
-			Debug.Assert(child._parent == this, "それは樸の子じゃないよ!");
-			// 前と後を取得
-			var next = child._nextBrother;
-			var prev = child._previousBrother;
-			if (next != null)
-			{
-				next._previousBrother = prev;
-			}
-			// nextがないケースではこれが最後。
-			else
-			{
-				_lastChild = prev;
-			}
-
-			if (prev != null)
-			{
-				prev._nextBrother = next;
-			}
-			// prevがないケースではこれが最初
-			else
-			{
-				_firstChild = next;
-			}
-			child._nextBrother = child._previousBrother = null;
-		}
-
-		public IEnumerable<DebugUiControl> EnumerateChildren()
-		{
-			var child = _firstChild;
-			while (child != null)
-			{
-				yield return child;
-				child = child._nextBrother;
-			}
 		}
 	}
 }

@@ -86,7 +86,7 @@ namespace Kayac
 			table.cells[2, 2] = "データ23";
 			AddAuto(table);
 
-			AdjustSize();
+			FitSize();
 		}
 
 		public override void UpdateWindow()

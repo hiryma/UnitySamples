@@ -12,6 +12,29 @@ namespace Kayac
 		, IBeginDragHandler
 		, IDragHandler
 	{
+		public class Input
+		{
+			// 以下はフレームをまたいで状態が保たれる。扱いに注意
+			public float pointerX;
+			public float pointerY;
+			public bool isPointerDown;
+			public DebugUiControl draggedControl;
+			// 以下トリガー系。UpdateEventRecursive後にリセット
+			public bool hasJustClicked;
+			public bool hasJustDragStarted;
+			// 以下UpdateEventRecursiveから書き込み。UpdateEventRecursive前にリセット
+			public DebugUiControl eventConsumer;
+		}
+		DebugUiContainer _root;
+		int _referenceScreenWidth;
+		int _referenceScreenHeight;
+		Input _input;
+		DebugPrimitiveRenderer2D _renderer;
+		Camera _camera;
+		Transform _meshTransform;
+		float _screenPlaneDistance;
+
+
 		public override Camera eventCamera
 		{
 			get
@@ -19,6 +42,7 @@ namespace Kayac
 				return _camera;
 			}
 		}
+
 		public override void Raycast(
 			PointerEventData eventData,
 			List<RaycastResult> resultAppendList)
@@ -70,30 +94,6 @@ namespace Kayac
 				resultAppendList.Add(result);
 			}
 		}
-
-		DebugUiControl _root;
-		int _referenceScreenWidth;
-		int _referenceScreenHeight;
-
-		public class Input
-		{
-			// 以下はフレームをまたいで状態が保たれる。扱いに注意
-			public float pointerX;
-			public float pointerY;
-			public bool isPointerDown;
-			public DebugUiControl draggedControl;
-			// 以下トリガー系。UpdateEventRecursive後にリセット
-			public bool hasJustClicked;
-			public bool hasJustDragStarted;
-			// 以下UpdateEventRecursiveから書き込み。UpdateEventRecursive前にリセット
-			public DebugUiControl eventConsumer;
-		}
-
-		Input _input;
-		DebugPrimitiveRenderer2D _renderer;
-		Camera _camera;
-		Transform _meshTransform;
-		float _screenPlaneDistance;
 
 		public DebugPrimitiveRenderer2D primitiveRenderer
 		{
@@ -178,8 +178,22 @@ namespace Kayac
 			_meshTransform = meshTransform;
 			_referenceScreenHeight = referenceScreenHeight;
 			_referenceScreenWidth = referenceScreenWidth;
-			_root = new DebugUiControl();
-			_root.SetSize(referenceScreenWidth, referenceScreenHeight);
+			// サイズ決定(縦横余る可能性がある)
+			var refAspect = (float)_referenceScreenWidth / (float)_referenceScreenHeight;
+			var aspect = (float)Screen.width / (float)Screen.height;
+			float width = _referenceScreenWidth;
+			float height = _referenceScreenHeight;
+			if (refAspect > aspect) // Yが余る
+			{
+				height = width / aspect;
+			}
+			else // Xが余る
+			{
+				width = height * aspect;
+			}
+
+			_root = new DebugUiContainer(name: "RootContainer");
+			_root.SetSize(width, height);
 			_input = new Input();
 			inputEnabled = true;
 		}
@@ -213,7 +227,7 @@ namespace Kayac
 			DebugUi.AlignX alignX = DebugUi.AlignX.Left,
 			DebugUi.AlignY alignY = DebugUi.AlignY.Top)
 		{
-			_root.AddChild(control, offsetX, offsetY, alignX, alignY);
+			_root.Add(control, offsetX, offsetY, alignX, alignY);
 		}
 
 		public void Remove(DebugUiControl control)
@@ -300,13 +314,17 @@ namespace Kayac
 
 			float offsetX = -_referenceScreenWidth * 0.5f;
 			float offsetY = -_referenceScreenHeight * 0.5f;
+			float width = _referenceScreenWidth;
+			float height = _referenceScreenHeight;
 			if (refAspect > aspect) // Yが余る
 			{
 				offsetY = -(_referenceScreenWidth / aspect) * 0.5f;
+				height = width / aspect;
 			}
 			else // Xが余る
 			{
 				offsetX = -(_referenceScreenHeight * aspect) * 0.5f;
+				width = height * aspect;
 			}
 			_meshTransform.localPosition = new Vector3(offsetX, offsetY, 0f);
 			gameObject.transform.localPosition = new Vector3(0f, 0f, _screenPlaneDistance);
@@ -409,6 +427,12 @@ namespace Kayac
 			var offset = _meshTransform.localPosition;
 			x -= offset.x;
 			y -= offset.y;
+		}
+
+		public void MoveToTop(DebugUiControl control)
+		{
+			_root.UnlinkChild(control);
+			_root.AddChildAsTail(control);
 		}
 	}
 }

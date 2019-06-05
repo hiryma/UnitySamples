@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Kayac
 {
 	// 等サイズのボタンが一列に並んだもの。木を構成できる。
-	public class DebugUiSubMenu : DebugUiControl
+	public class DebugUiSubMenu : DebugUiPanel
 	{
 		public enum Direction
 		{
@@ -32,12 +32,11 @@ namespace Kayac
 		List<Item> _items;
 		DebugUiSubMenu _parent;
 
-		// 109x44はmiuraのデバグボタンのサイズ
 		public DebugUiSubMenu(
 			float itemWidth = 100f,
 			float itemHeight = 40f,
 			Direction direction = Direction.Right,
-			string name = "") : base(string.IsNullOrEmpty(name) ? "SubMenu" : name)
+			string name = "") : base(0f, 0f, false, false, false, string.IsNullOrEmpty(name) ? "SubMenu" : name)
 		{
 			color = new Color32(0, 0, 0, 192);
 			pointerDownColor = new Color32(192, 192, 96, 192);
@@ -88,7 +87,7 @@ namespace Kayac
 					subMenu.enabled = true;
 				}
 			};
-			AddChild(button, _x, _y);
+			Add(button, _x, _y);
 			float subX = _x;
 			float subY = _y;
 			float dw = (_itemWidth + borderWidth);
@@ -100,7 +99,7 @@ namespace Kayac
 				case Direction.Up: subY -= dh; break;
 				case Direction.Down: subY += dh; break;
 			}
-			AddChild(subMenu, subX, subY);
+			Add(subMenu, subX, subY);
 			Item item;
 			item.button = button;
 			item.menu = subMenu;
@@ -125,7 +124,7 @@ namespace Kayac
 					action();
 				}
 			};
-			AddChild(button, _x, _y);
+			Add(button, _x, _y);
 			Item item;
 			item.button = button;
 			item.menu = null;

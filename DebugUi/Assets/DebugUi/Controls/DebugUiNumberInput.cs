@@ -38,7 +38,7 @@ namespace Kayac
 				};
 				_digits[i] = digit;
 			}
-			AdjustSize();
+			FitSize();
 			eventEnabled = true;
 			draggable = true;
 			UpdateDigits();

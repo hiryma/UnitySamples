@@ -2,7 +2,7 @@
 
 namespace Kayac
 {
-	public class DebugUiWindow : DebugUiControl
+	public class DebugUiWindow : DebugUiContainer
 	{
 		public Color32 headerColor
 		{
@@ -13,6 +13,7 @@ namespace Kayac
 		}
 		DebugUiPanel _headerPanel;
 		DebugUiPanel _contentPanel;
+		DebugUiManager _manager;
 		float _prevPointerX;
 		float _prevPointerY;
 		const float DefaultHeaderSize = 50f;
@@ -27,10 +28,11 @@ namespace Kayac
 
 		// TODO: とある事情によりmanagerが必要
 		public DebugUiWindow(
-				DebugUiManager manager,
-				string title,
-				float headerHeight = DefaultHeaderSize) : base(string.IsNullOrEmpty(title) ? "Window" : title)
+			DebugUiManager manager,
+			string title,
+			float headerHeight = DefaultHeaderSize) : base(string.IsNullOrEmpty(title) ? "Window" : title)
 		{
+			_manager = manager;
 			_headerPanel = new DebugUiPanel(
 					float.MaxValue,
 					float.MaxValue,
@@ -47,7 +49,7 @@ namespace Kayac
 			// このヘッダをタップしたら、windowを手前に持ってくる
 			_headerPanel.onEventConsume = () =>
 			{
-				SetAsLastSibling();
+				_manager.MoveToTop(this);
 			};
 
 			var closeButton = new DebugUiButton(
@@ -71,11 +73,11 @@ namespace Kayac
 			_headerPanel.AddAuto(minimizeButton);
 			var titleText = new DebugUiText(manager, title, headerHeight * 0.75f);
 			_headerPanel.AddAuto(titleText);
-			_headerPanel.AdjustSize();
-			base.AddChild(_headerPanel);
+			_headerPanel.FitSize();
+			AddChildAsTail(_headerPanel);
 
 			_contentPanel = new DebugUiPanel(0f, 0f, false, false);
-			base.AddChild(_contentPanel);
+			AddChildAsTail(_contentPanel);
 
 			backgroundEnabled = true;
 			borderEnabled = true;
@@ -122,7 +124,7 @@ namespace Kayac
 			// 一旦無限に広げて配置後、再配置
 			_contentPanel.SetSize(float.MaxValue, float.MaxValue);
 			_contentPanel.AddAuto(child);
-			_contentPanel.AdjustSize();
+			_contentPanel.FitSize();
 			Layout();
 		}
 
@@ -175,7 +177,7 @@ namespace Kayac
 			y += _headerPanel.height;
 			y += borderWidth;
 			_contentPanel.SetLocalPosition(x, y);
-			AdjustSize();
+			FitSize();
 		}
 	}
 }
