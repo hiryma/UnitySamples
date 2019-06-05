@@ -56,17 +56,17 @@ namespace Kayac
 			float x = sp.x;
 			float y = sp.y;
 			ConvertCoordFromUnityScreen(ref x, ref y);
-			bool ret = false;
+			bool hit = false;
 
 			// ドラッグ中ならtrueにする。でないと諸々のイベントが取れなくなる
 			if (isDragging)
 			{
-				ret = true;
+				hit = true;
 			}
 			// 何かに当たればtrue
 			else if (_root.RaycastRecursive(0, 0, x, y))
 			{
-				ret = true;
+				hit = true;
 			}
 			else
 			{
@@ -74,10 +74,10 @@ namespace Kayac
 				_input.isPointerDown = false;
 				_input.pointerX = -float.MaxValue;
 				_input.pointerY = -float.MaxValue;
-				ret = false;
 			}
+
 			// 当たったらraycastResult足す
-			if (ret)
+			if (hit)
 			{
 				var result = new RaycastResult
 				{

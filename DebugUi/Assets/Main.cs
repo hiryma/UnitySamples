@@ -15,9 +15,7 @@ public class Main : MonoBehaviour
 	Camera _camera;
 
 	DebugUiManager _debugUi;
-	DebugPrimitiveRenderer2D _renderer;
 	SampleWindow _sampleWindow;
-
 	DebugUiMenu _menu;
 
 	void Start()
