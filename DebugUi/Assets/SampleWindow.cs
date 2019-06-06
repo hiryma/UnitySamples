@@ -45,7 +45,6 @@ namespace Kayac
 
 			_log = new DebugUiLogWindow(
 				fontSize: 20f,
-				lineCount: 10,
 				width: 600f,
 				height: 220f,
 				borderEnabled: true,

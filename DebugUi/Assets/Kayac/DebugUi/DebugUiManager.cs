@@ -415,18 +415,10 @@ namespace Kayac
 		// UnityのEventSystemの座標をY下向きの仮想解像度座標系に変換
 		public void ConvertCoordFromUnityScreen(ref float x, ref float y)
 		{
-			Debug.Assert(_renderer != null, "call SetRenderer()");
-
-			var ray = _camera.ScreenPointToRay(new Vector3(x, y, 0f));
-			var t = (_screenPlaneDistance - _camera.nearClipPlane) / ray.direction.z;
-			x = ray.origin.x + (ray.direction.x * t);
-			y = ray.origin.y + (ray.direction.y * t);
-			var scale = gameObject.transform.localScale;
-			x /= scale.x;
-			y /= scale.y;
-			var offset = _meshTransform.localPosition;
-			x -= offset.x;
-			y -= offset.y;
+			var world = _camera.ScreenToWorldPoint(new Vector3(x, y, _screenPlaneDistance));
+			var local = _meshTransform.worldToLocalMatrix.MultiplyPoint(world);
+			x = local.x;
+			y = local.y;
 		}
 
 		public void MoveToTop(DebugUiControl control)
