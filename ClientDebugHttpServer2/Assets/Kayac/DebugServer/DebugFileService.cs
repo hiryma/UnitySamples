@@ -177,7 +177,7 @@ document.getElementById('delete').addEventListener('click', onDelete, false);
 				writer.WriteElementString("h1", title);
 				if (isText)
 				{
-					HtmlUtil.WriteTextarea(writer, "text", 30,80, ret.Value);
+					HtmlUtil.WriteTextarea(writer, "text", 0, 0, ret.Value);
 					HtmlUtil.WriteBr(writer);
 					HtmlUtil.WriteInput(writer, "update", "button", "submit");
 				}
@@ -296,14 +296,20 @@ document.getElementById('delete').addEventListener('click', onDelete, false);
 			public static void WriteTextarea(
 				XmlWriter writer,
 				string id,
-				int rows,
-				int cols,
+				int rows = 0,
+				int cols = 0,
 				string value = "")
 			{
 				writer.WriteStartElement("textarea");
 				writer.WriteAttributeString("id", id);
-				writer.WriteAttributeString("rows", rows.ToString());
-				writer.WriteAttributeString("cols", cols.ToString());
+				if (rows > 0)
+				{
+					writer.WriteAttributeString("rows", rows.ToString());
+				}
+				if (cols > 0)
+				{
+					writer.WriteAttributeString("cols", cols.ToString());
+				}
 				writer.WriteString(value);
 				writer.WriteEndElement(); // textarea
 			}
