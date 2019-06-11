@@ -1,5 +1,6 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
+using System.Net.NetworkInformation;
 using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -21,6 +22,25 @@ namespace Kayac
 			return ret;
 		}
 
+		public static string GetLanIpAddress()
+		{
+			string ret = null;
+			foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+			{
+				if ((ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211) || (ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet))
+				{
+					foreach (UnicastIPAddressInformation ip in ni.GetIPProperties().UnicastAddresses)
+					{
+						if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+						{
+							ret = ip.Address.ToString();
+						}
+					}
+				}
+			}
+			return ret;
+		}
+
 		// StreamingAssetsからファイルテキストをロードする
 		public static IEnumerator CoLoad(
 			CoroutineReturnValue<string> ret,
@@ -30,6 +50,7 @@ namespace Kayac
 			string url = MakeUrl(pathInStreamingAssets, overrideEnabled);
 			var req = UnityWebRequest.Get(url);
 			yield return req.SendWebRequest();
+			Debug.Assert(req.isDone);
 			if (req.error != null)
 			{
 				ret.Fail(new System.IO.FileLoadException(url));
@@ -38,6 +59,7 @@ namespace Kayac
 			{
 				ret.Succeed(req.downloadHandler.text);
 			}
+			req.Dispose();
 		}
 
 		// StreamingAssetsからファイルバイナリをロードする
@@ -57,6 +79,7 @@ namespace Kayac
 			{
 				ret.Succeed(req.downloadHandler.data);
 			}
+			req.Dispose();
 		}
 
 		// StreamingAssetsからテクスチャをロードする
@@ -80,6 +103,7 @@ namespace Kayac
 			{
 				ret.Succeed(handler.texture);
 			}
+			req.Dispose();
 		}
 
 		// StreamingAssetsからAudioClipをロードする
@@ -113,28 +137,7 @@ namespace Kayac
 			{
 				ret.Succeed(handler.audioClip);
 			}
-		}
-
-		static string MakeUrl(string path, bool overrideEnabled)
-		{
-			string url = null;
-			if (overrideEnabled)
-			{
-				url = GetPersistentDataPath() + "/" + DirectoryName + "/" + path;
-				if (!File.Exists(url))
-				{
-					url = null;
-				}
-			}
-			if (url == null)
-			{
-				url = Application.streamingAssetsPath + "/" + path;
-			}
-			if (!url.Contains("://"))
-			{
-				url = "file:///" + url;
-			}
-			return url;
+			req.Dispose();
 		}
 
 		public static void SaveOverride(string path, Stream stream)
@@ -143,16 +146,100 @@ namespace Kayac
 			WriteFile(path, stream);
 		}
 
-		public static void SaveOverride(string path, byte[] bytes)
-		{
-			path = Path.Combine(DirectoryName, path);
-			WriteFile(path, bytes);
-		}
-
 		public static void DeleteOverride(string path)
 		{
+			Debug.Assert(!path.StartsWith("/"));
 			path = Path.Combine(DirectoryName, path);
 			DeleteFile(path);
+		}
+
+		public static bool ExistsInStreamingAssets(string path)
+		{
+			Debug.Assert(!path.StartsWith("/"));
+			var absolutePath = string.Format(
+				"{0}/{1}",
+				Application.streamingAssetsPath,
+				path);
+			return File.Exists(absolutePath);
+		}
+
+		public static string MakeUrl(string path, bool overrideEnabled)
+		{
+			Debug.Assert(!path.StartsWith("/"));
+			string url = null;
+			if (overrideEnabled)
+			{
+				url = string.Format(
+					"{0}/{1}/{2}",
+					GetPersistentDataPath(),
+					DirectoryName,
+					path);
+				if (!File.Exists(url))
+				{
+					url = null;
+				}
+			}
+			if (url == null)
+			{
+				url = MakeStreamingAssetsPath(path);
+			}
+			if (!url.Contains("://"))
+			{
+				url = "file:///" + url;
+			}
+			return url;
+		}
+
+		public static bool DirectoryExists(string path)
+		{
+			var absolutePath = MakeStreamingAssetsPath(path);
+			return Directory.Exists(absolutePath);
+		}
+
+		public static IEnumerable<string> EnumerateDirectories(string path)
+		{
+			var absolutePath = MakeStreamingAssetsPath(path);
+			var directories = Directory.GetDirectories(absolutePath);
+			for (int i = 0; i < directories.Length; i++)
+			{
+				var item = Path.GetFileName(directories[i]);
+				yield return item;
+			}
+		}
+
+		public static IEnumerable<string> EnumerateFiles(string path)
+		{
+			var absolutePath = MakeStreamingAssetsPath(path);
+			var files = Directory.GetFiles(absolutePath);
+			for (int i = 0; i < files.Length; i++)
+			{
+				if (Path.GetExtension(files[i]) != ".meta") // meta除外
+				{
+					var item = Path.GetFileName(files[i]);
+					yield return item;
+				}
+			}
+		}
+
+		public static string RemoveQueryString(string url)
+		{
+			var qIndex = url.IndexOf('?'); // Query捨てる
+			if (qIndex >= 0)
+			{
+				url = url.Remove(qIndex);
+			}
+			return url;
+		}
+
+		// non public -----------------------
+
+		public static string MakeStreamingAssetsPath(string path)
+		{
+			var ret = string.Format(
+				"{0}/{1}",
+				Application.streamingAssetsPath,
+				path);
+			return ret;
 		}
 
 		public static void DeleteAllOverride()
@@ -167,19 +254,6 @@ namespace Kayac
 			{
 				Directory.CreateDirectory(path);
 			}
-		}
-
-		static void WriteFile(string path, byte[] data)
-		{
-			path = Path.Combine(GetPersistentDataPath(), path);
-			try
-			{
-				File.WriteAllBytes(path, data);
-			}
-			catch (System.Exception e)
-			{
-				Debug.LogException(e);
-		}
 		}
 
 		static void WriteFile(string path, Stream stream)
@@ -225,6 +299,7 @@ namespace Kayac
 				Debug.LogException(e);
 			}
 		}
+
 
 		static void DeleteFileRecursive(string path)
 		{
