@@ -1,5 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using Kayac;
@@ -43,55 +45,44 @@ public class Main : MonoBehaviour
 		logText.text += message + '\n';
 	}
 
-	void OnWebRequestRoot(out string outputHtml, string inputText)
+	void OnWebRequestRoot(out string outputHtml, NameValueCollection queryString, Stream bodyData)
 	{
 		// html返して終わり
 		outputHtml = debugServerIndexHtml;
 	}
 
-	void OnWebRequestUploadFile(out string outputHtml, string inputText)
+	void OnWebRequestUploadFile(out string outputHtml, NameValueCollection queryString, Stream bodyData)
 	{
 		outputHtml = null;
-		if (string.IsNullOrEmpty(inputText))
+		if (bodyData == null)
 		{
-			outputHtml = "入力テキストがない.";
+			outputHtml = "中身が空.";
 			return;
 		}
-		var arg = UnityEngine.JsonUtility.FromJson<UploadFileArg>(inputText);
-		if (string.IsNullOrEmpty(arg.path))
+		var path = queryString["path"];
+		if (string.IsNullOrEmpty(path))
 		{
 			outputHtml = "アップロードしたファイルのパスが空.";
 			return;
 		}
-		if (arg.contentBase64 == null)
-		{
-			outputHtml = "ファイルの中身が空.";
-			return;
-		}
-		var bytes = System.Convert.FromBase64String(arg.contentBase64);
-		DebugServerUtil.SaveOverride(arg.path, bytes);
+		DebugServerUtil.SaveOverride(path, bodyData);
 		loadRequested = true;
 	}
 
-	void OnWebRequestDeleteFile(out string outputHtml, string inputText)
+	void OnWebRequestDeleteFile(out string outputHtml, NameValueCollection queryString, Stream bodyData)
 	{
 		outputHtml = null;
-		if (string.IsNullOrEmpty(inputText))
+		var path = queryString["path"];
+		if (string.IsNullOrEmpty(path))
 		{
-			outputHtml = "入力テキストがない.";
+			outputHtml = "アップロードしたファイルのパスが空.";
 			return;
 		}
-		var arg = UnityEngine.JsonUtility.FromJson<UploadFileArg>(inputText);
-		if (string.IsNullOrEmpty(arg.path))
-		{
-			outputHtml = "消したファイルのパスが空.";
-			return;
-		}
-		DebugServerUtil.DeleteOverride(arg.path);
+		DebugServerUtil.DeleteOverride(path);
 		loadRequested = true;
 	}
 
-	void OnWebRequestDeleteAllFile(out string outputHtml, string inputText)
+	void OnWebRequestDeleteAllFile(out string outputHtml, NameValueCollection queryString, Stream bodyData)
 	{
 		DebugServerUtil.DeleteAllOverride();
 		outputHtml = null;

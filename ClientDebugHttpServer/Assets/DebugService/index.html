@@ -1,11 +1,9 @@
 <!doctype html>
 <html>
-
 <head>
 	<meta charset="UTF-8">
 	<title>DebugService</title>
 </head>
-
 <body>
 	<h1>DebugService</h1>
 	<ul>
@@ -15,10 +13,10 @@
 		<li><input id="delete" type="button" value="実機から削除">
 		<li><input id="delete-all" type="button" value="実機から全ファイル削除">
 	</ul>
-	<output id="log">
+	<output id="log"></output>
 	<script>
 		var log = document.getElementById('log');
-		var onLoad = function (binaryString) {
+		var onLoad = function (arrayBuffer) {
 			var path = document.getElementById('path').value;
 			var request = new XMLHttpRequest();
 			request.onload = function () {
@@ -27,13 +25,8 @@
 			request.onerror = function () {
 				log.value = 'アップロード失敗\n';
 			};
-			request.open('PUT', document.location.origin + '/upload-file', true);
-
-			var arg = {};
-			arg.path = path;
-			arg.contentBase64 = window.btoa(binaryString);
-			var argJson = JSON.stringify(arg);
-			request.send(argJson);
+			request.open('PUT', document.location.origin + '/upload-file?path=' + path, true);
+			request.send(new Int8Array(arrayBuffer));
 		};
 		var onUpload = function () {
 			var files = document.getElementById('file').files;
@@ -44,7 +37,7 @@
 			reader.onload = function (e) {
 				onLoad(e.target.result);
 			};
-			reader.readAsBinaryString(files[0]);
+			reader.readAsArrayBuffer(files[0]);
 		};
 		var onFileSelected = function () {
 			var path = document.getElementById('path').value;
@@ -55,7 +48,7 @@
 				}
 			}
 		};
-		var onDelete = function (){
+		var onDelete = function () {
 			var path = document.getElementById('path').value;
 			var request = new XMLHttpRequest();
 			request.onload = function () {
@@ -64,15 +57,11 @@
 			request.onerror = function () {
 				log.value = '削除失敗\n';
 			};
-			request.open('PUT', document.location.origin + '/delete-file', true);
+			request.open('PUT', document.location.origin + '/delete-file?path=' + path, true);
 
-			var arg = {};
-			arg.path = path;
-			arg.contentBase64 = null;
-			var argJson = JSON.stringify(arg);
-			request.send(argJson);
+			request.send();
 		};
-		var onDeleteAll = function (){
+		var onDeleteAll = function () {
 			var path = document.getElementById('path').value;
 			var request = new XMLHttpRequest();
 			request.onload = function () {
@@ -82,14 +71,12 @@
 				log.value = '全削除失敗\n';
 			};
 			request.open('PUT', document.location.origin + '/delete-all-file', true);
-			request.send(null);
+			request.send();
 		};
 		document.getElementById('upload').addEventListener('click', onUpload, false);
 		document.getElementById('delete').addEventListener('click', onDelete, false);
 		document.getElementById('delete-all').addEventListener('click', onDeleteAll, false);
-		document.getElementById('file').addEventListener('input', onFileSelected, false)
-
+		document.getElementById('file').addEventListener('change', onFileSelected, false);
 	</script>
 </body>
-
 </html>

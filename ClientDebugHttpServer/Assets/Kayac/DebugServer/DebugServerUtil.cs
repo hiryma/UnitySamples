@@ -146,9 +146,14 @@ namespace Kayac
 			return url;
 		}
 
+		public static void SaveOverride(string path, Stream stream)
+		{
+			path = Path.Combine(DirectoryName, path);
+			WriteFile(path, stream);
+		}
+
 		public static void SaveOverride(string path, byte[] bytes)
 		{
-			TryCreateDirectory(DirectoryName);
 			path = Path.Combine(DirectoryName, path);
 			WriteFile(path, bytes);
 		}
@@ -173,13 +178,43 @@ namespace Kayac
 			}
 		}
 
-
 		static void WriteFile(string path, byte[] data)
 		{
 			path = Path.Combine(GetPersistentDataPath(), path);
 			try
 			{
 				File.WriteAllBytes(path, data);
+			}
+			catch (System.Exception e)
+			{
+				Debug.LogException(e);
+			}
+		}
+
+		static void WriteFile(string path, Stream stream)
+		{
+			path = Path.Combine(GetPersistentDataPath(), path);
+			try
+			{
+				var dir = Path.GetDirectoryName(path);
+				TryCreateDirectory(dir);
+				using (var outStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
+				{
+					const int bufferSize = 1024 * 1024; // TODO: これ128とかにしてファイルちゃんと保存されるか確認しとけ
+					var buffer = new byte[bufferSize];
+					while (true)
+					{
+						var advance = stream.Read(buffer, 0, bufferSize);
+						if (advance > 0)
+						{
+							outStream.Write(buffer, 0, advance);
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
 			}
 			catch (System.Exception e)
 			{
