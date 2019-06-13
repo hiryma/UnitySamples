@@ -15,7 +15,7 @@ namespace Kayac
 			string ret;
 #if UNITY_EDITOR // エディタではプロジェクト直下の方が便利
 			// GetCurrentDirectoryがプロジェクトパスを返すことに依存している。動作が変われば動かなくなる!
-			ret = Path.Combine(Directory.GetCurrentDirectory(), "persistent-data");
+			ret = Path.Combine(Directory.GetCurrentDirectory(), "PersistentData");
 #else
 			ret = Application.persistentDataPath;
 #endif
@@ -153,16 +153,6 @@ namespace Kayac
 			DeleteFile(path);
 		}
 
-		public static bool ExistsInStreamingAssets(string path)
-		{
-			Debug.Assert(!path.StartsWith("/"));
-			var absolutePath = string.Format(
-				"{0}/{1}",
-				Application.streamingAssetsPath,
-				path);
-			return File.Exists(absolutePath);
-		}
-
 		public static string MakeUrl(string path, bool overrideEnabled)
 		{
 			Debug.Assert(!path.StartsWith("/"));
@@ -194,31 +184,6 @@ namespace Kayac
 		{
 			var absolutePath = MakeStreamingAssetsPath(path);
 			return Directory.Exists(absolutePath);
-		}
-
-		public static IEnumerable<string> EnumerateDirectories(string path)
-		{
-			var absolutePath = MakeStreamingAssetsPath(path);
-			var directories = Directory.GetDirectories(absolutePath);
-			for (int i = 0; i < directories.Length; i++)
-			{
-				var item = Path.GetFileName(directories[i]);
-				yield return item;
-			}
-		}
-
-		public static IEnumerable<string> EnumerateFiles(string path)
-		{
-			var absolutePath = MakeStreamingAssetsPath(path);
-			var files = Directory.GetFiles(absolutePath);
-			for (int i = 0; i < files.Length; i++)
-			{
-				if (Path.GetExtension(files[i]) != ".meta") // meta除外
-				{
-					var item = Path.GetFileName(files[i]);
-					yield return item;
-				}
-			}
 		}
 
 		public static string RemoveQueryString(string url)

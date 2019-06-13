@@ -14,7 +14,7 @@ namespace Kayac
 			string ret;
 #if UNITY_EDITOR // エディタではプロジェクト直下の方が便利
 			// GetCurrentDirectoryがプロジェクトパスを返すことに依存している。動作が変われば動かなくなる!
-			ret = Path.Combine(Directory.GetCurrentDirectory(), "persistent-data");
+			ret = Path.Combine(Directory.GetCurrentDirectory(), "PersistentData");
 #else
 			ret = Application.persistentDataPath;
 #endif

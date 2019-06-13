@@ -1,17 +1,14 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using UnityEngine;
-using System;
-using System.IO;
 using System.Net;
 using System.Text;
-using System.Xml;
 
 namespace Kayac
 {
 	public class DebugFileService
 	{
+		public const string MapPath = "Kayac/DebugServer/StreamingAssetsMap.json";
 		public delegate void ChangedCallback(string path);
 		public event ChangedCallback OnChanged;
 		public string pathPrefix { get; private set; }
@@ -20,10 +17,20 @@ namespace Kayac
 		{
 			coroutineRunner = new ManualCoroutineRunner();
 			this.pathPrefix = pathPrefix;
+
+			var ext = System.IO.Path.GetExtension(MapPath);
+			var pathWitoutExt = MapPath.Remove(MapPath.Length - ext.Length, ext.Length);
+			var mapAsset = Resources.Load<TextAsset>(pathWitoutExt); // TODO: 同期でいいのか?
+			if (mapAsset != null)
+			{
+				var json = mapAsset.text;
+				streamingAssetsMap = JsonUtility.FromJson<Map>(json);
+			}
 		}
 
 		public void ProcessRequest(HttpListenerContext context)
 		{
+			UnityEngine.Profiling.Profiler.BeginSample("DebugFileService.ProcessRequest");
 			var response = context.Response;
 			// index.html処理
 			var path = DebugServerUtil.RemoveQueryString(context.Request.RawUrl);
@@ -60,6 +67,7 @@ namespace Kayac
 				response.StatusCode = (int)HttpStatusCode.InternalServerError;
 				response.Close();
 			}
+			UnityEngine.Profiling.Profiler.EndSample();
 		}
 
 		public void ManualUpdate()
@@ -67,8 +75,45 @@ namespace Kayac
 			coroutineRunner.MoveNext();
 		}
 
+		[System.Serializable]
+		public class Directory
+		{
+			public Directory()
+			{
+				firstFile = firstChild = nextBrother = int.MinValue;
+			}
+			public string name;
+			public int firstFile;
+			public int firstChild;
+			public int nextBrother;
+		}
+
+		[System.Serializable]
+		public class File
+		{
+			public File()
+			{
+				nextFile = int.MinValue;
+			}
+			public string name;
+			public int nextFile;
+		}
+
+		[System.Serializable]
+		public class Map
+		{
+			public Map()
+			{
+				directories = new List<Directory>();
+				files = new List<File>();
+			}
+			public List<Directory> directories;
+			public List<File> files;
+		}
+
 		// non public -------------------
 		ManualCoroutineRunner coroutineRunner;
+		Map streamingAssetsMap;
 		// TODO: この下のあたり、もっと綺麗な書き方ないの?
 		const string fileGetScript = @"
 var log = document.getElementById('log');
@@ -161,7 +206,7 @@ document.getElementById('delete').addEventListener('click', onDelete, false);
 			}
 			else
 			{
-				var ext = Path.GetExtension(path);
+				var ext = System.IO.Path.GetExtension(path);
 				var isText = (ext == ".txt")
 					|| (ext == ".json")
 					|| (ext == ".html")
@@ -177,7 +222,7 @@ document.getElementById('delete').addEventListener('click', onDelete, false);
 				writer.WriteElementString("h1", title);
 				if (isText)
 				{
-					HtmlUtil.WriteTextarea(writer, "text", 0, 0, ret.Value);
+					HtmlUtil.WriteTextarea(writer, "text", 20, 60, ret.Value);
 					HtmlUtil.WriteBr(writer);
 					HtmlUtil.WriteInput(writer, "update", "button", "submit");
 				}
@@ -225,23 +270,36 @@ document.getElementById('delete').addEventListener('click', onDelete, false);
 			HtmlUtil.WriteHeader(writer, title);
 			writer.WriteStartElement("body");
 			writer.WriteElementString("h1", title);
-			writer.WriteStartElement("ul");
 
-			var directories = DebugServerUtil.EnumerateDirectories(path);
-			foreach (var directory in directories)
+			var parentDirectory = FindDirectory(path);
+			if (parentDirectory == null)
 			{
-				writer.WriteStartElement("li");
-				HtmlUtil.WriteA(writer, directory + "/", directory);
-				writer.WriteEndElement(); //li
+				writer.WriteElementString("p", "not found in map. use MakeStreamingAssetsMap tool in Editor.");
 			}
-			var files = DebugServerUtil.EnumerateFiles(path);
-			foreach (var file in files)
+			else
 			{
-				writer.WriteStartElement("li");
-				HtmlUtil.WriteA(writer, file, file);
-				writer.WriteEndElement(); //li
+				writer.WriteStartElement("ul");
+				var directoryIndex = parentDirectory.firstChild;
+				while (directoryIndex >= 0)
+				{
+					var directory = streamingAssetsMap.directories[directoryIndex];
+					writer.WriteStartElement("li");
+					HtmlUtil.WriteA(writer, directory.name + "/", directory.name);
+					writer.WriteEndElement(); //li
+					directoryIndex = directory.nextBrother;
+				}
+
+				var fileIndex = parentDirectory.firstFile;
+				while (fileIndex >= 0)
+				{
+					var file = streamingAssetsMap.files[fileIndex];
+					writer.WriteStartElement("li");
+					HtmlUtil.WriteA(writer, file.name, file.name);
+					writer.WriteEndElement(); //li
+					fileIndex = file.nextFile;
+				}
+				writer.WriteEndElement(); //ul
 			}
-			writer.WriteEndElement(); //ul
 			writer.WriteEndElement(); //body
 			writer.WriteEndElement(); //html
 			writer.Close();
@@ -260,89 +318,50 @@ document.getElementById('delete').addEventListener('click', onDelete, false);
 			response.Close(bytes, willBlock: false);
 		}
 
-		static class HtmlUtil
+		// 速度とかガン無視ですよ今は
+		Directory FindDirectory(string path)
 		{
-			public static XmlWriter CreateWriter(StringBuilder sb)
+			if (streamingAssetsMap == null)
 			{
-				var settings = new XmlWriterSettings();
-				settings.Indent = true;
-				settings.IndentChars = "\t";
-				settings.NewLineChars = "\n";
-				settings.OmitXmlDeclaration = true;
-				var writer = XmlWriter.Create(sb, settings);
-				return writer;
+				Debug.LogError("No StreamingAssetsMap.json!");
+				return null;
 			}
-
-			public static void WriteHeader(XmlWriter writer, string title)
+			else
 			{
-				writer.WriteDocType("html", null, null, null);
-				writer.WriteStartElement("html");
-				writer.WriteStartElement("head");
-				writer.WriteStartElement("meta");
-				writer.WriteAttributeString("charset", "UTF-8");
-				writer.WriteEndElement();
-				writer.WriteElementString("title", title);
-				writer.WriteEndElement(); // head
+				return FindDirectory(streamingAssetsMap.directories[0], path); // 0が必ずルート
 			}
+		}
 
-			public static void WriteA(XmlWriter writer, string hrefAttribute, string innerText)
+		Directory FindDirectory(Directory root, string path)
+		{
+			// スラッシュ除去
+			while ((path.Length > 0) && (path[0] == '/'))
 			{
-				writer.WriteStartElement("a");
-				writer.WriteAttributeString("href", hrefAttribute);
-				writer.WriteString(innerText);
-				writer.WriteEndElement();
+				path = path.Remove(0, 1);
 			}
-
-			public static void WriteTextarea(
-				XmlWriter writer,
-				string id,
-				int rows = 0,
-				int cols = 0,
-				string value = "")
+			if (path.Length == 0) // 尽きたらこれ
 			{
-				writer.WriteStartElement("textarea");
-				writer.WriteAttributeString("id", id);
-				if (rows > 0)
+				return root;
+			}
+			// 次のスラッシュまでを切り出し
+			int nextSlash = path.IndexOf('/');
+			if (nextSlash < 0)
+			{
+				nextSlash = path.Length; // なければ末尾にあるものとする
+			}
+			var search = path.Substring(0, nextSlash);
+			var directoryIndex = root.firstChild;
+			while (directoryIndex >= 0)
+			{
+				var directory = streamingAssetsMap.directories[directoryIndex];
+				if (directory.name == search)
 				{
-					writer.WriteAttributeString("rows", rows.ToString());
+					path = path.Remove(0, search.Length);
+					return FindDirectory(directory, path);
 				}
-				if (cols > 0)
-				{
-					writer.WriteAttributeString("cols", cols.ToString());
-				}
-				writer.WriteString(value);
-				writer.WriteEndElement(); // textarea
+				directoryIndex = directory.nextBrother;
 			}
-
-			public static void WriteBr(XmlWriter writer)
-			{
-				writer.WriteStartElement("br");
-				writer.WriteEndElement();
-			}
-
-			public static void WriteInput(
-				XmlWriter writer,
-				string id,
-				string type,
-				string value = "")
-			{
-				writer.WriteStartElement("input");
-				writer.WriteAttributeString("id", id);
-				writer.WriteAttributeString("type", type);
-				writer.WriteAttributeString("value", value);
-				writer.WriteEndElement();
-			}
-
-			public static void WriteOutput(
-				XmlWriter writer,
-				string id,
-				string value = "")
-			{
-				writer.WriteStartElement("output");
-				writer.WriteAttributeString("id", id);
-				writer.WriteAttributeString("value", value);
-				writer.WriteEndElement();
-			}
+			return null; // 見つからず
 		}
 	}
 }

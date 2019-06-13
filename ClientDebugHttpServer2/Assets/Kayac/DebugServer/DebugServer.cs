@@ -57,7 +57,7 @@ namespace Kayac
 			// ファイル処理中なら止める
 			while (requestContexts.Count > 0)
 			{
-				ProcessRequestContext(requestContexts.Dequeue());
+				ProcessRequest(requestContexts.Dequeue());
 			}
 		}
 
@@ -77,7 +77,7 @@ namespace Kayac
 			}
 		}
 
-		void ProcessRequestContext(HttpListenerContext context)
+		void ProcessRequest(HttpListenerContext context)
 		{
 			var request = context.Request;
 			var path = DebugServerUtil.RemoveQueryString(request.RawUrl); // QueryStringいらない

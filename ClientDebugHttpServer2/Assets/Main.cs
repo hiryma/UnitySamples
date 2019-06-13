@@ -34,9 +34,9 @@ public class Main : MonoBehaviour
 
 		// 上書き検出
 		debugServer.RegisterRequestCallback("/", OnWebRequestRoot);
-		debugServer.RegisterRequestCallback("/api/upload-file", OnWebRequestUploadFile);
-		debugServer.RegisterRequestCallback("/api/delete-file", OnWebRequestDeleteFile);
-		debugServer.RegisterRequestCallback("/api/delete-all-file", OnWebRequestDeleteAllFile);
+		debugServer.RegisterRequestCallback("/api/file/upload", OnWebRequestUploadFile);
+		debugServer.RegisterRequestCallback("/api/file/delete", OnWebRequestDeleteFile);
+		debugServer.RegisterRequestCallback("/api/file/delete-all", OnWebRequestDeleteAllFile);
 		loadRequested = true;
 	}
 

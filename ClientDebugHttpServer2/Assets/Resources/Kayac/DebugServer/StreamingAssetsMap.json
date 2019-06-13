@@ -1,0 +1,72 @@
+{
+    "directories": [
+        {
+            "name": "StreamingAssets",
+            "firstFile": -2147483648,
+            "firstChild": 1,
+            "nextBrother": -2147483648
+        },
+        {
+            "name": "Images",
+            "firstFile": 0,
+            "firstChild": -2147483648,
+            "nextBrother": 2
+        },
+        {
+            "name": "Jsons",
+            "firstFile": 1,
+            "firstChild": 4,
+            "nextBrother": 3
+        },
+        {
+            "name": "Sounds",
+            "firstFile": 8,
+            "firstChild": -2147483648,
+            "nextBrother": -2147483648
+        },
+        {
+            "name": "DummyForTest",
+            "firstFile": -2147483648,
+            "firstChild": -2147483648,
+            "nextBrother": -2147483648
+        }
+    ],
+    "files": [
+        {
+            "name": "image.png",
+            "nextFile": -2147483648
+        },
+        {
+            "name": "rotation_speed.json",
+            "nextFile": 2
+        },
+        {
+            "name": "rotation_speedのコピー.json",
+            "nextFile": 3
+        },
+        {
+            "name": "rotation_speedのコピー2.json",
+            "nextFile": 4
+        },
+        {
+            "name": "rotation_speedのコピー3.json",
+            "nextFile": 5
+        },
+        {
+            "name": "rotation_speedのコピー4.json",
+            "nextFile": 6
+        },
+        {
+            "name": "rotation_speedのコピー5.json",
+            "nextFile": 7
+        },
+        {
+            "name": "rotation_speedのコピー6.json",
+            "nextFile": -2147483648
+        },
+        {
+            "name": "sound.wav",
+            "nextFile": -2147483648
+        }
+    ]
+}

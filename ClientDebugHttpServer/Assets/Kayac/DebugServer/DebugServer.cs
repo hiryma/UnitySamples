@@ -48,11 +48,14 @@ namespace Kayac
 		{
 			while (requestContexts.Count > 0)
 			{
-				ProcessRequestContext(requestContexts.Dequeue());
+				ProcessRequest(requestContexts.Dequeue());
 			}
 		}
 
 		// non public ----------------
+		HttpListener listener;
+		Dictionary<string, OnRequest> callbacks;
+		Queue<HttpListenerContext> requestContexts;
 
 		// 別のスレッドから呼ばれ得るのでキューに溜めて、ManualUpdateからコールバックを呼ぶ
 		// TODO: 別スレでやっていいい処理であればそのまま実行する、という選択肢はあっていい。その方が性能は良い。
@@ -66,7 +69,7 @@ namespace Kayac
 			}
 		}
 
-		void ProcessRequestContext(HttpListenerContext context)
+		void ProcessRequest(HttpListenerContext context)
 		{
 			var request = context.Request;
 			var response = context.Response;
@@ -110,9 +113,5 @@ namespace Kayac
 				}
 			}
 		}
-
-		HttpListener listener;
-		Dictionary<string, OnRequest> callbacks;
-		Queue<HttpListenerContext> requestContexts;
 	}
 }
