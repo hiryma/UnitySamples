@@ -19,7 +19,7 @@ namespace Kayac
 
 		public void OnPreprocessBuild(UnityEditor.Build.Reporting.BuildReport report)
 		{
-
+			GenerateMap();
 		}
 
 		static StreamingAssetsMap()
