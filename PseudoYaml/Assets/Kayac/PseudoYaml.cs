@@ -79,7 +79,11 @@ public static class PseudoYaml
 		}
 		else if (type.IsPrimitive || (type == typeof(string)))
 		{
-			sb.AppendFormat("{0}: {1}\n", fieldName, o.ToString());
+			if (fieldName != null)
+			{
+				sb.AppendFormat("{0}: ", fieldName);
+			}
+			sb.AppendFormat("{0}\n", o.ToString());
 		}
 		else if (type.IsArray)
 		{

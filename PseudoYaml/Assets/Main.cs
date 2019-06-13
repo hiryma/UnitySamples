@@ -13,6 +13,7 @@ public class Main : MonoBehaviour
 		public int id;
 		public string name;
 		public List<Node> children;
+		public string[] files;
 		[System.NonSerialized]
 		float magic = 1.2345f; // こいつは出てこないはず
 	}
@@ -23,9 +24,8 @@ public class Main : MonoBehaviour
 
 	void Start()
 	{
-		var dir = Application.dataPath;
 		root = new Node();
-		root.name = dir;
+		root.name = "";
 		root.id = nextId;
 		nextId++;
 
@@ -39,34 +39,32 @@ public class Main : MonoBehaviour
 
 	void Scan(Node node)
 	{
-		var dirs = Directory.GetDirectories(node.name);
+		var path = Application.dataPath;
+		path += string.IsNullOrEmpty(node.name) ? "" : ("/" + node.name);
+		var dirs = Directory.GetDirectories(path);
 		if (dirs.Length > 0)
 		{
 			node.children = new List<Node>();
 			foreach (var dir in dirs)
 			{
 				var child = new Node();
-				child.name = dir;
+				child.name = System.IO.Path.GetFileName(dir);
 				child.id = nextId;
 				nextId++;
 				node.children.Add(child);
 				Scan(child);
 			}
 		}
-		var files = Directory.GetFiles(node.name);
+		var files = Directory.GetFiles(path);
 		if (files.Length > 0)
 		{
-			if (node.children == null)
+			if (node.files == null)
 			{
-				node.children = new List<Node>();
+				node.files = new string[files.Length];
 			}
-			foreach (var file in files)
+			for (int i = 0; i < files.Length; i++)
 			{
-				var child = new Node();
-				child.name = file;
-				child.id = nextId;
-				nextId++;
-				node.children.Add(child);
+				node.files[i] = System.IO.Path.GetFileName(files[i]);
 			}
 		}
 	}
@@ -102,8 +100,17 @@ public class Main : MonoBehaviour
 	void ToString(System.Text.StringBuilder sb, Node node, int level)
 	{
 		sb.Append('\t', level);
-		sb.Append(node.name.Remove(0, Application.dataPath.Length));
+		sb.Append(node.name);
 		sb.Append('\n');
+		if (node.files != null)
+		{
+			foreach (var file in node.files)
+			{
+				sb.Append('\t', level + 1);
+				sb.Append(file);
+				sb.Append('\n');
+			}
+		}
 		if (node.children != null)
 		{
 			foreach (var child in node.children)
