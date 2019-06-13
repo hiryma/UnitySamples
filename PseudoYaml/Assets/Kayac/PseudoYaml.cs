@@ -25,8 +25,20 @@ using System.Reflection;
 
 - 何も作ってない
 
- */
+*/
 
+/*
+Yaml風の何かを読み書きするもの。あくまでYaml「風」
+
+実装を小さくするためにYamlを強く機能制限している
+
+- 括弧を使うJSON風の記法はない
+- 文字列のクォーテーションはない(さすがに後で足すかも)
+- 複数行文字列用の'|'と'>'はない(後で足すかも)
+- '---'による文書分割はない。...によるファイル終了もない。
+- &と*はない
+- !!による型指定はない
+*/
 public static class PseudoYaml
 {
 	public static string Serialize(object root)
@@ -113,6 +125,7 @@ public static class PseudoYaml
 		return (!field.IsNotSerialized);
 	}
 
+	// 後でいじりそうなので出しておく
 	static FieldInfo[] GetFields(Type type)
 	{
 		var fields = type.GetFields(
@@ -122,7 +135,7 @@ public static class PseudoYaml
 		return fields;
 	}
 
-	public static T Deserialize<T>(string yaml) where T: class, new()
+	public static T Deserialize<T>(string text) where T: class, new()
 	{
 		return null;
 	}
