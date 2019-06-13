@@ -4,13 +4,27 @@ using UnityEngine;
 using System;
 using System.Reflection;
 
+/* TODO:
+
+# 全般
+
+- 何を吐いて何を吐かないかをどう制御する?
+    - 現状NonSerializedがついていなければ全て。Unityに合わせるべきか?
+
+# シリアライズ
+
+- 改行入り文字列 -> なんかあったよね書式
+- エスケープしないといけない文字列 -> 面倒なら制約として放置しても...ダメかな...
+- 最初がスペースな文字列 -> ''でくくってしまえばこの問題は消えるが、くくらなくていいものはくくりたくない。
+
+# デシリアライズ
+
+- 何も作ってない
+
+ */
+
 public static class PseudoYaml
 {
-	public class SerializeFieldAttribute : System.Attribute
-	{
-
-	}
-
 	public static string Serialize(object root)
 	{
 		Debug.Assert(root != null);
