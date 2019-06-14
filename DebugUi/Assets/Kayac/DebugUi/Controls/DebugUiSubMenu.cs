@@ -7,13 +7,6 @@ namespace Kayac
 	// 等サイズのボタンが一列に並んだもの。木を構成できる。
 	public class DebugUiSubMenu : DebugUiPanel
 	{
-		public enum Direction
-		{
-			Left,
-			Right,
-			Up,
-			Down,
-		}
 		public Color32 textColor { get; set; }
 		public Color32 pointerDownTextColor { get; set; }
 		public Color32 color { get; set; }
@@ -33,10 +26,11 @@ namespace Kayac
 		DebugUiSubMenu _parent;
 
 		public DebugUiSubMenu(
+			string name,
 			float itemWidth = 100f,
 			float itemHeight = 40f,
-			Direction direction = Direction.Right,
-			string name = "") : base(0f, 0f, false, false, false, string.IsNullOrEmpty(name) ? "SubMenu" : name)
+			Direction direction = Direction.Right)
+			: base(0f, 0f, false, false, false, name)
 		{
 			color = new Color32(0, 0, 0, 192);
 			pointerDownColor = new Color32(192, 192, 96, 192);
@@ -62,7 +56,6 @@ namespace Kayac
 		}
 
 		public DebugUiButton AddSubMenu(
-			string name,
 			DebugUiSubMenu subMenu,
 			Direction subMenuDirection = Direction.Down)
 		{
@@ -72,7 +65,7 @@ namespace Kayac
 			subMenu.textColor = this.textColor;
 			subMenu.pointerDownColor = this.pointerDownColor;
 			subMenu.pointerDownTextColor = this.pointerDownTextColor;
-			var button = new DebugUiButton(name, _itemWidth, _itemHeight);
+			var button = new DebugUiButton(subMenu.name, _itemWidth, _itemHeight);
 			button.color = this.color;
 			button.textColor = this.textColor;
 			button.pointerDownColor = this.pointerDownColor;

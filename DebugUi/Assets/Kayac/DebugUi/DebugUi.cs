@@ -9,11 +9,20 @@
 			Center,
 			Right,
 		}
+
 		public enum AlignY
 		{
 			Top,
 			Center,
 			Bottom,
+		}
+
+		public enum Direction
+		{
+			Left,
+			Right,
+			Up,
+			Down,
 		}
 	}
 }

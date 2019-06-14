@@ -10,7 +10,7 @@ namespace Kayac
 		float _currentLineSize; // 現在のライン(縦横いずれか)のサイズ
 
 		public float lineSpace { get; set; }
-		public enum Direction
+		public enum Layout
 		{
 			RightDown, // 左上原点。まず右、はみ出したら左に戻して下
 			RightUp, // 左下原点。まず右、はみ出したら左に戻して上
@@ -21,12 +21,12 @@ namespace Kayac
 			UpRight, // 左下原点。まず上、はみ出したら下に戻して右
 			UpLeft, // 右下原点。まず上、はみ出したら下に戻して左
 		}
-		public Direction direction { get; private set; }
+		public Layout layout { get; private set; }
 
-		public void SetDirection(Direction direction)
+		public void SetLayout(Layout layout)
 		{
 			SetAutoPosition(0f, 0f);
-			this.direction = direction;
+			this.layout = layout;
 		}
 
 		public DebugUiPanel(
@@ -46,7 +46,7 @@ namespace Kayac
 			_currentLineSize = 0f;
 			this.lineSpace = borderWidth;
 			this.eventEnabled = blockRaycast;
-			this.direction = Direction.RightDown;
+			this.layout = Layout.RightDown;
 		}
 
 		// 自動レイアウトを改行する
@@ -54,47 +54,47 @@ namespace Kayac
 		{
 			float move = _currentLineSize + lineSpace;
 			float borderOffset = borderEnabled ? (borderWidth * 2f) : 0f;
-			switch (direction)
+			switch (layout)
 			{
-				case Direction.RightDown:
-				case Direction.LeftDown:
+				case Layout.RightDown:
+				case Layout.LeftDown:
 					_y += move;
 					break;
-				case Direction.RightUp:
-				case Direction.LeftUp:
+				case Layout.RightUp:
+				case Layout.LeftUp:
 					_y -= move;
 					break;
 			}
-			switch (direction)
+			switch (layout)
 			{
-				case Direction.DownRight:
-				case Direction.UpRight:
+				case Layout.DownRight:
+				case Layout.UpRight:
 					_x += move;
 					break;
-				case Direction.DownLeft:
-				case Direction.UpLeft:
+				case Layout.DownLeft:
+				case Layout.UpLeft:
 					_x -= move;
 					break;
 			}
-			switch (direction)
+			switch (layout)
 			{
-				case Direction.RightDown:
-				case Direction.RightUp:
+				case Layout.RightDown:
+				case Layout.RightUp:
 					_x = borderOffset;
 					break;
-				case Direction.LeftDown:
-				case Direction.LeftUp:
+				case Layout.LeftDown:
+				case Layout.LeftUp:
 					_x = this.width - borderOffset;
 					break;
 			}
-			switch (direction)
+			switch (layout)
 			{
-				case Direction.DownRight:
-				case Direction.DownLeft:
+				case Layout.DownRight:
+				case Layout.DownLeft:
 					_y = borderOffset;
 					break;
-				case Direction.UpRight:
-				case Direction.UpLeft:
+				case Layout.UpRight:
+				case Layout.UpLeft:
 					_y = this.height - borderOffset;
 					break;
 			}
@@ -129,10 +129,10 @@ namespace Kayac
 			float size = 0f;
 			AlignX alignX = AlignX.Left;
 			AlignY alignY = AlignY.Top;
-			if ((direction == Direction.RightDown) || (direction == Direction.RightUp))
+			if ((layout == Layout.RightDown) || (layout == Layout.RightUp))
 			{
 				alignX = AlignX.Left;
-				alignY = (direction == Direction.RightDown) ? AlignY.Top : AlignY.Bottom;
+				alignY = (layout == Layout.RightDown) ? AlignY.Top : AlignY.Bottom;
 				float childRight = _x + borderWidth + child.width;
 				if (childRight > maxX) // あふれた。改行する。
 				{
@@ -141,10 +141,10 @@ namespace Kayac
 				dx = child.width + borderWidth;
 				size = child.height;
 			}
-			else if ((direction == Direction.LeftDown) || (direction == Direction.LeftUp))
+			else if ((layout == Layout.LeftDown) || (layout == Layout.LeftUp))
 			{
 				alignX = AlignX.Right;
-				alignY = (direction == Direction.LeftDown) ? AlignY.Top : AlignY.Bottom;
+				alignY = (layout == Layout.LeftDown) ? AlignY.Top : AlignY.Bottom;
 				float childLeft = _x - borderWidth - child.width;
 				if (childLeft < minX) // あふれた。改行する。
 				{
@@ -153,10 +153,10 @@ namespace Kayac
 				dx = -child.width - borderWidth;
 				size = child.height;
 			}
-			else if ((direction == Direction.DownRight) || (direction == Direction.DownLeft))
+			else if ((layout == Layout.DownRight) || (layout == Layout.DownLeft))
 			{
 				alignY = AlignY.Top;
-				alignX = (direction == Direction.DownRight) ? AlignX.Left : AlignX.Right;
+				alignX = (layout == Layout.DownRight) ? AlignX.Left : AlignX.Right;
 				float childBottom = _y + borderWidth + child.height;
 				if (childBottom > maxY) // あふれた。改行する。
 				{
@@ -165,10 +165,10 @@ namespace Kayac
 				dy = child.height + borderWidth;
 				size = child.width;
 			}
-			else if ((direction == Direction.UpRight) || (direction == Direction.UpLeft))
+			else if ((layout == Layout.UpRight) || (layout == Layout.UpLeft))
 			{
 				alignY = AlignY.Bottom;
-				alignX = (direction == Direction.UpRight) ? AlignX.Left : AlignX.Right;
+				alignX = (layout == Layout.UpRight) ? AlignX.Left : AlignX.Right;
 				float childTop = _y - borderWidth - child.height;
 				if (childTop < minY) // あふれた。改行する。
 				{

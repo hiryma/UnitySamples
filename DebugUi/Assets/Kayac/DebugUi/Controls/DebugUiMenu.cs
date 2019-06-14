@@ -18,7 +18,7 @@ namespace Kayac
 			float itemWidth = 100f,
 			float itemHeight = 40f,
 			Direction direction = Direction.Right,
-			string name = "") : base(itemWidth, itemHeight, direction, name)
+			string name = "") : base((string.IsNullOrEmpty(name) ? "Menu" : name), itemWidth, itemHeight, direction)
 		{
 			_activeIndex = 0;
 			_activeMenu = this;
