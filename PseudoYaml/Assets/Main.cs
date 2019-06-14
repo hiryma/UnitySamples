@@ -14,8 +14,7 @@ public class Main : MonoBehaviour
 		public string name;
 		public List<Node> children;
 		public string[] files;
-		[System.NonSerialized]
-		float magic = 1.2345f; // こいつは出てこないはず
+		[System.NonSerialized] float magic = 1.2345f; // こいつは出てこないはず
 	}
 	Node root;
 	string yaml;
@@ -25,7 +24,6 @@ public class Main : MonoBehaviour
 	void Start()
 	{
 		root = new Node();
-		root.name = "";
 		root.id = nextId;
 		nextId++;
 

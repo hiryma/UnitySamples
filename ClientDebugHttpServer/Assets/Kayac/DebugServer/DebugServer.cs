@@ -9,7 +9,7 @@ using System.Net.NetworkInformation;
 
 namespace Kayac
 {
-	public class DebugServer
+	public class DebugServer : IDisposable
 	{
 		public delegate void OnRequest(
 			out string outputHtml,
