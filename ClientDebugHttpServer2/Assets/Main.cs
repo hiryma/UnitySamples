@@ -30,7 +30,7 @@ public class Main : MonoBehaviour
 		Application.logMessageReceived += OnLogReceived;
 		debugServerIndexHtml = debugServerIndexHtmlAsset.text;
 
-		debugServer = new DebugServer(debugServerPort);
+		debugServer = new DebugServer(debugServerPort, "/assets/", OnFileChanged);
 
 		// 上書き検出
 		debugServer.RegisterRequestCallback("/", OnWebRequestRoot);
@@ -129,19 +129,19 @@ public class Main : MonoBehaviour
 	{
 		audioSource.Stop();
 		var retJson = new CoroutineReturnValue<string>();
-		yield return DebugServerUtil.CoLoad(retJson, "rotation_speed.json");
+		yield return DebugServerUtil.CoLoad(retJson, "Jsons/rotation_speed.json");
 		if (retJson.Exception != null)
 		{
 			Debug.LogException(retJson.Exception);
 		}
 		var retImage = new CoroutineReturnValue<Texture2D>();
-		yield return DebugServerUtil.CoLoad(retImage, "image.png");
+		yield return DebugServerUtil.CoLoad(retImage, "Images/image.png");
 		if (retImage.Exception != null)
 		{
 			Debug.LogException(retImage.Exception);
 		}
 		var retSound = new CoroutineReturnValue<AudioClip>();
-		yield return DebugServerUtil.CoLoad(retSound, "sound.wav");
+		yield return DebugServerUtil.CoLoad(retSound, "Sounds/sound.wav");
 		if (retSound.Exception != null)
 		{
 			Debug.LogException(retSound.Exception);
@@ -162,5 +162,10 @@ public class Main : MonoBehaviour
 			audioSource.clip = retSound.Value;
 		}
 		coroutine = null;
+	}
+
+	void OnFileChanged(string path)
+	{
+		loadRequested = true;
 	}
 }
