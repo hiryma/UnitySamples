@@ -33,7 +33,7 @@ namespace Kayac
 		Camera _camera;
 		Transform _meshTransform;
 		float _screenPlaneDistance;
-
+		public bool safeAreaVisualizationEnabled{ get; set; }
 
 		public override Camera eventCamera
 		{
@@ -134,6 +134,11 @@ namespace Kayac
 			float screenPlaneDistance,
 			int triangleCapacity)
 		{
+			Debug.LogFormat(
+				"Create DebugUiManager. physicalResolution {0}x{1} safeArea:{2}",
+				Screen.width,
+				Screen.height,
+				GetSafeArea());
 			var gameObject = new GameObject("DebugUi");
 			gameObject.transform.SetParent(camera.gameObject.transform, false);
 
@@ -171,6 +176,7 @@ namespace Kayac
 			int referenceScreenHeight,
 			float screenPlaneDistance)
 		{
+			safeAreaVisualizationEnabled = true;
 			this.scale = 1f;
 			_renderer = renderer;
 			_camera = camera;
@@ -178,24 +184,11 @@ namespace Kayac
 			_meshTransform = meshTransform;
 			_referenceScreenHeight = referenceScreenHeight;
 			_referenceScreenWidth = referenceScreenWidth;
-			// サイズ決定(縦横余る可能性がある)
-			var refAspect = (float)_referenceScreenWidth / (float)_referenceScreenHeight;
-			var aspect = (float)Screen.width / (float)Screen.height;
-			float width = _referenceScreenWidth;
-			float height = _referenceScreenHeight;
-			if (refAspect > aspect) // Yが余る
-			{
-				height = width / aspect;
-			}
-			else // Xが余る
-			{
-				width = height * aspect;
-			}
-
 			_root = new DebugUiContainer(name: "RootContainer");
-			_root.SetSize(width, height);
 			_input = new Input();
 			inputEnabled = true;
+			// 初回サイズ決定
+			UpdateTransform();
 		}
 
 		public void Dispose()
@@ -274,58 +267,82 @@ namespace Kayac
 					consumer.onEventConsume();
 				}
 			}
+			UpdateTransform();
+
+			if (safeAreaVisualizationEnabled)
+			{
+				DrawSafeArea();
+			}
 			// 描画本体
 			UnityEngine.Profiling.Profiler.BeginSample("DebugPrimitiveRenderer2D.LateUpdate");
 			_renderer.UpdateMesh();
 			UnityEngine.Profiling.Profiler.EndSample();
-			UpdateTransform();
+
 			UnityEngine.Profiling.Profiler.EndSample();
+		}
+
+		static Rect GetSafeArea() // 上書き
+		{
+			var ret = Screen.safeArea;
+//ret = new Rect(50f, 100f, Screen.width - 50f - 75f, Screen.height - 100f - 150f); // SafeAreaテスト
+			return ret;
+		}
+
+		void DrawSafeArea()
+		{
+			var safeArea = GetSafeArea();
+			// 左上端
+			float x0 = 0f;
+			float y0 = (float)Screen.height;
+			ConvertCoordFromUnityScreen(ref x0, ref y0);
+			// 左上端
+			float x1 = (float)Screen.width;
+			float y1 = 0f;
+			ConvertCoordFromUnityScreen(ref x1, ref y1);
+			_renderer.color = new Color32(255, 0, 0, 64);
+			_renderer.AddRectangle(x0, y0, (x1 - x0), -y0); // 上
+			_renderer.AddRectangle(x0, _root.height, (x1 - x0), y1 - _root.height); // 下
+			_renderer.AddRectangle(x0, 0f, -x0, _root.height); // 左
+			_renderer.AddRectangle(_root.width, 0f, x1 - _root.width, _root.height); // 右
 		}
 
 		void UpdateTransform()
 		{
 			// カメラ追随処理
-			var refAspect = (float)_referenceScreenWidth / (float)_referenceScreenHeight;
-			var aspect = (float)Screen.width / (float)Screen.height;
-			float goalScale;
+			var safeArea = GetSafeArea();
+			var aspect = safeArea.width / safeArea.height;
+			float goalScale, halfHeight;
+			halfHeight = safeArea.height / (float)Screen.height;
 			if (_camera.orthographic)
 			{
-				if (refAspect > aspect)
-				{
-					goalScale = _camera.orthographicSize * aspect / ((float)_referenceScreenWidth * 0.5f);
-				}
-				else
-				{
-					goalScale = _camera.orthographicSize / ((float)_referenceScreenHeight * 0.5f);
-				}
+				halfHeight *= _camera.orthographicSize;
 			}
 			else
 			{
-				var halfHeight = _screenPlaneDistance * Mathf.Tan(_camera.fieldOfView * Mathf.Deg2Rad * 0.5f);
-				if (refAspect > aspect)
-				{
-					goalScale = halfHeight * aspect / ((float)_referenceScreenWidth * 0.5f);
-				}
-				else
-				{
-					goalScale = halfHeight / ((float)_referenceScreenHeight * 0.5f);
-				}
+				halfHeight *= _screenPlaneDistance * Mathf.Tan(_camera.fieldOfView * Mathf.Deg2Rad * 0.5f);
 			}
 
-			float offsetX = -_referenceScreenWidth * 0.5f;
-			float offsetY = -_referenceScreenHeight * 0.5f;
-			float width = _referenceScreenWidth;
-			float height = _referenceScreenHeight;
+			halfHeight *= safeArea.height / (float)Screen.height;
+			var width = (float)_referenceScreenWidth;
+			var height = (float)_referenceScreenHeight;
+			var refAspect = width / height;
+			float offsetX, offsetY;
 			if (refAspect > aspect) // Yが余る
 			{
-				offsetY = -(_referenceScreenWidth / aspect) * 0.5f;
+				goalScale = halfHeight * aspect / ((float)_referenceScreenWidth * 0.5f);
 				height = width / aspect;
 			}
-			else // Xが余る
+			else
 			{
-				offsetX = -(_referenceScreenHeight * aspect) * 0.5f;
+				goalScale = halfHeight / ((float)_referenceScreenHeight * 0.5f);
 				width = height * aspect;
 			}
+			offsetX = -width * 0.5f;
+			offsetY = -height * 0.5f;
+			offsetX += width * safeArea.x / (float)Screen.width;
+			offsetY += height * safeArea.y / (float)Screen.height;
+			_root.SetSize(width, height);
+
 			_meshTransform.localPosition = new Vector3(offsetX, offsetY, 0f);
 			gameObject.transform.localPosition = new Vector3(0f, 0f, _screenPlaneDistance);
 
@@ -408,8 +425,8 @@ namespace Kayac
 			float x = screenPosition.x;
 			float y = screenPosition.y;
 			ConvertCoordFromUnityScreen(ref x, ref y);
-			_input.pointerX = x;
-			_input.pointerY = y;
+			_input.pointerX = Mathf.Clamp(x, 0f, _root.width);
+			_input.pointerY = Mathf.Clamp(y, 0f, _root.height);
 		}
 
 		// UnityのEventSystemの座標をY下向きの仮想解像度座標系に変換

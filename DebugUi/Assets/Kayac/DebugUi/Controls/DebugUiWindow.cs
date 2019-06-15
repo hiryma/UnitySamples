@@ -99,7 +99,7 @@ namespace Kayac
 				float dy = pointerY - _prevPointerY;
 				_prevPointerX = pointerX;
 				_prevPointerY = pointerY;
-				SetLocalPosition(localLeftX + dx, Mathf.Max(0, localTopY + dy));
+				SetLocalPosition(localLeftX + dx, localTopY + dy);
 			}
 			UpdateWindow();
 		}
