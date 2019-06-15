@@ -12,8 +12,6 @@ namespace Kayac
 		public Color32 color { get; set; }
 		public Color32 pointerDownColor { get; set; }
 
-		float _x;
-		float _y;
 		float _itemWidth;
 		float _itemHeight;
 		Direction _direction;
@@ -21,6 +19,7 @@ namespace Kayac
 		{
 			public DebugUiButton button;
 			public DebugUiSubMenu menu;
+			public Direction menuDirection;
 		}
 		List<Item> _items;
 		DebugUiSubMenu _parent;
@@ -44,11 +43,6 @@ namespace Kayac
 
 		public int itemCount { get { return _items.Count; } }
 		public DebugUiSubMenu parent { get { return _parent; } }
-
-		void SetParent(DebugUiSubMenu parent)
-		{
-			_parent = parent;
-		}
 
 		public Item GetItem(int index)
 		{
@@ -80,24 +74,14 @@ namespace Kayac
 					subMenu.enabled = true;
 				}
 			};
-			Add(button, _x, _y);
-			float subX = _x;
-			float subY = _y;
-			float dw = (_itemWidth + borderWidth);
-			float dh = (_itemHeight + borderWidth);
-			switch (subMenuDirection)
-			{
-				case Direction.Left: subX -= dw; break;
-				case Direction.Right: subX += dw; break;
-				case Direction.Up: subY -= dh; break;
-				case Direction.Down: subY += dh; break;
-			}
-			Add(subMenu, subX, subY);
+			Add(button);
+			Add(subMenu);
 			Item item;
 			item.button = button;
 			item.menu = subMenu;
+			item.menuDirection = subMenuDirection;
 			_items.Add(item);
-			Enlarge();
+			Layout();
 			return button;
 		}
 
@@ -117,38 +101,14 @@ namespace Kayac
 					action();
 				}
 			};
-			Add(button, _x, _y);
+			Add(button);
 			Item item;
 			item.button = button;
 			item.menu = null;
+			item.menuDirection = Direction.Unknown;
 			_items.Add(item);
-			Enlarge();
+			Layout();
 			return button;
-		}
-
-		void Enlarge()
-		{
-			float dw = (_itemWidth + borderWidth);
-			float dh = (_itemHeight + borderWidth);
-			switch (_direction)
-			{
-				case Direction.Left:
-					_x -= dw;
-					SetSize(width + dw, _itemHeight);
-					break;
-				case Direction.Right:
-					_x += dw;
-					SetSize(width + dw, _itemHeight);
-					break;
-				case Direction.Up:
-					_y -= dh;
-					SetSize(_itemWidth, height + dh);
-					break;
-				case Direction.Down:
-					_y += dh;
-					SetSize(_itemWidth, height + dh);
-					break;
-			}
 		}
 
 		public void CloseSub()
@@ -162,6 +122,80 @@ namespace Kayac
 					item.menu.enabled = false;
 				}
 			}
+		}
+
+		void Layout()
+		{
+			float x = 0;
+			float y = 0;
+			float dw = (_itemWidth + borderWidth);
+			float dh = (_itemHeight + borderWidth);
+
+			for (int i = 0; i < _items.Count; i++)
+			{
+				_items[i].button.SetLocalPosition(x, y);
+				if (_items[i].menu != null)
+				{
+					float subX = x;
+					float subY = y;
+					switch (_items[i].menuDirection)
+					{
+						case Direction.Left: subX -= dw; break;
+						case Direction.Right: subX += dw; break;
+						case Direction.Up: subY -= dh; break;
+						case Direction.Down: subY += dh; break;
+					}
+					_items[i].menu.SetLocalPosition(subX, subY);
+				}
+				switch (_direction)
+				{
+					case Direction.Left:
+						x -= dw;
+						break;
+					case Direction.Right:
+						x += dw;
+						break;
+					case Direction.Up:
+						y -= dh;
+						break;
+					case Direction.Down:
+						y += dh;
+						break;
+				}
+			}
+
+			switch (_direction)
+			{
+				case Direction.Left:
+				case Direction.Right:
+					SetSize(x, _itemHeight);
+					break;
+				case Direction.Up:
+				case Direction.Down:
+					SetSize(_itemWidth, y);
+					break;
+			}
+		}
+
+		public void RemoveSubMenu(DebugUiSubMenu subMenu)
+		{
+			CloseSub();
+			int dst = 0;
+			for (int i = 0; i < _items.Count; i++)
+			{
+				_items[dst] = _items[i];
+				if (_items[dst].menu == subMenu)
+				{
+					RemoveChild(_items[dst].button);
+					RemoveChild(subMenu);
+				}
+				else
+				{
+					dst++;
+				}
+			}
+			_items.RemoveRange(dst, _items.Count - dst);
+			Layout();
 		}
 	}
 }

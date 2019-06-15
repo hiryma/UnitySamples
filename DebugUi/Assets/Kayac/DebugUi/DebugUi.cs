@@ -23,6 +23,7 @@
 			Right,
 			Up,
 			Down,
+			Unknown,
 		}
 	}
 }
