@@ -25,8 +25,8 @@ public class Main : MonoBehaviour
 			_textShader,
 			_texturedShader,
 			_font,
-			referenceScreenWidth: 1136,
-			referenceScreenHeight: 640,
+			referenceScreenWidth: 1024,
+			referenceScreenHeight: 576,
 			screenPlaneDistance: 100f,
 			triangleCapacity: 8192);
 		_sampleWindow = new SampleWindow(_debugUi);

@@ -284,7 +284,7 @@ namespace Kayac
 		static Rect GetSafeArea() // 上書き
 		{
 			var ret = Screen.safeArea;
-//ret = new Rect(50f, 100f, Screen.width - 50f - 75f, Screen.height - 100f - 150f); // SafeAreaテスト
+ret = new Rect(50f, 100f, Screen.width - 50f - 75f, Screen.height - 100f - 150f); // SafeAreaテスト
 			return ret;
 		}
 
@@ -312,17 +312,15 @@ namespace Kayac
 			var safeArea = GetSafeArea();
 			var aspect = safeArea.width / safeArea.height;
 			float goalScale, halfHeight;
-			halfHeight = safeArea.height / (float)Screen.height;
 			if (_camera.orthographic)
 			{
-				halfHeight *= _camera.orthographicSize;
+				halfHeight = _camera.orthographicSize;
 			}
 			else
 			{
-				halfHeight *= _screenPlaneDistance * Mathf.Tan(_camera.fieldOfView * Mathf.Deg2Rad * 0.5f);
+				halfHeight = _screenPlaneDistance * Mathf.Tan(_camera.fieldOfView * Mathf.Deg2Rad * 0.5f);
 			}
 
-			halfHeight *= safeArea.height / (float)Screen.height;
 			var width = (float)_referenceScreenWidth;
 			var height = (float)_referenceScreenHeight;
 			var refAspect = width / height;
@@ -330,17 +328,21 @@ namespace Kayac
 			if (refAspect > aspect) // Yが余る
 			{
 				goalScale = halfHeight * aspect / ((float)_referenceScreenWidth * 0.5f);
+				goalScale *= safeArea.width / (float)Screen.width;
 				height = width / aspect;
 			}
 			else
 			{
 				goalScale = halfHeight / ((float)_referenceScreenHeight * 0.5f);
+				goalScale *= safeArea.height / (float)Screen.height;
 				width = height * aspect;
 			}
-			offsetX = -width * 0.5f;
-			offsetY = -height * 0.5f;
-			offsetX += width * safeArea.x / (float)Screen.width;
-			offsetY += height * safeArea.y / (float)Screen.height;
+			var fullWidth = width * (float)Screen.width / safeArea.width;
+			var fullHeight = height * (float)Screen.height / safeArea.height;
+			offsetX = -fullWidth * 0.5f;
+			offsetY = -fullHeight * 0.5f;
+			offsetX += fullWidth * safeArea.x / (float)Screen.width;
+			offsetY += fullHeight * safeArea.y / (float)Screen.height;
 			_root.SetSize(width, height);
 
 			_meshTransform.localPosition = new Vector3(offsetX, offsetY, 0f);
