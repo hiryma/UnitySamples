@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
-public class MainScript : MonoBehaviour
+public class Main : MonoBehaviour
 {
 	[SerializeField]
 	float dbMin = -80f;
@@ -87,7 +87,7 @@ public class MainScript : MonoBehaviour
 		var linear = FromDecibel(db);
 		bgmSource.volume = linear;
 		seSource.volume = linear;
-		linearVolumeText.text = "Linear: " + linear.ToString("F2");
+		linearVolumeText.text = "Linear: " + linear.ToString("F3");
 		dbVolumeText.text = "db: " + db.ToString("F0");
 	}
 
