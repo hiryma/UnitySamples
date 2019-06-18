@@ -1,6 +1,6 @@
 ﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
 
-Shader "Miura/DebugPrimitiveText"
+Shader "Kayac/DebugPrimitive/Text"
 {
 	Properties
 	{
