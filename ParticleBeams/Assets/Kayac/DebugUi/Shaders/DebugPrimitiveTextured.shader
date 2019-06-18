@@ -10,9 +10,8 @@ Shader "Miura/DebugPrimitiveTextured"
 	{
 		Cull Off
 		ZWrite Off
-		ZTest Always
 		BlendOp Add
-		Blend SrcAlpha OneMinusSrcAlpha
+		Blend SrcAlpha One
 		Tags
 		{
 			"Queue" = "Transparent"

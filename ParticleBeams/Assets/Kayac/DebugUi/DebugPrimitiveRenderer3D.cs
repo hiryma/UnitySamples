@@ -132,7 +132,8 @@ namespace Kayac
 		public bool AddBillboard(
 			Vector3 center,
 			float width,
-			float height)
+			float height,
+			Texture2D texture = null)
 		{
 			var transform = _camera.gameObject.transform;
 			var forwardVector = transform.forward;
@@ -149,7 +150,7 @@ namespace Kayac
 			// 左下点を生成
 			Vector3 p = center - (right * 0.5f) - (up * 0.5f);
 
-			return AddParallelogram(p, right, up);
+			return AddParallelogram(p, right, up, texture);
 		}
 
 		// fontsize, width, heightをすべて指定する場合は折り返し
@@ -558,15 +559,17 @@ namespace Kayac
 		public bool AddParallelogram(
 			Vector3 p,
 			Vector3 v0,
-			Vector3 v1)
+			Vector3 v1,
+			Texture2D texture = null)
 		{
 			if (
 			((_vertexCount + 4) > _capacity)
 			|| ((_indexCount + 6) > _capacity))
 			{
+				Debug.Log(_indexCount + " " + _vertexCount);
 				return false;
 			}
-			SetTexture(fontTexture);
+			SetTexture(texture);
 
 			// 時計回り
 			_vertices[_vertexCount + 0] = p;
@@ -574,10 +577,24 @@ namespace Kayac
 			_vertices[_vertexCount + 2] = _vertices[_vertexCount + 1] + v1;
 			_vertices[_vertexCount + 3] = p + v1;
 
-			for (int i = 0; i < 4; i++)
+			if (texture != null)
 			{
-				_colors[_vertexCount + i] = color;
-				_uv[_vertexCount + i] = _whiteUv;
+				for (int i = 0; i < 4; i++)
+				{
+					_colors[_vertexCount + i] = color;
+				}
+				_uv[_vertexCount + 0] = new Vector2(0f, 0f);
+				_uv[_vertexCount + 1] = new Vector2(1f, 0f);
+				_uv[_vertexCount + 2] = new Vector2(1f, 1f);
+				_uv[_vertexCount + 3] = new Vector2(0f, 1f);
+			}
+			else
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					_colors[_vertexCount + i] = color;
+					_uv[_vertexCount + i] = _whiteUv;
+				}
 			}
 			AddQuadIndices(0, 1, 2, 3);
 			_vertexCount += 4;

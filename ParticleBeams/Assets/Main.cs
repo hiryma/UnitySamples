@@ -15,75 +15,72 @@ public class Main : MonoBehaviour
 	MeshRenderer meshRenderer;
 	[SerializeField]
 	MeshFilter meshFilter;
+	[SerializeField]
+	Transform gunPoint;
+	[SerializeField]
+	Transform target;
+	[SerializeField]
+	Texture2D texture;
+	[SerializeField]
+	float radius = 0.2f;
+	[SerializeField]
+	float countPerMeter = 1f;
+	[SerializeField]
+	float beamSpeed = 1f;
+	[SerializeField]
+	float beamHoming = 1f;
+	[SerializeField]
+	float attenuation = 1f;
+	[SerializeField]
+	float randomWalk = 1f;
 
 	DebugPrimitiveRenderer3D renderer3d;
 
-	class ParticleGroup
+	class Beam
 	{
-		public ParticleGroup(
-			Particle[] items,
-			int itemsBegin,
-			int itemCount,
-			Color32 color,
-			float damping,
-			float gravity)
+		public Beam()
 		{
-			this.items = items;
-			this.itemsBegin = itemsBegin;
-			this.itemCount = itemCount;
-			this.color = color;
-			this.damping = damping;
-			this.gravity = gravity;
+			time = -float.MaxValue;
+		}
+		public void Emit(
+			Vector3 position,
+			Vector3 velocity,
+			float speed,
+			float homing)
+		{
+			this.position = position;
+			this.velocity = velocity;
+			this.speed = speed;
+			this.homing = homing;
+			time = 0f;
 		}
 
-		public delegate void EmitFunc(ref Particle particle, int index);
-
-		public void Emit(EmitFunc func, int count)
+		public void Update(float deltaTime, Vector3 target)
 		{
-			var index = nextIndex;
-			for (int i = 0; i < count; i++)
-			{
-				func(ref items[itemsBegin + index], i);
-				index++;
-				if (index == itemCount)
-				{
-					index = 0;
-				}
-			}
-			nextIndex = index;
+			var toTarget = (target - position).normalized;
+			var v = velocity.normalized;
+			var c = toTarget - v;
+			velocity += c * (deltaTime * homing);
+			velocity.Normalize();
+			velocity *= speed;
+			position += velocity * deltaTime;
+			time += deltaTime;
 		}
-		public void Update(float deltaTime, DebugPrimitiveRenderer3D renderer)
-		{
-			renderer.color = color;
-			for (int i = 0; i < itemCount; i++)
-			{
-				Vector3 force = new Vector3(
-					UnityEngine.Random.Range(-100f, 100f),
-					UnityEngine.Random.Range(-100f, 100f),
-					UnityEngine.Random.Range(-10f, 10f));
-				force.y -= gravity;
-
-				items[itemsBegin + i].Update(deltaTime, force, damping);
-//				renderer.AddParallelogram(
-//					items[itemsBegin + i].position,
-//					Vector3.right * 0.1f,
-//					Vector3.up * 0.1f);
-				renderer.AddBillboard(
-					items[itemsBegin + i].position,
-					0.1f,
-					0.1f);
-			}
-		}
-		Particle[] items;
-		int itemsBegin;
-		int itemCount;
-		Color32 color;
-		float damping;
-		float gravity;
-		int nextIndex;
+		public Vector3 position;
+		public Vector3 velocity;
+		public float time;
+		public float homing;
+		public float speed;
 	}
+
 	struct Particle
 	{
+		public void Emit(Vector3 position)
+		{
+			this.position = position;
+			velocity = Vector3.zero;
+			time = 0f;
+		}
 		public void Update(
 			float deltaTime,
 			Vector3 force,
@@ -92,70 +89,119 @@ public class Main : MonoBehaviour
 			velocity -= velocity * damping * deltaTime;
 			velocity += force * deltaTime;
 			position += velocity * deltaTime;
+			time += deltaTime;
 		}
 		public Vector3 position;
 		public Vector3 velocity;
+		public float time;
 	}
 	Particle[] particles;
-	ParticleGroup[] particleGroups;
+	int nextParticleIndex;
+	Beam[] beams;
+	int nextBeamIndex;
+	bool fired;
 
-    void Start()
-    {
-        renderer3d = new DebugPrimitiveRenderer3D(
+	void Start()
+	{
+		renderer3d = new DebugPrimitiveRenderer3D(
 			textShader,
 			texturedShader,
 			font,
 			mainCamera,
 			meshRenderer,
 			meshFilter,
-			16384);
-		particles = new Particle[16000];
-		particleGroups = new ParticleGroup[8];
-
-		particleGroups[0] = new ParticleGroup(
-			particles,
-			0,
-			16000,
-			new Color32(128, 192, 224, 255),
-			0.00f,
-			1.00f);
-    }
-
-    void Update()
-    {
-		if (Input.anyKey)
+			20000);
+		beams = new Beam[8];
+		for (int i = 0; i < beams.Length; i++)
 		{
-			Emit();
+			beams[i] = new Beam();
 		}
-		UpdateParticles(Time.deltaTime);
-		renderer3d.UpdateMesh();
-    }
-
-	void UpdateParticles(float deltaTime)
-	{
-		for (int i = 0; i < particleGroups.Length; i++)
+		particles = new Particle[10000];
+		for (int i = 0; i < particles.Length; i++)
 		{
-			if (particleGroups[i] != null)
+			particles[i].position = new Vector3(1000f, 1000f, -1000f);
+			particles[i].time = -float.MaxValue;
+		}
+	}
+
+	void Fire()
+	{
+		var beam = beams[nextBeamIndex];
+		Matrix4x4 m = Matrix4x4.TRS(
+			Vector3.zero,
+			Quaternion.Euler(
+				UnityEngine.Random.Range(0f, 30f),
+				UnityEngine.Random.Range(-90f, 90f),
+				0f),
+			Vector3.one);
+		var v = m.MultiplyVector(new Vector3(0f, 0f, beamSpeed));
+		beam.Emit(
+			gunPoint.position,
+			v,
+			beamSpeed,
+			1f);
+		nextBeamIndex++;
+		if (nextBeamIndex >= beams.Length)
+		{
+			nextBeamIndex = 0;
+		}
+	}
+
+	void Update()
+	{
+		if (Input.GetKeyDown(KeyCode.Space))
+		{
+			Fire();
+		}
+
+		for (int i = 0; i < beams.Length; i++)
+		{
+			if (beams[i].time >= 0)
 			{
-				particleGroups[i].Update(deltaTime, renderer3d);
+				var prev = beams[i].position;
+				beams[i].Update(Time.deltaTime, target.position);
+				var cur = beams[i].position;
+
+				float l = (cur - prev).magnitude;
+				float c = l * countPerMeter;
+				int ci = (int)c;
+				float frac = c - (float)ci;
+				if (UnityEngine.Random.value < frac)
+				{
+					ci++;
+				}
+				for (int j = 0; j < ci; j++)
+				{
+					var pos = Vector3.Lerp(prev, cur, UnityEngine.Random.value);
+					particles[nextParticleIndex].Emit(pos);
+					nextParticleIndex++;
+					if (nextParticleIndex >= particles.Length)
+					{
+						nextParticleIndex = 0;
+					}
+				}
 			}
 		}
-	}
-
-	void Emit()
-	{
-		particleGroups[0].Emit(EmitFunc0, 500);
-	}
-
-	void EmitFunc0(ref Particle particle, int index)
-	{
-		particle.position = new Vector3(
-			UnityEngine.Random.Range(-0.5f, 0.5f),
-			UnityEngine.Random.Range(-0.5f, 0.5f),
-			(float)index);
-		particle.velocity = new Vector3(
-			UnityEngine.Random.Range(-1f, 1f),
-			UnityEngine.Random.Range(-1f, 1f) + 10f,
-			100f + UnityEngine.Random.Range(-0.1f, 0.1f));
+		renderer3d.color = new Color32(192, 224, 255, 255);
+		for (int i = 0; i < particles.Length; i++)
+		{
+			if (particles[i].time >= 0f)
+			{
+				particles[i].Update(
+					Time.deltaTime,
+					new Vector3(
+						UnityEngine.Random.Range(-1f, 1f),
+						UnityEngine.Random.Range(-1f, 1f),
+						UnityEngine.Random.Range(-1f, 1f)) * randomWalk,
+					0.1f);
+				float r = radius * Mathf.Exp(-particles[i].time * attenuation);
+				renderer3d.AddBillboard(
+					particles[i].position,
+					r,
+					r,
+					texture);
+			}
+		}
+		renderer3d.UpdateMesh();
 	}
 }

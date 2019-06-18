@@ -231,8 +231,12 @@ namespace Kayac
 			}
 		}
 
-		public void SetTexture(Texture texture)
+		protected void SetTexture(Texture texture)
 		{
+			if (texture == null)
+			{
+				texture = fontTexture;
+			}
 			if (_texture != texture)
 			{
 				// ここまででSubMeshを終わらせる
@@ -280,6 +284,7 @@ namespace Kayac
 		// 時計回りの相対頂点番号を3つ設定して三角形を生成
 		protected void AddTriangleIndices(int i0, int i1, int i2)
 		{
+			Debug.Assert((_indexCount + i2) <= 0xffff);
 			_indices[_indexCount + 0] = _vertexCount + i0;
 			_indices[_indexCount + 1] = _vertexCount + i1;
 			_indices[_indexCount + 2] = _vertexCount + i2;
@@ -289,6 +294,7 @@ namespace Kayac
 		// 時計回り4頂点で三角形を2個生成
 		protected void AddQuadIndices(int i0, int i1, int i2, int i3)
 		{
+			Debug.Assert((_indexCount + i3) <= 0xffff);
 			_indices[_indexCount + 0] = _vertexCount + i0;
 			_indices[_indexCount + 1] = _vertexCount + i1;
 			_indices[_indexCount + 2] = _vertexCount + i2;
