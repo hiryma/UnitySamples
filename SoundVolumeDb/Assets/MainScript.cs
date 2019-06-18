@@ -66,6 +66,7 @@ public class MainScript : MonoBehaviour
 			dbSlider.SetValueWithoutNotify(dbPos);
 			UpdateText(db);
 		});
+		UpdateText(DbPosToDecibel(dbSlider.value, dbMin));
 	}
 
 	// デシベルスライダーの[0,1]位置→デシベル
@@ -86,8 +87,8 @@ public class MainScript : MonoBehaviour
 		var linear = FromDecibel(db);
 		bgmSource.volume = linear;
 		seSource.volume = linear;
-		linearVolumeText.text = "Linear: " + linear.ToString("F3");
-		dbVolumeText.text = "Db: " + db.ToString("F0");
+		linearVolumeText.text = "Linear: " + linear.ToString("F2");
+		dbVolumeText.text = "db: " + db.ToString("F0");
 	}
 
 	static float ToDecibel(float linear, float dbMin)

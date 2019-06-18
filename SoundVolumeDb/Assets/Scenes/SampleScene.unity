@@ -643,10 +643,10 @@ MonoBehaviour:
       Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 40
+    m_FontSize: 20
     m_FontStyle: 0
     m_BestFit: 0
-    m_MinSize: 4
+    m_MinSize: 2
     m_MaxSize: 40
     m_Alignment: 4
     m_AlignByGeometry: 0
@@ -654,7 +654,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Db*Db
+  m_Text: db^2 slider
 --- !u!222 &356987675
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -694,7 +694,7 @@ AudioSource:
   m_PlayOnAwake: 1
   m_Volume: 1
   m_Pitch: 1
-  Loop: 0
+  Loop: 1
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0
@@ -876,7 +876,7 @@ MonoBehaviour:
   m_MinValue: 0
   m_MaxValue: 1
   m_WholeNumbers: 0
-  m_Value: 0
+  m_Value: 1
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -1607,9 +1607,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 111ef60529fb840eb91783eb2f74e88f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dbMin: -60
+  dbMin: -80
   linearSlider: {fileID: 646241081}
   dbSlider: {fileID: 1130954015}
+  sqDbSlider: {fileID: 467644597}
   bgmToggle: {fileID: 1986646199}
   seButton: {fileID: 199989534}
   linearVolumeText: {fileID: 21682795}
@@ -1790,7 +1791,7 @@ MonoBehaviour:
   m_MinValue: 0
   m_MaxValue: 1
   m_WholeNumbers: 0
-  m_Value: 0
+  m_Value: 1
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -2363,7 +2364,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Db: '
+  m_Text: "\rdb: "
 --- !u!222 &1674913780
 CanvasRenderer:
   m_ObjectHideFlags: 0
