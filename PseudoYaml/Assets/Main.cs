@@ -7,7 +7,10 @@ public class Main : MonoBehaviour
 {
 	[SerializeField]
 	Text text;
+	[SerializeField]
+	bool jsonMode;
 
+	[System.Serializable]
 	class Node
 	{
 		public int id;
@@ -17,7 +20,7 @@ public class Main : MonoBehaviour
 		[System.NonSerialized] float magic = 1.2345f; // こいつは出てこないはず
 	}
 	Node root;
-	string yaml;
+	string serialized;
 	bool showYaml;
 	int nextId = 0;
 
@@ -72,13 +75,33 @@ public class Main : MonoBehaviour
 			showYaml = !showYaml;
 			if (showYaml)
 			{
-				yaml = PseudoYaml.Serialize(root);
-				File.WriteAllText("output.yaml", yaml);
-				text.text = yaml;
+				if (jsonMode)
+				{
+					UnityEngine.Profiling.Profiler.BeginSample("JsonUtility.ToJson");
+					serialized = JsonUtility.ToJson(root, prettyPrint: true);
+				}
+				else
+				{
+					UnityEngine.Profiling.Profiler.BeginSample("PseudoYaml.Serialize");
+					serialized = PseudoYaml.Serialize(root);
+				}
+				UnityEngine.Profiling.Profiler.EndSample();
+				File.WriteAllText("output.yaml", serialized);
+				text.text = serialized;
 			}
 			else
 			{
-				root = PseudoYaml.Deserialize<Node>(yaml);
+				if (jsonMode)
+				{
+					UnityEngine.Profiling.Profiler.BeginSample("JsonUtility.FromJson");
+					root = JsonUtility.FromJson<Node>(serialized);
+				}
+				else
+				{
+					UnityEngine.Profiling.Profiler.BeginSample("PseudoYaml.Deerialize");
+					root = PseudoYaml.Deserialize<Node>(serialized);
+				}
+				UnityEngine.Profiling.Profiler.EndSample();
 				if (root == null)
 				{
 					text.text = "BUG!!! Deserialization Failed!!!";

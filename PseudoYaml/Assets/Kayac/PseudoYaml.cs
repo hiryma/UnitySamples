@@ -46,7 +46,6 @@ public static class PseudoYaml
 {
 	public static string Serialize(object root)
 	{
-		UnityEngine.Profiling.Profiler.BeginSample("PseudoYaml.Serialize");
 		Debug.Assert(root != null);
 		var sb = new System.Text.StringBuilder();
 		var type = root.GetType();
@@ -60,13 +59,11 @@ public static class PseudoYaml
 			}
 		}
 		var ret = sb.ToString();
-		UnityEngine.Profiling.Profiler.EndSample();
 		return ret;
 	}
 
 	public static T Deserialize<T>(string text) where T : class, new()
 	{
-		UnityEngine.Profiling.Profiler.BeginSample("PseudoYaml.Deserialize");
 		if (tmpArrayList == null)
 		{
 			tmpArrayList = new ArrayList();
@@ -74,7 +71,6 @@ public static class PseudoYaml
 		var instance = new T();
 		var line = new Line();
 		DeserializeUserType(ref line, instance, typeof(T), text, indent: -1); // ルートのインデントは-1とする
-		UnityEngine.Profiling.Profiler.EndSample();
 		return instance;
 	}
 
