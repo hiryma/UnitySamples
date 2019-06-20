@@ -28,17 +28,15 @@ public class Main : MonoBehaviour
 		nextId++;
 
 		// root構築
-		Scan(root);
+		Scan(root, ".");
 
 		var sb = new System.Text.StringBuilder();
 		ToString(sb, root, 0);
 		text.text = sb.ToString();
 	}
 
-	void Scan(Node node)
+	void Scan(Node node, string path)
 	{
-		var path = Application.dataPath;
-		path += string.IsNullOrEmpty(node.name) ? "" : ("/" + node.name);
 		var dirs = Directory.GetDirectories(path);
 		if (dirs.Length > 0)
 		{
@@ -50,7 +48,7 @@ public class Main : MonoBehaviour
 				child.id = nextId;
 				nextId++;
 				node.children.Add(child);
-				Scan(child);
+				Scan(child, dir);
 			}
 		}
 		var files = Directory.GetFiles(path);
@@ -75,7 +73,7 @@ public class Main : MonoBehaviour
 			if (showYaml)
 			{
 				yaml = PseudoYaml.Serialize(root);
-Debug.Log(yaml);
+				File.WriteAllText("output.yaml", yaml);
 				text.text = yaml;
 			}
 			else
