@@ -75,7 +75,7 @@ public class Main : MonoBehaviour
 			if (showYaml)
 			{
 				yaml = PseudoYaml.Serialize(root);
-				Debug.Log(yaml);
+Debug.Log(yaml);
 				text.text = yaml;
 			}
 			else

@@ -284,7 +284,7 @@ namespace Kayac
 		static Rect GetSafeArea() // 上書き
 		{
 			var ret = Screen.safeArea;
-ret = new Rect(50f, 100f, Screen.width - 50f - 75f, Screen.height - 100f - 150f); // SafeAreaテスト
+//ret = new Rect(50f, 100f, Screen.width - 50f - 75f, Screen.height - 100f - 150f); // SafeAreaテスト
 			return ret;
 		}
 

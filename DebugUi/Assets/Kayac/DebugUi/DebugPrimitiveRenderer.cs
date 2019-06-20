@@ -46,6 +46,12 @@ namespace Kayac
 		protected List<Vector3> _temporaryVertices; // SetTriangles寸前に使う
 		protected List<Color32> _temporaryColors; // SetTriangles寸前に使う
 		protected List<int> _temporaryIndices; // SetTriangles寸前に使う
+#if UNITY_WEBGL
+		const char _whiteChar = '.';
+#else
+		const char _whiteChar = '■';
+#endif
+		string _whiteString = new string(_whiteChar, 1);
 		class SubMesh
 		{
 			public void FixIndexCount(int indexPosition)
@@ -94,7 +100,7 @@ namespace Kayac
 			_textureShaderPropertyId = Shader.PropertyToID("_MainTex");
 
 			Font.textureRebuilt += OnFontTextureRebuilt;
-			_font.RequestCharactersInTexture("■");
+			_font.RequestCharactersInTexture(_whiteString);
 
 			SetCapacity(capacity);
 
@@ -133,7 +139,7 @@ namespace Kayac
 		public void UpdateMesh()
 		{
 			// ■だけは常に入れておく。他は文字描画要求の都度投げる
-			_font.RequestCharactersInTexture("■");
+			_font.RequestCharactersInTexture(_whiteString);
 			// 描画キック
 			_mesh.Clear();
 
@@ -207,7 +213,7 @@ namespace Kayac
 
 			// どうもおかしいので毎フレーム取ってみる。
 			CharacterInfo ch;
-			_font.GetCharacterInfo('■', out ch);
+			_font.GetCharacterInfo(_whiteChar, out ch);
 			_whiteUv = ch.uvTopLeft;
 			_whiteUv += ch.uvTopRight;
 			_whiteUv += ch.uvBottomLeft;
@@ -222,7 +228,7 @@ namespace Kayac
 			{
 				this.fontTexture = font.material.mainTexture; //　テクスチャ別物になってる可能性があるので刺しなおし
 				CharacterInfo ch;
-				_font.GetCharacterInfo('■', out ch);
+				_font.GetCharacterInfo(_whiteChar, out ch);
 				_whiteUv = ch.uvTopLeft;
 				_whiteUv += ch.uvTopRight;
 				_whiteUv += ch.uvBottomLeft;

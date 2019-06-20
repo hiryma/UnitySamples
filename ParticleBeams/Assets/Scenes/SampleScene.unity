@@ -206,7 +206,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 325830343}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -20, z: 0}
+  m_LocalPosition: {x: 0, y: -100, z: 0}
   m_LocalScale: {x: 10000, y: 10000, z: 10000}
   m_Children: []
   m_Father: {fileID: 0}
@@ -302,7 +302,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 6
+  m_RootOrder: 5
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &523801380
 GameObject:
@@ -523,7 +523,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
+  far clip plane: 10000
   field of view: 60
   orthographic: 0
   orthographic size: 5
@@ -549,13 +549,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
-  m_LocalRotation: {x: 0.2588191, y: 0, z: 0, w: 0.9659258}
-  m_LocalPosition: {x: 0, y: 2, z: -3}
+  m_LocalRotation: {x: 0.13052616, y: 0, z: 0, w: 0.9914449}
+  m_LocalPosition: {x: 0, y: 3, z: -3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 30, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 15, y: 0, z: 0}
 --- !u!114 &963194229
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -583,7 +583,7 @@ MonoBehaviour:
   _maxBloomLevelCount: 7
   _minBloomLevelSize: 16
   _bloomSigmaInPixel: 3
---- !u!1 &1286907325
+--- !u!1 &1480878801
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -591,10 +591,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1286907329}
-  - component: {fileID: 1286907328}
-  - component: {fileID: 1286907327}
-  - component: {fileID: 1286907326}
+  - component: {fileID: 1480878804}
+  - component: {fileID: 1480878803}
+  - component: {fileID: 1480878802}
   m_Layer: 0
   m_Name: Target
   m_TagString: Untagged
@@ -602,27 +601,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!136 &1286907326
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1286907325}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_Enabled: 1
-  m_Radius: 0.5
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!23 &1286907327
+--- !u!23 &1480878802
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1286907325}
+  m_GameObject: {fileID: 1480878801}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -633,7 +618,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: eed4d9a86f31947c78731c912d045aea, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -653,27 +638,27 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
---- !u!33 &1286907328
+--- !u!33 &1480878803
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1286907325}
-  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
---- !u!4 &1286907329
+  m_GameObject: {fileID: 1480878801}
+  m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &1480878804
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1286907325}
+  m_GameObject: {fileID: 1480878801}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 50}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 6, y: 6, z: 6}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 5
+  m_RootOrder: 6
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1822770453
 GameObject:
@@ -711,14 +696,34 @@ MonoBehaviour:
   meshRenderer: {fileID: 523801382}
   meshFilter: {fileID: 523801381}
   gunPoint: {fileID: 457693541}
-  target: {fileID: 1286907329}
+  target: {fileID: 1480878804}
   texture: {fileID: 2800000, guid: efdd5155bd65f40a3826fc1e4c18b996, type: 3}
-  radius: 0.5
-  countPerMeter: 5
-  beamSpeed: 20
-  beamHoming: 10
-  attenuation: 0.2
-  randomWalk: 0.1
+  countPerMeter: 10
+  beamSpeed: 30
+  beamHoming: 60
+  beamDamping: 0.1
+  sparkCount: 200
+  sparkVelocityMinRatio: 0.3
+  sparkVelocityMaxRatio: 1
+  sparkSharpness: 4
+  targetDamping: 0.02
+  beamImpact: 1
+  targetStiffness: 1
+  cameraPositionParamter: 0.03
+  cameraMargin: 0.2
+  cameraStiffness: 4
+  beamParticleParameters:
+    attenuation: 1
+    randomWalk: 10
+    damping: 0.2
+    gravity: 0
+    radius: 0.5
+  sparkParticleParameters:
+    attenuation: 3
+    randomWalk: 4
+    damping: 0.4
+    gravity: 20
+    radius: 2
 --- !u!4 &1822770455
 Transform:
   m_ObjectHideFlags: 0
