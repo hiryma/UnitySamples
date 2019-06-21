@@ -55,7 +55,7 @@ public static class PseudoYaml
 			if (IsSerialized(field))
 			{
 				var child = field.GetValue(root);
-				Serialize(sb, child, field.Name, field.FieldType, 0, false);
+				Serialize(sb, child, field.Name, field.FieldType, 0);
 			}
 		}
 		var ret = sb.ToString();
@@ -81,25 +81,23 @@ public static class PseudoYaml
 		object o,
 		string fieldName,
 		Type type,
-		int level,
-		bool arrayElement)
+		int level)
 	{
+		// 先にnull判定。名前付きで値がnullなら省略する
+		if ((o == null) && (fieldName != null))
+		{
+			return;
+		}
 		sb.Append(' ', level * 2);
-		if (arrayElement)
+		if (fieldName == null) // 配列を意味する
 		{
 			sb.Append("- ");
 		}
 
-		if (o == null)
+		if (o == null) // 配列要素はnullでも吐く。数が変わってしまっては困る。
 		{
-			if (fieldName != null)
-			{
-				sb.AppendFormat("{0}: null\n", fieldName);
-			}
-			else
-			{
-				sb.Append("null\n");
-			}
+			Debug.Assert(fieldName == null);
+			sb.Append("null\n");
 		}
 		else if (type.IsPrimitive || (type == typeof(string)))
 		{
@@ -116,16 +114,28 @@ public static class PseudoYaml
 			var elementType = type.GetElementType();
 			foreach (var item in array)
 			{
-				Serialize(sb, item, null, elementType, level + 1, true);
+				Serialize(sb, item, null, elementType, level + 1);
 			}
 		}
-		else if (type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(List<>)))
+		else if (type.IsGenericType)
 		{
-			sb.AppendFormat("{0}:\n", fieldName);
-			var list = o as IList;
-			foreach (var item in list)
+			var def = type.GetGenericTypeDefinition();
+			if (def == typeof(List<>))
 			{
-				Serialize(sb, item, null, item.GetType(), level + 1, true);
+				sb.AppendFormat("{0}:\n", fieldName);
+				var list = o as IList;
+				foreach (var item in list)
+				{
+					Serialize(sb, item, null, item.GetType(), level + 1);
+				}
+			}
+			else if (def == typeof(Nullable<>))
+			{
+				if (fieldName != null)
+				{
+					sb.AppendFormat("{0}: ", fieldName);
+				}
+				sb.AppendFormat("{0}\n", o.ToString());
 			}
 		}
 		else
@@ -141,7 +151,7 @@ public static class PseudoYaml
 				if (IsSerialized(field))
 				{
 					var child = field.GetValue(o);
-					Serialize(sb, child, field.Name, field.FieldType, level + 1, false);
+					Serialize(sb, child, field.Name, field.FieldType, level + 1);
 				}
 			}
 		}
@@ -468,27 +478,38 @@ public static class PseudoYaml
 			}
 			ret = array;
 		}
-		else if (type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(List<>)))
+		else if (type.IsGenericType)
 		{
+			var def = type.GetGenericTypeDefinition();
 			var elementTypes = type.GetGenericArguments();
 			Debug.Assert(elementTypes.Length == 1);
-			var genericTypeDef = type.GetGenericTypeDefinition();
-			var elementType = elementTypes[0];
-			var listType = genericTypeDef.MakeGenericType(elementType);
-			var constructor = listType.GetConstructor(Type.EmptyTypes);
-			var list = constructor.Invoke(null);
-			var ilist = (IList)list;
-			while (line.TryParse(text))
+			if (def == typeof(List<>))
 			{
-				if (!line.isArrayElement || (line.indent <= indent)) // 配列であり、インデントレベルが上がっている限り
+				var elementType = elementTypes[0];
+				var listType = def.MakeGenericType(elementType);
+				var constructor = listType.GetConstructor(Type.EmptyTypes);
+				var list = constructor.Invoke(null);
+				var ilist = (IList)list;
+				while (line.TryParse(text))
 				{
-					break;
+					if (!line.isArrayElement || (line.indent <= indent)) // 配列であり、インデントレベルが上がっている限り
+					{
+						break;
+					}
+					line.Invalidate(); // この行は使用済み
+					var element = TryReadValue(ref line, null, elementType, text, line.indent);
+					ilist.Add(element);
 				}
-				line.Invalidate(); // この行は使用済み
-				var element = TryReadValue(ref line, null, elementType, text, line.indent);
-				ilist.Add(element);
+				ret = list;
 			}
-			ret = list;
+			else if (def == typeof(Nullable<>))
+			{
+				var valueString = line.GetValueString(text);
+				if (valueString != null)
+				{
+					ret = TryParsePrimitive(type, valueString, name);
+				}
+			}
 		}
 		else // 独自型
 		{

@@ -13,6 +13,7 @@ public class Main : MonoBehaviour
 	[System.Serializable]
 	class Node
 	{
+		public float? nullableFloat;
 		public int id;
 		public string name;
 		public List<Node> children;
@@ -44,6 +45,7 @@ public class Main : MonoBehaviour
 		if (dirs.Length > 0)
 		{
 			node.children = new List<Node>();
+			node.nullableFloat = 9999.9999f;
 			foreach (var dir in dirs)
 			{
 				var child = new Node();
