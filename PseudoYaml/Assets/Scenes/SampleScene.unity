@@ -150,6 +150,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   text: {fileID: 771991512}
+  jsonMode: 0
 --- !u!4 &330428550
 Transform:
   m_ObjectHideFlags: 0
