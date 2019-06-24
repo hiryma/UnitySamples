@@ -68,6 +68,7 @@ public class Main : MonoBehaviour
 	Vector3 targetVelocity;
 	Vector3 targetOrigin;
 	CameraController cameraController;
+	Random32 random;
 
 	class Beam
 	{
@@ -140,15 +141,20 @@ public class Main : MonoBehaviour
 			this.radius = radius;
 			time = 0f;
 		}
-		public void Update(float deltaTime)
+		public void Update(
+			float deltaTime,
+			ref Random32 random)
 		{
-			velocity -= velocity * damping * deltaTime;
+			velocity *= 1f - (damping * deltaTime);
+			float min = -0.5f * randomAccelStrengh;
+			float max = -min;
 			var a = new Vector3(
-				UnityEngine.Random.Range(-0.5f, 0.5f),
-				UnityEngine.Random.Range(-0.5f, 0.5f),
-				UnityEngine.Random.Range(-0.5f, 0.5f)) * randomAccelStrengh;
-			velocity += (constantAccel + a) * deltaTime;
-			position += velocity * deltaTime;
+				random.GetFloat(min, max),
+				random.GetFloat(min, max),
+				random.GetFloat(min, max));
+			Math.Add(ref a, ref constantAccel);
+			Math.Madd(ref velocity, ref a, deltaTime);
+			Math.Madd(ref position, ref velocity, deltaTime);
 			radius *= 1f - (attenuation * deltaTime);
 			time += deltaTime;
 		}
@@ -168,6 +174,7 @@ public class Main : MonoBehaviour
 
 	void Start()
 	{
+		random = new Random32(0);
 		cameraController = new CameraController(mainCamera);
 		targetOrigin = target.transform.position;
 		renderer3d = new DebugPrimitiveRenderer3D(
@@ -183,7 +190,7 @@ public class Main : MonoBehaviour
 		{
 			beams[i] = new Beam();
 		}
-		particles = new Particle[10000];
+		particles = new Particle[20000];
 		for (int i = 0; i < particles.Length; i++)
 		{
 			particles[i].position = new Vector3(1000f, 1000f, -1000f);
@@ -196,12 +203,13 @@ public class Main : MonoBehaviour
 	void Fire()
 	{
 		var beam = beams[nextBeamIndex];
+		var rotation = Quaternion.Euler(
+			random.GetFloat(0f, 30f),
+			random.GetFloat(-90f, 90f),
+			0f);
 		Matrix4x4 m = Matrix4x4.TRS(
 			Vector3.zero,
-			Quaternion.Euler(
-				UnityEngine.Random.Range(0f, 30f),
-				UnityEngine.Random.Range(-90f, 90f),
-				0f),
+			rotation,
 			Vector3.one);
 		var v = m.MultiplyVector(new Vector3(0f, 0f, beamSpeed));
 		beam.Emit(
@@ -224,7 +232,6 @@ public class Main : MonoBehaviour
 		{
 			Fire();
 		}
-
 		// テキトーに的を動かす
 		var p = target.transform.localPosition;
 		var dp = p - targetOrigin;
@@ -241,19 +248,62 @@ public class Main : MonoBehaviour
 			}
 		}
 		renderer3d.color = new Color32(64, 224, 255, 255);
+		UnityEngine.Profiling.Profiler.BeginSample("Main.Update.UpdateParticles");
+
+		var transform = mainCamera.gameObject.transform;
+		var forwardVector = transform.forward;
+		var upVector = transform.up;
+		// TODO: 右ベクタ、上ベクタは前計算可能
+		// 右ベクタ、上ベクタを生成 axisX = cross(axisY, axisZ)
+		Vector3 right = Vector3.Cross(upVector, forwardVector);
+		right.Normalize();
+		// ビルボード空間の上ベクタを計算
+		Vector3 up = Vector3.Cross(forwardVector, right);
+		const float cos30 = 0.866025403784439f;
+		const float leftU = 0.5f - cos30;
+		const float rightU = 0.5f + cos30;
+		var uv0 = new Vector2(0.5f, -0.5f);
+		var uv1 = new Vector2(leftU, 1f);
+		var uv2 = new Vector2(rightU, 1f);
+		renderer3d.BeginAddTexturedTriangle(texture);
+
 		for (int i = 0; i < particles.Length; i++)
 		{
 			if (particles[i].time >= 0f)
 			{
-				particles[i].Update(dt);
+				particles[i].Update(dt, ref random);
 				float r = particles[i].radius;
+#if true
+				float rCos30x2 = r * cos30 * 2f;
+				Vector3 tmpUp, tmpRight, upCenter, p0, p1, p2;
+				Math.SetMul(out tmpUp, ref up, r);
+				Math.SetMul(out tmpRight, ref right, rCos30x2);
+				// 上辺はcenter.y - r*sin(30) = r/2
+				// 下端はcenter.y + r*cos(30)
+				var center = particles[i].position;
+				Math.SetAdd(out upCenter, ref center, ref tmpUp);
+				Math.SetMsub(out p0, ref center, ref tmpUp, 2f);
+				Math.SetSub(out p1, ref upCenter, ref tmpRight);
+				Math.SetAdd(out p2, ref upCenter, ref tmpRight);
+
+ 				renderer3d.AddTexturedTriangleFast(
+					 ref p0,
+					 ref p1,
+					 ref p2,
+					 ref uv0,
+					 ref uv1,
+					 ref uv2);
+#else
 				renderer3d.AddBillboard(
 					particles[i].position,
 					r,
 					r,
 					texture);
+#endif
 			}
 		}
+		UnityEngine.Profiling.Profiler.EndSample();
+
 		renderer3d.UpdateMesh();
 		var tp = target.transform.position;
 		var gp = gunPoint.position;
@@ -325,7 +375,7 @@ public class Main : MonoBehaviour
 		for (int i = 0; i < count; i++)
 		{
 			float xAngle, yAngle;
-			GetHemisphericalCosPoweredRandom(out xAngle, out yAngle, sharpness);
+			Math.GetHemisphericalCosPoweredDistribution(out xAngle, out yAngle, sharpness, ref random);
 			Vector3 v;
 			float sinX = Mathf.Sin(xAngle);
 			v.x = sinX * Mathf.Cos(yAngle);
@@ -333,7 +383,7 @@ public class Main : MonoBehaviour
 			v.z = Mathf.Cos(xAngle);
 			var q = Quaternion.FromToRotation(new Vector3(0f, 0f, 1f), v);
 			v = q * reflection;
-			v *= UnityEngine.Random.Range(sparkVelocityMinRatio, sparkVelocityMaxRatio);
+			v *= random.GetFloat(sparkVelocityMinRatio, sparkVelocityMaxRatio);
 			particles[nextParticleIndex].Emit(
 				position,
 				v,
@@ -348,43 +398,5 @@ public class Main : MonoBehaviour
 				nextParticleIndex = 0;
 			}
 		}
-	}
-
-	void GetSphericalRandom(
-		out float xAngle,
-		out float yAngle)
-	{
-		yAngle = UnityEngine.Random.Range(-Mathf.PI, Mathf.PI);
-		var r = UnityEngine.Random.value;
-		xAngle = Mathf.Asin((2f * r) - 1f);
-	}
-
-	void GetHemisphericalRandom(
-		out float xAngle,
-		out float yAngle)
-	{
-		yAngle = UnityEngine.Random.Range(-Mathf.PI, Mathf.PI);
-		var r = UnityEngine.Random.value;
-		xAngle = Mathf.Acos(r);
-	}
-
-	void GetHemisphericalCosRandom(
-		out float xAngle,
-		out float yAngle)
-	{
-		yAngle = UnityEngine.Random.Range(-Mathf.PI, Mathf.PI);
-		var r = UnityEngine.Random.value;
-		xAngle = Mathf.Asin(Mathf.Sqrt(r));
-	}
-
-	void GetHemisphericalCosPoweredRandom(
-		out float xAngle,
-		out float yAngle,
-		float power)
-	{
-		yAngle = UnityEngine.Random.Range(-Mathf.PI, Mathf.PI);
-		var r = UnityEngine.Random.value;
-		var powered = Mathf.Pow(r, 1f / (power + 1f));
-		xAngle = Mathf.Acos(powered);
 	}
 }

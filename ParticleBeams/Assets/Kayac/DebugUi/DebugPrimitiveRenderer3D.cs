@@ -555,6 +555,62 @@ namespace Kayac
 			return true;
 		}
 
+		public void BeginAddTexturedTriangle(Texture texture)
+		{
+			SetTexture(texture);
+		}
+
+		public void AddTexturedTriangleFast(
+			ref Vector3 p0,
+			ref Vector3 p1,
+			ref Vector3 p2,
+			ref Vector2 uv0,
+			ref Vector2 uv1,
+			ref Vector2 uv2)
+		{
+			_vertices[_vertexCount + 0] = p0;
+			_vertices[_vertexCount + 1] = p1;
+			_vertices[_vertexCount + 2] = p2;
+			_colors[_vertexCount + 0] = color;
+			_colors[_vertexCount + 1] = color;
+			_colors[_vertexCount + 2] = color;
+			_uv[_vertexCount + 0] = uv0;
+			_uv[_vertexCount + 1] = uv1;
+			_uv[_vertexCount + 2] = uv2;
+			AddTriangleIndices(0, 1, 2);
+			_vertexCount += 3;
+		}
+
+		public bool AddTexturedTriangle(
+			Vector3 p0,
+			Vector3 p1,
+			Vector3 p2,
+			Vector2 uv0,
+			Vector2 uv1,
+			Vector2 uv2,
+			Texture texture)
+		{
+			if (
+			((_vertexCount + 3) > _capacity)
+			|| ((_indexCount + 3) > _capacity))
+			{
+				return false;
+			}
+			SetTexture(texture);
+			_vertices[_vertexCount + 0] = p0;
+			_vertices[_vertexCount + 1] = p1;
+			_vertices[_vertexCount + 2] = p2;
+			_colors[_vertexCount + 0] = color;
+			_colors[_vertexCount + 1] = color;
+			_colors[_vertexCount + 2] = color;
+			_uv[_vertexCount + 0] = uv0;
+			_uv[_vertexCount + 1] = uv1;
+			_uv[_vertexCount + 2] = uv2;
+			AddTriangleIndices(0, 1, 2);
+			_vertexCount += 3;
+			return true;
+		}
+
 		// 平行四辺形を描画する。p, p+v0, p+v1, p+v0+v1の4点。
 		public bool AddParallelogram(
 			Vector3 p,

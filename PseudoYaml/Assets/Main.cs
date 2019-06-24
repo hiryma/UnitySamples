@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine.UI;
 using System.IO;
+using Kayac;
 
 public class Main : MonoBehaviour
 {
@@ -32,7 +33,9 @@ public class Main : MonoBehaviour
 		nextId++;
 
 		// root構築
-		Scan(root, ".");
+//		var path = ".";
+		var path = Application.dataPath;
+		Scan(root, path);
 
 		var sb = new System.Text.StringBuilder();
 		ToString(sb, root, 0);

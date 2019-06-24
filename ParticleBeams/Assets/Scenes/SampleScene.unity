@@ -717,13 +717,13 @@ MonoBehaviour:
     randomWalk: 10
     damping: 0.2
     gravity: 0
-    radius: 0.5
+    radius: 0.25
   sparkParticleParameters:
     attenuation: 3
     randomWalk: 4
     damping: 0.4
     gravity: 20
-    radius: 2
+    radius: 1
 --- !u!4 &1822770455
 Transform:
   m_ObjectHideFlags: 0

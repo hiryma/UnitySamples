@@ -1,12 +1,17 @@
 nullableFloat: 10000
 id: 0
 children:
-- id: 1
+- nullableFloat: 10000
+  id: 1
   name: Kayac
+  children:
+  - id: 2
+    name: Dummy
   files:
+  - Dummy.meta
   - PseudoYaml.cs
   - PseudoYaml.cs.meta
-- id: 2
+- id: 3
   name: Scenes
   files:
   - SampleScene.unity
