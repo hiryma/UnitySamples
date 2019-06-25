@@ -1,6 +1,4 @@
-﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
-
-Shader "Miura/DebugPrimitiveText"
+﻿Shader "Kayac/DebugPrimitiveText"
 {
 	Properties
 	{
@@ -17,7 +15,6 @@ Shader "Miura/DebugPrimitiveText"
 		{
 			"Queue" = "Transparent"
 			"RenderType" = "Transparent"
-			"DisableBatching" = "True"
 		}
 		Pass
 		{

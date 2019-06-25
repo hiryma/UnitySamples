@@ -1,6 +1,4 @@
-﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
-
-Shader "Miura/DebugPrimitiveTextured"
+﻿Shader "Kayac/DebugPrimitiveTextured"
 {
 	Properties
 	{
@@ -16,7 +14,6 @@ Shader "Miura/DebugPrimitiveTextured"
 		{
 			"Queue" = "Transparent"
 			"RenderType" = "Transparent"
-			"DisableBatching" = "True"
 		}
 		Pass
 		{
@@ -31,6 +28,7 @@ Shader "Miura/DebugPrimitiveTextured"
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
 				fixed4 color : COLOR0;
+
 			};
 
 			struct v2f
