@@ -1,4 +1,6 @@
-﻿Shader "Kayac/ParticleAdd"
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "Kayac/ParticleAdd"
 {
 	Properties
 	{
@@ -43,7 +45,6 @@
 			v2f vert (appdata v)
 			{
 				v2f o;
-				mul(UNITY_MATRIX_MVP, float4(pos, 1.0)),
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 				o.color = v.color;

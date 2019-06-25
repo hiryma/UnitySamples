@@ -15,7 +15,7 @@ public class Main : MonoBehaviour
 	[SerializeField] SparkParameters sparkParameters;
 	[SerializeField] float targetDamping = 0.1f;
 	[SerializeField] float targetStiffness = 1f;
-	[SerializeField] float cameraPositionParamter = 0.2f;
+	[SerializeField] float cameraPositionParameter = 0.2f;
 	[SerializeField] float cameraMargin = 0.1f;
 	[SerializeField] float cameraStiffness = 2f;
 	[SerializeField] ParticleParameters beamParticleParameters;
@@ -213,12 +213,14 @@ public class Main : MonoBehaviour
 	void Fire(int count)
 	{
 		float rotUnit = 360f / count;
+		float rot = random.GetFloat(-180f, 180f);
 		for (int i = 0; i < count; i++)
 		{
 			var rotation = Quaternion.Euler(
 				0f,
 				0f,
-				rotUnit * (float)i);
+				rot);
+			rot += rotUnit;
 			Matrix4x4 m = Matrix4x4.TRS(
 				Vector3.zero,
 				rotation,
@@ -316,7 +318,7 @@ public class Main : MonoBehaviour
 			gp,
 			tp,
 			Vector3.up,
-			cameraPositionParamter,
+			cameraPositionParameter,
 			cameraMargin);
 		cameraController.Stiffness = cameraStiffness;
 		cameraController.ManualUpdate(dt);
