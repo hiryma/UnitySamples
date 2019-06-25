@@ -84,7 +84,7 @@ public class Main : MonoBehaviour
 			var uv0 = new Vector2(0.5f, -0.5f);
 			var uv1 = new Vector2(leftU, 1f);
 			var uv2 = new Vector2(rightU, 1f);
-#if true
+
 			var mesh = renderer.Mesh;
 			mesh.color = new Color32(64, 224, 255, 255);
 			for (int i = 0; i < count; i++)
@@ -103,27 +103,7 @@ public class Main : MonoBehaviour
 					 ref uv1,
 					 ref uv2);
 			}
-#else
-			var renderer3d = renderer.Renderer;
-			renderer3d.color = new Color32(64, 224, 255, 255);
-			for (int i = 0; i < count; i++)
-			{
-				int idx = i + begin;
-				particles[idx].Update(
-					deltaTime,
-					ref billboardUp,
-					ref billboardRight,
-					ref random);
- 				renderer3d.AddTexturedTriangleFast(
-					 ref particles[idx].p0,
-					 ref particles[idx].p1,
-					 ref particles[idx].p2,
-					 ref uv0,
-					 ref uv1,
-					 ref uv2);
-			}
-#endif
-		}
+ 		}
 	}
 
 	void Start()

@@ -692,20 +692,20 @@ MonoBehaviour:
   target: {fileID: 1480878804}
   texture: {fileID: 2800000, guid: efdd5155bd65f40a3826fc1e4c18b996, type: 3}
   beamParameters:
-    countPerMeter: 5
+    countPerMeter: 20
     speed: 30
     homing: 60
     damping: 0.1
     impact: 1
   sparkParameters:
-    particleCount: 0
+    particleCount: 400
     velocityMinRatio: 0.2
     velocityMaxRatio: 1
     sharpness: 2
-  targetDamping: 0.02
+  targetDamping: 0.03
   targetStiffness: 1
-  cameraPositionParamter: 0.03
-  cameraMargin: 0.2
+  cameraPositionParameter: 0.03
+  cameraMargin: 0.4
   cameraStiffness: 4
   beamParticleParameters:
     attenuation: 1

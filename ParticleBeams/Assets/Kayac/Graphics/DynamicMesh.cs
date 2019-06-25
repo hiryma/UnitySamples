@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Kayac
 {
-	public abstract class DynamicMesh
+	public class DynamicMesh
 	{
 		protected const int defaultTriangleCapacity = 1024;
 		const int initialSubMeshCapacity = 16;
@@ -102,7 +102,7 @@ namespace Kayac
 				// 使用量が半分以下の場合、テンポラリにコピーしてから渡す
 				if (vertexCount < (capacity / 2)) // 閾値は研究が必要だが、とりあえず。
 				{
-					UnityEngine.Profiling.Profiler.BeginSample("DebugPrimitiveRenderer.UpdateMesh.FillTemporary");
+					UnityEngine.Profiling.Profiler.BeginSample("DynamicMesh.Update.FillTemporary");
 
 					temporaryVertices.Clear();
 					temporaryUv.Clear();
@@ -124,7 +124,7 @@ namespace Kayac
 				}
 				else // 半分以上使っている場合、そのまま渡す。
 				{
-					UnityEngine.Profiling.Profiler.BeginSample("DebugPrimitiveRenderer.UpdateMesh.CopyAll");
+					UnityEngine.Profiling.Profiler.BeginSample("DynamicMesh.Update.CopyAll");
 					mesh.vertices = vertices;
 					mesh.uv = uv;
 					mesh.colors32 = colors;
@@ -142,7 +142,7 @@ namespace Kayac
 				var matrix = Matrix4x4.identity;
 				for (int i = 0; i < subMeshCount; i++)
 				{
-					UnityEngine.Profiling.Profiler.BeginSample("DebugPrimitiveRenderer.UpdateMesh.FillIndices");
+					UnityEngine.Profiling.Profiler.BeginSample("DynamicMesh.Update.FillIndices");
 					var subMesh = subMeshes[i];
 					temporaryIndices.Clear();
 					var tmpI = new System.ArraySegment<int>(indices, subMesh.indexStart, subMesh.indexCount);
