@@ -74,6 +74,18 @@ namespace Kayac
 			inOut.z -= a.z;
 		}
 
+		public static void SetCross(out Vector3 o, ref Vector3 a, ref Vector3 b)
+		{
+			o.x = (a.y * b.z) - (a.z * b.y);
+			o.y = (a.z * b.x) - (a.x * b.z);
+			o.z = (a.x * b.y) - (a.y * b.x);
+		}
+
+		public static float Dot(ref Vector3 a, ref Vector3 b)
+		{
+			return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+		}
+
 		public static void GetSphericalDistribution(
 			out float xAngle,
 			out float yAngle,
@@ -116,5 +128,50 @@ namespace Kayac
 			xAngle = Mathf.Acos(powered);
 		}
 
+		public static void RotateVector(
+			out Vector3 output,
+			ref Vector3 v,
+			ref Vector3 axisNormalized, // 軸ベクトルは要正規化
+			float radian)
+		{
+			Vector3 c, p, q;
+			// vを軸に射影して、回転円中心cを得る
+			float dot = Dot(ref v, ref axisNormalized);
+			SetMul(out c, ref axisNormalized, dot);
+			// 中心からv終点=Vへと向かうpを得る
+			SetSub(out p, ref v, ref c);
+
+			// p及びaと直交するベクタを得る
+			SetCross(out q, ref axisNormalized, ref p);
+			// a,pは直交しているから、|q|=|p|
+
+			// 回転後のv'の終点V'は、V' = V + s*p + t*q と表せる。
+			// ここで、s = cosθ t = sinθ
+			var s = Mathf.Cos(radian);
+			var t = Mathf.Sin(radian);
+			SetMadd(out output, ref c, ref p, s);
+			Madd(ref output, ref q, t);
+		}
+
+		// 0ベクタチェックしないよ。事前にやっといてね
+		public static void SetNormalized(out Vector3 output, ref Vector3 a)
+		{
+			float l2 = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);
+			float l = l = Mathf.Sqrt(l2);
+			float rcpL = 1f / l;
+			output.x = a.x * rcpL;
+			output.y = a.y * rcpL;
+			output.z = a.z * rcpL;
+		}
+
+		public static void Normalize(ref Vector3 a)
+		{
+			float l2 = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);
+			float l = l = Mathf.Sqrt(l2);
+			float rcpL = 1f / l;
+			a.x *= rcpL;
+			a.y *= rcpL;
+			a.z *= rcpL;
+		}
 	}
 }

@@ -179,40 +179,28 @@ public class Main : MonoBehaviour
 
 	void Fire()
 	{
-		var rotation = Quaternion.Euler(
-			0f,
-			0f,
-			random.GetFloat(-180f, 180f));
-		Matrix4x4 m = Matrix4x4.TRS(
-			Vector3.zero,
-			rotation,
-			Vector3.one);
-		m = gunPoint.localToWorldMatrix * m;
-		var baseV = new Vector3(0f, 0.86f, 0.5f) * beamParameters.speed;
-
-		var v = m.MultiplyVector(baseV);
+		Vector3 forward = gunPoint.forward;
+		Vector3 right = gunPoint.right;
+		Vector3 v = forward * beamParameters.speed;
+		Math.RotateVector(out v, ref v, ref right, Mathf.PI / 3f);
+		var roll = random.GetFloat(-180f, 180f);
+		Math.RotateVector(out v, ref v, ref forward, roll);
 		Fire(v);
 	}
 
 	void Fire(int count)
 	{
-		float rotUnit = 360f / count;
-		float rot = random.GetFloat(-180f, 180f);
+		float rotBase = random.GetFloat(-Mathf.PI, Mathf.PI);
+		float rotStep = Mathf.PI * 2f / count;
+		Vector3 forward = gunPoint.forward;
+		Vector3 right = gunPoint.right;
+		Vector3 v = forward * beamParameters.speed;
+		Math.RotateVector(out v, ref v, ref right, Mathf.PI / 2f);
+		Math.RotateVector(out v, ref v, ref forward, rotBase);
 		for (int i = 0; i < count; i++)
 		{
-			var rotation = Quaternion.Euler(
-				0f,
-				0f,
-				rot);
-			rot += rotUnit;
-			Matrix4x4 m = Matrix4x4.TRS(
-				Vector3.zero,
-				rotation,
-				Vector3.one);
-			m = gunPoint.localToWorldMatrix * m;
-			var baseV = new Vector3(0f, 1f, 0f) * beamParameters.speed;
-			var v = m.MultiplyVector(baseV);
 			Fire(v);
+			Math.RotateVector(out v, ref v, ref forward, rotStep);
 		}
 	}
 
@@ -281,7 +269,6 @@ public class Main : MonoBehaviour
 		{
 			int count = (rest >= unit) ? unit : rest;
 			jobs[i].Set(begin, count, dt, ref up, ref right);
-//			particleRenderers[i].Renderer.BeginAddTexturedTriangle(texture);
 			particleRenderers[i].Mesh.SetTexture(texture);
 			if (threadEnabled)
 			{
@@ -317,7 +304,6 @@ public class Main : MonoBehaviour
 		UnityEngine.Profiling.Profiler.BeginSample("Main.LateUpdate.UpdateMesh");
 		for (int i = 0; i < particleRenderers.Length; i++)
 		{
-//			particleRenderers[i].Renderer.UpdateMesh();
 			particleRenderers[i].Mesh.Update();
 		}
 		UnityEngine.Profiling.Profiler.EndSample();
@@ -378,17 +364,25 @@ public class Main : MonoBehaviour
 	{
 		var dot = Vector3.Dot(beamVelocity, normal);
 		var reflection = beamVelocity - (normal * (dot * 2f));
+
+		var upHint = Vector3.up;
+		if (Vector3.Dot(reflection, upHint) < 0.5f)
+		{
+			upHint = Vector3.right;
+		}
+		Vector3 right, up;
+		Math.SetCross(out right, ref upHint, ref reflection);
+		Math.Normalize(ref right);
+		Math.SetCross(out up, ref right, ref reflection);
+		Math.Normalize(ref up);
+
 		for (int i = 0; i < count; i++)
 		{
 			float xAngle, yAngle;
 			Math.GetHemisphericalCosPoweredDistribution(out xAngle, out yAngle, sharpness, ref random);
 			Vector3 v;
-			float sinX = Mathf.Sin(xAngle);
-			v.x = sinX * Mathf.Cos(yAngle);
-			v.y = sinX * Mathf.Sin(yAngle);
-			v.z = Mathf.Cos(xAngle);
-			var q = Quaternion.FromToRotation(new Vector3(0f, 0f, 1f), v);
-			v = q * reflection;
+			Math.RotateVector(out v, ref reflection, ref right, xAngle);
+			Math.RotateVector(out v, ref v, ref up, yAngle);
 			v *= random.GetFloat(sparkParameters.velocityMinRatio, sparkParameters.velocityMaxRatio);
 			particles[nextParticleIndex].Emit(
 				position,
