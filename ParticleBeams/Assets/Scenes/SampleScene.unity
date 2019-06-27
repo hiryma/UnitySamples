@@ -14,10 +14,10 @@ OcclusionCullingSettings:
 RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 9
-  m_Fog: 0
-  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  m_FogMode: 3
-  m_FogDensity: 0.01
+  m_Fog: 1
+  m_FogColor: {r: 0, g: 0, b: 0, a: 1}
+  m_FogMode: 2
+  m_FogDensity: 0.005
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
   m_AmbientSkyColor: {r: 0, g: 0, b: 0, a: 1}
@@ -694,7 +694,7 @@ MonoBehaviour:
   beamParameters:
     countPerMeter: 20
     speed: 30
-    homing: 60
+    curvatureRadius: 25
     damping: 0.1
     impact: 1
   sparkParameters:
@@ -719,7 +719,7 @@ MonoBehaviour:
     damping: 0.4
     gravity: 20
     radius: 0.5
-  threadEnabled: 0
+  threadEnabled: 1
 --- !u!4 &1822770455
 Transform:
   m_ObjectHideFlags: 0

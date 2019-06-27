@@ -32,7 +32,11 @@ public class Main : MonoBehaviour
 		public float sharpness = 4f;
 	}
 
+#if !UNITY_STANDALONE
+	const int particleCapacity = 20000;
+#else
 	const int particleCapacity = 100000;
+#endif
 	Vector3 targetVelocity;
 	Vector3 targetOrigin;
 	CameraController cameraController;
@@ -219,7 +223,7 @@ public class Main : MonoBehaviour
 			gunPoint.position,
 			v,
 			beamParameters.speed,
-			beamParameters.homing,
+			beamParameters.curvatureRadius,
 			beamParameters.damping);
 		nextBeamIndex++;
 		if (nextBeamIndex >= beams.Length)

@@ -22,6 +22,7 @@ Shader "Kayac/ParticleAdd"
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
+			#pragma multi_compile_fog
 
 			#include "UnityCG.cginc"
 
@@ -37,6 +38,7 @@ Shader "Kayac/ParticleAdd"
 				float2 uv : TEXCOORD0;
 				float4 vertex : SV_POSITION;
 				fixed4 color : COLOR0;
+				UNITY_FOG_COORDS(1)
 			};
 
 			sampler2D _MainTex;
@@ -48,6 +50,7 @@ Shader "Kayac/ParticleAdd"
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 				o.color = v.color;
+				UNITY_TRANSFER_FOG(o, o.vertex);
 				return o;
 			}
 
@@ -55,6 +58,7 @@ Shader "Kayac/ParticleAdd"
 			{
 				fixed4 ret = i.color;
 				ret *= tex2D(_MainTex, i.uv);
+				UNITY_APPLY_FOG(i.fogCoord, ret);
 				return ret;
 			}
 			ENDCG

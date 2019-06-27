@@ -5,7 +5,7 @@ class BeamParamters
 {
 	public float countPerMeter = 1f;
 	public float speed = 1f;
-	public float homing = 1f;
+	public float curvatureRadius = 1f;
 	public float damping = 0.1f;
 	public float impact = 1f;
 }
@@ -21,32 +21,33 @@ class Beam
 		Vector3 position,
 		Vector3 velocity,
 		float speed,
-		float homing,
+		float curvatureRadius,
 		float damping)
 	{
 		this.position = position;
 		this.velocity = velocity;
-		this.speed = speed;
-		this.homing = homing;
+		// 速さv、半径rで円を描く時、その向心力はv^2/r。これを計算しておく。
+		this.maxCentripetalAccel = speed * speed / curvatureRadius;
 		this.damping = damping;
 		// 終端速度がspeedになるaccelを求める
 		// v = a / kだからa=v*k
-		this.accel = speed * damping;
+		this.propulsion = speed * damping;
 		time = 0f;
 	}
 
 	public void Update(float deltaTime, Vector3 target)
 	{
 		var toTarget = target - position;
-		var v = velocity.normalized;
-		var dot = Vector3.Dot(toTarget, v);
-		var force = (toTarget - (v * dot)) / deltaTime;
-		if (force.magnitude > homing)
+		var vn = velocity.normalized;
+		var dot = Vector3.Dot(toTarget, vn);
+		var centripetalAccel = toTarget - (vn * dot);
+		var centripetalAccelMagnitude = centripetalAccel.magnitude;
+		if (centripetalAccelMagnitude > 1f)
 		{
-			force.Normalize();
-			force *= homing;
+			centripetalAccel /= centripetalAccelMagnitude;
 		}
-		force += v * accel;
+		var force = centripetalAccel * maxCentripetalAccel;
+		force += vn * propulsion;
 		force -= velocity * damping;
 		velocity += force * deltaTime;
 		position += velocity * deltaTime;
@@ -55,8 +56,7 @@ class Beam
 	public Vector3 position;
 	public Vector3 velocity;
 	public float time;
-	float homing;
-	float speed;
+	float maxCentripetalAccel;
 	float damping;
-	float accel;
+	float propulsion; // 推進力
 }
