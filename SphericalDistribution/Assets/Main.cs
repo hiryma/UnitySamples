@@ -19,7 +19,9 @@ public class Main : MonoBehaviour
 			points[i] = Instantiate(pointPrefab, transform, false);
 		}
 		buttonTexts = new string[]{
-			"Wrong",
+			"WrongCircular",
+			"Circular",
+			"WrongSpherical",
 			"Spherical",
 			"HemiSpherical",
 			"HemiSphericalCos",
@@ -30,7 +32,7 @@ public class Main : MonoBehaviour
 
 	void OnGUI()
 	{
-		int newSelected = GUILayout.SelectionGrid(selected, buttonTexts, buttonTexts.Length);
+		int newSelected = GUILayout.SelectionGrid(selected, buttonTexts, 1);
 		if (newSelected != selected)
 		{
 			selected = newSelected;
@@ -53,78 +55,109 @@ public class Main : MonoBehaviour
 	{
 		foreach (var point in points)
 		{
-			float xAngle, yAngle;
+			float phi, theta, radius; // phiは縦角度。起点は赤道。thetaは横角度。
+			radius = 1f;
+			phi = theta = 0f;
 			switch (selected)
 			{
 				case 0:
-					GetWrongSphericalDistribution(out xAngle, out yAngle);
+					GetWrongCircularDistribution(out radius, out theta);
 					break;
 				case 1:
-					GetSphericalDistribution(out xAngle, out yAngle);
+					GetCircularDistribution(out radius, out theta);
 					break;
 				case 2:
-					GetHemisphericalDistribution(out xAngle, out yAngle);
+					GetWrongSphericalDistribution(out phi, out theta);
 					break;
 				case 3:
-					GetHemisphericalCosDistribution(out xAngle, out yAngle);
+					GetSphericalDistribution(out phi, out theta);
 					break;
 				case 4:
-					GetHemisphericalCosPoweredDistribution(out xAngle, out yAngle, Mathf.Pow(2f, logPower));
+					GetHemisphericalDistribution(out phi, out theta);
 					break;
-				default:
-					xAngle = yAngle = 0f;
+				case 5:
+					GetHemisphericalCosDistribution(out phi, out theta);
+					break;
+				case 6:
+					GetHemisphericalCosPoweredDistribution(out phi, out theta, Mathf.Pow(2f, logPower));
 					break;
 			}
-			point.transform.localPosition = new Vector3(
-				Mathf.Sin(xAngle) * Mathf.Cos(yAngle),
-				Mathf.Sin(xAngle) * Mathf.Sin(yAngle),
-				Mathf.Cos(xAngle));
+			if (selected <= 1)
+			{
+				point.transform.localPosition = new Vector3(
+					radius * Mathf.Cos(theta),
+					0f,
+					radius * Mathf.Sin(theta));
+			}
+			else
+			{
+				point.transform.localPosition = new Vector3(
+					Mathf.Cos(phi) * Mathf.Cos(theta),
+					Mathf.Cos(phi) * Mathf.Sin(theta),
+					Mathf.Sin(phi));
+			}
 		}
 	}
 
-	public static void GetWrongSphericalDistribution(
-		out float xAngle,
-		out float yAngle)
+	public static void GetWrongCircularDistribution(
+		out float radius,
+		out float theta)
 	{
-		yAngle = Random.Range(-Mathf.PI, Mathf.PI);
-		xAngle = Random.Range(0f, Mathf.PI);
+		radius = Random.Range(0f, 1f);
+		theta = Random.Range(-Mathf.PI, Mathf.PI);
+	}
+
+	public static void GetCircularDistribution(
+		out float radius,
+		out float theta)
+	{
+		radius = Mathf.Sqrt(Random.Range(0f, 1f));
+		theta = Random.Range(-Mathf.PI, Mathf.PI);
+	}
+
+	public static void GetWrongSphericalDistribution(
+		out float phi,
+		out float theta)
+	{
+		theta = Random.Range(-Mathf.PI, Mathf.PI);
+		phi = Random.Range(-0.5f * Mathf.PI, 0.5f * Mathf.PI);
 	}
 
 	public static void GetSphericalDistribution(
-		out float xAngle,
-		out float yAngle)
+		out float phi,
+		out float theta)
 	{
-		yAngle = Random.Range(-Mathf.PI, Mathf.PI);
-		var r = Random.Range(0f, 1f);
-		xAngle = Mathf.Acos(1f - (2f * r));
+		theta = Random.Range(-Mathf.PI, Mathf.PI);
+		var p = Random.Range(0f, 1f);
+		phi = Mathf.Asin((2f * p) - 1f);
 	}
 
 	public static void GetHemisphericalDistribution(
-		out float xAngle,
-		out float yAngle)
+		out float phi,
+		out float theta)
 	{
-		yAngle = Random.Range(-Mathf.PI, Mathf.PI);
-		var r = Random.Range(0f, 1f);
-		xAngle = Mathf.Acos(r);
+		theta = Random.Range(-Mathf.PI, Mathf.PI);
+		var p = Random.Range(0f, 1f);
+		phi = Mathf.Asin(p);
 	}
 
 	public static void GetHemisphericalCosDistribution(
-		out float xAngle,
-		out float yAngle)
+		out float phi,
+		out float theta)
 	{
-		yAngle = Random.Range(-Mathf.PI, Mathf.PI);
-		var r = Random.Range(0f, 1f);
-		xAngle = Mathf.Asin(Mathf.Sqrt(r));
+		theta = Random.Range(-Mathf.PI, Mathf.PI);
+		var p = Random.Range(0f, 1f);
+		phi = Mathf.Asin(Mathf.Sqrt(p));
 	}
 
 	public static void GetHemisphericalCosPoweredDistribution(
-		out float xAngle,
-		out float yAngle,
+		out float phi,
+		out float theta,
 		float power)
 	{
-		yAngle = Random.Range(-Mathf.PI, Mathf.PI);
-		var r = Random.Range(0f, 1f);
-		var powered = Mathf.Pow(r, 1f / (power + 1f));
-		xAngle = Mathf.Acos(powered);
+		theta = Random.Range(-Mathf.PI, Mathf.PI);
+		var p = Random.Range(0f, 1f);
+		var powered = Mathf.Pow(p, 1f / (power + 1f));
+		phi = Mathf.Asin(powered);
 	}
 }
