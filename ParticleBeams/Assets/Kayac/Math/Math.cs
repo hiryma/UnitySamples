@@ -145,11 +145,33 @@ namespace Kayac
 			SetCross(out q, ref axisNormalized, ref p);
 			// a,pは直交しているから、|q|=|p|
 
-			// 回転後のv'の終点V'は、V' = V + s*p + t*q と表せる。
-			// ここで、s = cosθ t = sinθ
+			// 回転後のv'の終点V'は、V' = c + s*p + t*q と表せる。
+			// ここで、s=cosθ t=sinθ
 			var s = Mathf.Cos(radian);
 			var t = Mathf.Sin(radian);
 			SetMadd(out output, ref c, ref p, s);
+			Madd(ref output, ref q, t);
+		}
+
+		public static void RotateVectorOrthogonal(
+			out Vector3 output,
+			ref Vector3 v, // axisNormalizedと直交していること
+			ref Vector3 axisNormalized, // 軸ベクトルは要正規化
+			float radian)
+		{
+			// vを軸に射影して、回転円中心cを得る操作は省略。
+			// 中心からv終点=Vへと向かうpはvそのまま
+
+			// p及びaと直交するベクタを得る
+			Vector3 q;
+			SetCross(out q, ref axisNormalized, ref v);
+			// a,pは直交しているから、|q|=|p|
+
+			// 回転後のv'の終点V'は、V' = c + s*p + t*q と表せる。今cは原点なので省略。
+			// ここで、s=cosθ t=sinθ
+			var s = Mathf.Cos(radian);
+			var t = Mathf.Sin(radian);
+			SetMul(out output, ref v, s);
 			Madd(ref output, ref q, t);
 		}
 

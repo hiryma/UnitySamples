@@ -88,7 +88,7 @@ public class Main : MonoBehaviour
 		bgmSource.volume = linear;
 		seSource.volume = linear;
 		linearVolumeText.text = "Linear: " + linear.ToString("F3");
-		dbVolumeText.text = "db: " + db.ToString("F0");
+		dbVolumeText.text = "db: " + db.ToString("F2");
 	}
 
 	static float ToDecibel(float linear, float dbMin)

@@ -364,25 +364,24 @@ public class Main : MonoBehaviour
 	{
 		var dot = Vector3.Dot(beamVelocity, normal);
 		var reflection = beamVelocity - (normal * (dot * 2f));
+		var forward = reflection.normalized;
 
 		var upHint = Vector3.up;
 		if (Vector3.Dot(reflection, upHint) < 0.5f)
 		{
 			upHint = Vector3.right;
 		}
-		Vector3 right, up;
-		Math.SetCross(out right, ref upHint, ref reflection);
+		Vector3 right;
+		Math.SetCross(out right, ref upHint, ref forward);
 		Math.Normalize(ref right);
-		Math.SetCross(out up, ref right, ref reflection);
-		Math.Normalize(ref up);
 
 		for (int i = 0; i < count; i++)
 		{
 			float xAngle, yAngle;
 			Math.GetHemisphericalCosPoweredDistribution(out xAngle, out yAngle, sharpness, ref random);
-			Vector3 v;
-			Math.RotateVector(out v, ref reflection, ref right, xAngle);
-			Math.RotateVector(out v, ref v, ref up, yAngle);
+			Vector3 v, axis;
+			Math.RotateVectorOrthogonal(out axis, ref right, ref forward, yAngle); // 先に軸を回す
+			Math.RotateVectorOrthogonal(out v, ref reflection, ref axis, xAngle);
 			v *= random.GetFloat(sparkParameters.velocityMinRatio, sparkParameters.velocityMaxRatio);
 			particles[nextParticleIndex].Emit(
 				position,
