@@ -1,0 +1,4 @@
+Assets/RawImage.prefab
+	Assets/Resources/20181002_121918.png
+	Assets/AssetBundles/20181003_120524.png
+	Assets/StreamingAssets/20181002_122000.png
