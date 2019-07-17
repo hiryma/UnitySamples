@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 using System.Collections.Generic;
 
 namespace Kayac
@@ -135,7 +134,7 @@ namespace Kayac
 			int triangleCapacity)
 		{
 			Debug.LogFormat(
-				"Create DebugUiManager. physicalResolution {0}x{1} safeArea:{2}",
+				"Create DebugUiManager. physicalResolution {0}x{1}\n  safeArea:{2}",
 				Screen.width,
 				Screen.height,
 				GetSafeArea());
@@ -284,7 +283,8 @@ namespace Kayac
 		static Rect GetSafeArea() // 上書き
 		{
 			var ret = Screen.safeArea;
-//ret = new Rect(50f, 100f, Screen.width - 50f - 75f, Screen.height - 100f - 150f); // SafeAreaテスト
+ret.y = 102f;
+ret.height = 2202f;
 			return ret;
 		}
 
@@ -311,6 +311,9 @@ namespace Kayac
 			// カメラ追随処理
 			var safeArea = GetSafeArea();
 			var aspect = safeArea.width / safeArea.height;
+			var screenWidth = (float)Screen.width;
+			var screenHeight = (float)Screen.height;
+			var screenAspect = screenWidth / screenHeight;
 			float goalScale, halfHeight;
 			if (_camera.orthographic)
 			{
@@ -327,22 +330,22 @@ namespace Kayac
 			float offsetX, offsetY;
 			if (refAspect > aspect) // Yが余る
 			{
-				goalScale = halfHeight * aspect / ((float)_referenceScreenWidth * 0.5f);
-				goalScale *= safeArea.width / (float)Screen.width;
+				goalScale = (halfHeight * screenAspect) / ((float)_referenceScreenWidth * 0.5f);
+				goalScale *= safeArea.width / screenWidth;
 				height = width / aspect;
 			}
 			else
 			{
 				goalScale = halfHeight / ((float)_referenceScreenHeight * 0.5f);
-				goalScale *= safeArea.height / (float)Screen.height;
+				goalScale *= safeArea.height / screenHeight;
 				width = height * aspect;
 			}
-			var fullWidth = width * (float)Screen.width / safeArea.width;
-			var fullHeight = height * (float)Screen.height / safeArea.height;
+			var fullWidth = width * screenWidth / safeArea.width;
+			var fullHeight = height * screenHeight / safeArea.height;
 			offsetX = -fullWidth * 0.5f;
 			offsetY = -fullHeight * 0.5f;
-			offsetX += fullWidth * safeArea.x / (float)Screen.width;
-			offsetY += fullHeight * safeArea.y / (float)Screen.height;
+			offsetX += fullWidth * safeArea.x / screenWidth;
+			offsetY += fullHeight * safeArea.y / screenHeight;
 			_root.SetSize(width, height);
 
 			_meshTransform.localPosition = new Vector3(offsetX, offsetY, 0f);
