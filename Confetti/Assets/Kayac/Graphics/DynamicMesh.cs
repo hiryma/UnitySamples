@@ -9,7 +9,6 @@ namespace Kayac
 		const int initialSubMeshCapacity = 16;
 
 		Mesh mesh;
-		MaterialPropertyBlock materialPropertyBlock;
 		Material material;
 		protected int vertexCount;
 		protected int capacity;
@@ -38,6 +37,7 @@ namespace Kayac
 		int subMeshCount;
 		MeshFilter meshFilter;
 		MeshRenderer meshRenderer;
+		Material[] materials;
 
 		public Color32 color { get; set; }
 		protected Texture fontTexture { get; private set; }
@@ -82,64 +82,10 @@ namespace Kayac
 		// 描画キックを行う
 		public void Update()
 		{
-			// 描画キック
 			mesh.Clear();
-
-			Material[] materials = null;
 			if (subMeshCount > 0)
 			{
-				subMeshes[subMeshCount - 1].FixIndexCount(indexCount);
-				// 使用量が半分以下の場合、テンポラリにコピーしてから渡す
-				if (vertexCount < (capacity / 2)) // 閾値は研究が必要だが、とりあえず。
-				{
-					UnityEngine.Profiling.Profiler.BeginSample("DynamicMesh.Update.FillTemporary");
-
-					temporaryVertices.Clear();
-					temporaryUv.Clear();
-					temporaryColors.Clear();
-
-					var tmpV = new System.ArraySegment<Vector3>(vertices, 0, vertexCount);
-					var tmpUv = new System.ArraySegment<Vector2>(uv, 0, vertexCount);
-					var tmpC = new System.ArraySegment<Color32>(colors, 0, vertexCount);
-
-					temporaryVertices.AddRange(tmpV);
-					temporaryUv.AddRange(tmpUv);
-					temporaryColors.AddRange(tmpC);
-
-					mesh.SetVertices(temporaryVertices);
-					mesh.SetUVs(0, temporaryUv);
-					mesh.SetColors(temporaryColors);
-
-					UnityEngine.Profiling.Profiler.EndSample();
-				}
-				else // 半分以上使っている場合、そのまま渡す。
-				{
-					UnityEngine.Profiling.Profiler.BeginSample("DynamicMesh.Update.CopyAll");
-					mesh.vertices = vertices;
-					mesh.uv = uv;
-					mesh.colors32 = colors;
-					UnityEngine.Profiling.Profiler.EndSample();
-				}
-				mesh.subMeshCount = subMeshCount;
-
-				materials = new Material[subMeshCount];
-				for (int i = 0; i < subMeshCount; i++)
-				{
-					materials[i] = subMeshes[i].material;
-				}
-				meshRenderer.sharedMaterials = materials;
-
-				var matrix = Matrix4x4.identity;
-				for (int i = 0; i < subMeshCount; i++)
-				{
-					UnityEngine.Profiling.Profiler.BeginSample("DynamicMesh.Update.FillIndices");
-					var subMesh = subMeshes[i];
-					temporaryIndices.Clear();
-					var tmpI = new System.ArraySegment<int>(indices, subMesh.indexStart, subMesh.indexCount);
-					temporaryIndices.AddRange(tmpI);
-					mesh.SetTriangles(temporaryIndices, i, calculateBounds: false);
-					UnityEngine.Profiling.Profiler.EndSample();
-				}
+				FillSubMeshes();
 			}
 			mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 1000f); // 負荷削減
 			meshFilter.sharedMesh = mesh;
@@ -149,6 +95,65 @@ namespace Kayac
 			// 毎フレーム白にリセット
 			color = new Color32(255, 255, 255, 255);
 			subMeshCount = 0;
+		}
+
+		void FillSubMeshes()
+		{
+			subMeshes[subMeshCount - 1].FixIndexCount(indexCount);
+			// 使用量が半分以下の場合、テンポラリにコピーしてから渡す
+			if (vertexCount < (capacity / 2)) // 閾値は研究が必要だが、とりあえず。
+			{
+				UnityEngine.Profiling.Profiler.BeginSample("DynamicMesh.Update.FillTemporary");
+
+				temporaryVertices.Clear();
+				temporaryUv.Clear();
+				temporaryColors.Clear();
+
+				var tmpV = new System.ArraySegment<Vector3>(vertices, 0, vertexCount);
+				var tmpUv = new System.ArraySegment<Vector2>(uv, 0, vertexCount);
+				var tmpC = new System.ArraySegment<Color32>(colors, 0, vertexCount);
+
+				temporaryVertices.AddRange(tmpV);
+				temporaryUv.AddRange(tmpUv);
+				temporaryColors.AddRange(tmpC);
+
+				mesh.SetVertices(temporaryVertices);
+				mesh.SetUVs(0, temporaryUv);
+				mesh.SetColors(temporaryColors);
+
+				UnityEngine.Profiling.Profiler.EndSample();
+			}
+			else // 半分以上使っている場合、そのまま渡す。
+			{
+				UnityEngine.Profiling.Profiler.BeginSample("DynamicMesh.Update.CopyAll");
+				mesh.vertices = vertices;
+				mesh.uv = uv;
+				mesh.colors32 = colors;
+				UnityEngine.Profiling.Profiler.EndSample();
+			}
+			mesh.subMeshCount = subMeshCount;
+
+			if ((materials == null) || (materials.Length != subMeshCount))
+			{
+				materials = new Material[subMeshCount];
+			}
+			for (int i = 0; i < subMeshCount; i++)
+			{
+				materials[i] = subMeshes[i].material;
+			}
+			meshRenderer.sharedMaterials = materials;
+
+			var matrix = Matrix4x4.identity;
+			for (int i = 0; i < subMeshCount; i++)
+			{
+				UnityEngine.Profiling.Profiler.BeginSample("DynamicMesh.Update.FillIndices");
+				var subMesh = subMeshes[i];
+				temporaryIndices.Clear();
+				var tmpI = new System.ArraySegment<int>(indices, subMesh.indexStart, subMesh.indexCount);
+				temporaryIndices.AddRange(tmpI);
+				mesh.SetTriangles(temporaryIndices, i, calculateBounds: false);
+				UnityEngine.Profiling.Profiler.EndSample();
+			}
 		}
 
 		public void SetMaterial(Material material)

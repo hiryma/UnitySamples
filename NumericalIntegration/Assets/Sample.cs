@@ -16,9 +16,9 @@ public class Sample : MonoBehaviour
 	[SerializeField]
 	Graph _graph;
 	[SerializeField]
-	float _springStiffness = 1f;
+	float _springStiffness = 0.1f;
 	[SerializeField]
-	float _springDumper = 1f;
+	float _springDumper = 0.1f;
 	[SerializeField]
 	float _timeStep = 1f;
 
@@ -40,6 +40,7 @@ public class Sample : MonoBehaviour
 		{
 			this.position = position;
 			this.velocity = velocity;
+			Update(dt, accelFunc);
 		}
 		public void Update(float dt, AccelFunc accelFunc)
 		{
@@ -56,6 +57,7 @@ public class Sample : MonoBehaviour
 		{
 			this.position = position;
 			this.velocity = velocity;
+			Update(dt, accelFunc);
 		}
 		public void Update(float dt, AccelFunc accelFunc)
 		{
@@ -69,10 +71,10 @@ public class Sample : MonoBehaviour
 	{
 		public void Set(Vector2 position, Vector2 velocity, float dt, AccelFunc accelFunc)
 		{
-			this.position = position;
+			_prevPosition = position;
 			this.velocity = velocity;
 			var accel = accelFunc(position, velocity);
-			_prevPosition = position - (velocity * dt) - (accel * (0.5f * dt * dt));
+			this.position = _prevPosition + (velocity * dt) + (accel * (0.5f * dt * dt));
 		}
 		public void Update(float dt, AccelFunc accelFunc)
 		{
@@ -86,29 +88,9 @@ public class Sample : MonoBehaviour
 		public Vector2 _prevPosition;
 		public Vector2 velocity{ get; private set; }
 	}
-	class VelocityVerletState : IState
-	{
-		public void Set(Vector2 position, Vector2 velocity, float dt, AccelFunc accelFunc)
-		{
-			this.position = position;
-			this.velocity = velocity;
-			_accel = accelFunc(position, velocity);
-		}
-		public void Update(float dt, AccelFunc accelFunc)
-		{
-			this.position += (this.velocity * dt) + (_accel * (0.5f * dt * dt));
-			var newAccel = accelFunc(this.position, this.velocity); // 速度が近似なのでこの加速度計算の速度による項はウソ。
-			this.velocity += (_accel + newAccel) * (0.5f * dt);
-			_accel = newAccel;
-		}
-		public Vector2 position{ get; private set; }
-		public Vector2 velocity{ get; private set; }
-		public Vector2 _accel;
-	}
-
 	IState _eulerState = new EulerState();
 	IState _semiImplicitEulerState = new SemiImplicitEulerState();
-	IState _verletState = new VelocityVerletState();
+	IState _verletState = new VerletState();
 	AccelFunc _accelFunc;
 	PositionFunc _positionFunc;
 	EnergyFunc _energyFunc;
@@ -148,24 +130,26 @@ public class Sample : MonoBehaviour
 			}
 			_initialEnergy = _energyFunc(_verletState.position, _verletState.velocity);
 		}
-		var dt = _timeStep;
-		_eulerState.Update(dt, _accelFunc);
+		// 描画位置更新
+		_exact.anchoredPosition = _positionFunc(_time);
 		if (_eulerState.position.magnitude < 1e10f)
 		{
 			_euler.anchoredPosition = _eulerState.position;
 		}
-		_semiImplicitEulerState.Update(dt, _accelFunc);
 		if (_semiImplicitEulerState.position.magnitude < 1e10f)
 		{
 			_semiImplicitEuler.anchoredPosition = _semiImplicitEulerState.position;
 		}
-		_verletState.Update(dt, _accelFunc);
 		if (_verletState.position.magnitude < 1e10f)
 		{
 			_verlet.anchoredPosition = _verletState.position;
 		}
-		_exact.anchoredPosition = _positionFunc(_time);
 
+		// 更新
+		var dt = _timeStep;
+		_eulerState.Update(dt, _accelFunc);
+		_semiImplicitEulerState.Update(dt, _accelFunc);
+		_verletState.Update(dt, _accelFunc);
 		var t = _globalTime;
 		if (_showError)
 		{
@@ -241,16 +225,22 @@ public class Sample : MonoBehaviour
 		}
 	}
 
-	void StartSpring()
+	void ResetStates()
 	{
 		var position = new Vector2(300f, 0f);
 		var velocity = Vector2.zero;
+		_eulerState.Set(position, velocity, _timeStep, _accelFunc);
+		_semiImplicitEulerState.Set(position, velocity, _timeStep, _accelFunc);
+		_verletState.Set(position, velocity, _timeStep, _accelFunc);
+		_time += _timeStep;
+	}
+
+	void StartSpring()
+	{
 		_accelFunc = AccelFuncSpring;
 		_positionFunc = PositionFuncSpring;
 		_energyFunc = EnergyFuncSpring;
-		_eulerState.Set(position, velocity, Time.fixedDeltaTime, _accelFunc);
-		_semiImplicitEulerState.Set(position, velocity, Time.fixedDeltaTime, _accelFunc);
-		_verletState.Set(position, velocity, Time.fixedDeltaTime, _accelFunc);
+		ResetStates();
 	}
 
 	Vector2 AccelFuncSpring(Vector2 position, Vector2 velocity)
@@ -271,14 +261,10 @@ public class Sample : MonoBehaviour
 
 	void StartSpringDumper()
 	{
-		var position = new Vector2(300f, 0f);
-		var velocity = Vector2.zero;
 		_accelFunc = AccelFuncSpringDumper;
 		_positionFunc = PositionFuncSpringDumper;
 		_energyFunc = EnergyFuncSpring;
-		_eulerState.Set(position, velocity, Time.fixedDeltaTime, _accelFunc);
-		_semiImplicitEulerState.Set(position, velocity, Time.fixedDeltaTime, _accelFunc);
-		_verletState.Set(position, velocity, Time.fixedDeltaTime, _accelFunc);
+		ResetStates();
 	}
 
 	Vector2 AccelFuncSpringDumper(Vector2 position, Vector2 velocity)

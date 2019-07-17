@@ -1,6 +1,6 @@
 ﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
 
-Shader "Kayac/ParticleOpaque"
+Shader "Kayac/Particle"
 {
 	Properties
 	{
@@ -9,11 +9,13 @@ Shader "Kayac/ParticleOpaque"
 	SubShader
 	{
 		Cull Off
-		ZWrite On
+		ZWrite Off
+		BlendOp Add
+		Blend SrcAlpha OneMinusSrcAlpha
 		Tags
 		{
-			"Queue" = "Geometry"
-			"RenderType" = "Opaque"
+			"Queue" = "Transparent"
+			"RenderType" = "Transparent"
 		}
 		Pass
 		{

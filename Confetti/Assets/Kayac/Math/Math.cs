@@ -86,6 +86,48 @@ namespace Kayac
 			return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
 		}
 
+		public static void GetSphericalDistribution(
+			out float xAngle,
+			out float yAngle,
+			ref Random32 random)
+		{
+			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
+			var r = random.GetFloat();
+			xAngle = Mathf.Asin((2f * r) - 1f);
+		}
+
+		public static void GetHemisphericalDistribution(
+			out float xAngle,
+			out float yAngle,
+			ref Random32 random)
+		{
+			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
+			var r = random.GetFloat();
+			xAngle = Mathf.Acos(r);
+		}
+
+		public static void GetHemisphericalCosDistribution(
+			out float xAngle,
+			out float yAngle,
+			ref Random32 random)
+		{
+			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
+			var r = random.GetFloat();
+			xAngle = Mathf.Asin(Mathf.Sqrt(r));
+		}
+
+		public static void GetHemisphericalCosPoweredDistribution(
+			out float xAngle,
+			out float yAngle,
+			float power,
+			ref Random32 random)
+		{
+			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
+			var r = random.GetFloat();
+			var powered = Mathf.Pow(r, 1f / (power + 1f));
+			xAngle = Mathf.Acos(powered);
+		}
+
 		public static void RotateVector(
 			out Vector3 output,
 			ref Vector3 v,
@@ -143,54 +185,37 @@ namespace Kayac
 		// 0ベクタチェックしないよ。事前にやっといてね
 		public static void SetNormalized(out Vector3 output, ref Vector3 a)
 		{
-			float l2 = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);
-			float l = Mathf.Sqrt(l2);
+			var l = GetLength(ref a);
 			float rcpL = 1f / l;
 			output.x = a.x * rcpL;
 			output.y = a.y * rcpL;
 			output.z = a.z * rcpL;
 		}
 
-		public static void GetSphericalDistribution(
-			out float xAngle,
-			out float yAngle,
-			ref Random32 random)
+		public static float GetLength(ref Vector3 a)
 		{
-			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
-			var r = random.GetFloat();
-			xAngle = Mathf.Asin((2f * r) - 1f);
+			float l2 = (a.x * a.x) + (a.y * a.y) + (a.z * a.z);
+			float l = Mathf.Sqrt(l2);
+			return l;
 		}
 
-		public static void GetHemisphericalDistribution(
-			out float xAngle,
-			out float yAngle,
-			ref Random32 random)
+		public static void Normalize(ref Vector3 a)
 		{
-			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
-			var r = random.GetFloat();
-			xAngle = Mathf.Acos(r);
+			var l = GetLength(ref a);
+			float rcpL = 1f / l;
+			a.x *= rcpL;
+			a.y *= rcpL;
+			a.z *= rcpL;
 		}
 
-		public static void GetHemisphericalCosDistribution(
-			out float xAngle,
-			out float yAngle,
-			ref Random32 random)
+		// 長さを指定したものにする
+		public static void Normalize(ref Vector3 a, float length)
 		{
-			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
-			var r = random.GetFloat();
-			xAngle = Mathf.Asin(Mathf.Sqrt(r));
-		}
-
-		public static void GetHemisphericalCosPoweredDistribution(
-			out float xAngle,
-			out float yAngle,
-			float power,
-			ref Random32 random)
-		{
-			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
-			var r = random.GetFloat();
-			var powered = Mathf.Pow(r, 1f / (power + 1f));
-			xAngle = Mathf.Acos(powered);
+			var l = GetLength(ref a);
+			float rcpL = length / l;
+			a.x *= rcpL;
+			a.y *= rcpL;
+			a.z *= rcpL;
 		}
 	}
 }
