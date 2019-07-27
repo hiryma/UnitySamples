@@ -138,7 +138,7 @@ namespace Kayac
 
 		// Protected --------------------
 
-		/// タップするか、ドラッグするか、どこでするか、を決定するカスタマイズ可能な関数。FireDrag/FireTapを中で呼ぶ
+		/// タップするか、どこでするか、を決定するカスタマイズ可能な関数。Fireを中で呼ぶ
 		protected abstract void UpdateTap(int tapIndex);
 		/// tapIndexは0からTapCount-1
 		protected int TapCount { get { return taps.Length; } }
@@ -339,9 +339,9 @@ namespace Kayac
 
 			var fired = ExecuteEvents.ExecuteHierarchy<IPointerDownHandler>(hitObject, ev, (handler, data) =>
 			{
-				upSampler.Begin();
+				downSampler.Begin();
 				handler.OnPointerDown((PointerEventData)data);
-				upSampler.End();
+				downSampler.End();
 			});
 			if (fired != null)
 			{
@@ -436,9 +436,9 @@ namespace Kayac
 				ev.useDragThreshold = true;
 				var fired = ExecuteEvents.ExecuteHierarchy<IBeginDragHandler>(pressed, ev, (handler, data) =>
 				{
-					endDragSampler.Begin();
+					beginDragSampler.Begin();
 					handler.OnBeginDrag((PointerEventData)data);
-					endDragSampler.End();
+					beginDragSampler.End();
 				});
 				if (fired != null)
 				{
@@ -469,9 +469,9 @@ namespace Kayac
 			{
 				var fired = ExecuteEvents.ExecuteHierarchy<IDragHandler>(dragged, ev, (handler, data) =>
 				{
-					endDragSampler.Begin();
+					dragSampler.Begin();
 					handler.OnDrag((PointerEventData)data);
-					endDragSampler.End();
+					dragSampler.End();
 				});
 				if (fired != null)
 				{
