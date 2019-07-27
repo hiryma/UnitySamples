@@ -11,7 +11,7 @@ public class Main : MonoBehaviour
 	delegate float Func();
 	Image[] images;
 	string text;
-	int mode = 0;
+	int mode = 2;
 	readonly string[] modeNames = new string[] { "Uniform", "Normal", "LogNormal" };
 	bool useBoxMuller;
 
