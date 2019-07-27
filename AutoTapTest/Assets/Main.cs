@@ -48,7 +48,7 @@ public class Main : MonoBehaviour
 		});
 		debugTapToggleButton.onClick.AddListener(() =>
 		{
-			debugTapper.gameObject.SetActive(!debugTapper.gameObject.activeSelf);
+			debugTapper.enabled = !debugTapper.enabled;
 			Log("auto tap on/off");
 		});
 	}

@@ -1187,7 +1187,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1741091958}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f0e20ef98cb0e4aef8e89037cad03a9d, type: 3}
   m_Name: 
@@ -1196,6 +1196,7 @@ MonoBehaviour:
   autoStartEnabled: 1
   tapCount: 8
   logSize: 8192
+  doubleClickThreshold: 0.3
 --- !u!4 &1741091960
 Transform:
   m_ObjectHideFlags: 0

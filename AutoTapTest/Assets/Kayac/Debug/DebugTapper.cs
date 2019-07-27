@@ -162,16 +162,12 @@ namespace Kayac
 			tap.mark.rectTransform.anchoredPosition = tap.pointerEvent.position;
 			tap.duration = duration;
 
-			if (Raycast(tap.pointerEvent))
+			var hitObject = Raycast(tap.pointerEvent);
+			if (hitObject != null)
 			{
-				var hitGameObject = tap.pointerEvent.pointerCurrentRaycast.gameObject;
-				Down(tap, hitGameObject);
-				tap.mark.enabled = true;
+				Down(tap, hitObject);
 			}
-			else
-			{
-				tap.mark.enabled = false;
-			}
+			tap.mark.enabled = true;
 		}
 
 		// Private ----------------------
@@ -245,15 +241,16 @@ namespace Kayac
 				return;
 			}
 
-			if (enabled)
+			var deltaTime = Time.deltaTime;
+			for (int i = 0; i < taps.Length; i++)
 			{
-				var deltaTime = Time.deltaTime;
-				for (int i = 0; i < taps.Length; i++)
-				{
-					UpdateTap(i, deltaTime);
-				}
+				UpdateTap(i, deltaTime);
 			}
-			else
+		}
+
+		void OnDisable()
+		{
+			if (taps != null)
 			{
 				foreach (var tap in taps)
 				{
@@ -402,6 +399,7 @@ namespace Kayac
 				EndDrag(tap, hitObject);
 			}
 			tap.time = float.MaxValue;
+			tap.mark.enabled = false;
 		}
 
 		void Click(Tap tap)
