@@ -24,6 +24,7 @@ namespace Kayac
 				BeginDrag,
 				Drag,
 				EndDrag,
+				Drop,
 				Enter,
 				Exit,
 			}
@@ -518,7 +519,7 @@ namespace Kayac
 			});
 			if (fired != null)
 			{
-				Log(LogItem.EventType.Click, ev, fired);
+				Log(LogItem.EventType.Drop, ev, fired);
 			}
 		}
 	}
