@@ -6,7 +6,6 @@ public class Main : MonoBehaviour
 	[SerializeField] RectTransform canvasTransform;
 	[SerializeField] int binCount = 256;
 	[SerializeField] int sampleCount = 65536;
-	[SerializeField] float[] graphCuts;
 
 	delegate float Func();
 	Image[] images;
@@ -14,6 +13,9 @@ public class Main : MonoBehaviour
 	int mode = 2;
 	readonly string[] modeNames = new string[] { "Uniform", "Normal", "LogNormal" };
 	bool useBoxMuller;
+	bool randomWalk;
+	float[] samples;
+	bool cutLogTail = true;
 
 	void Start()
 	{
@@ -39,29 +41,79 @@ public class Main : MonoBehaviour
 		var newMode = GUILayout.SelectionGrid(mode, modeNames, 3);
 		if (newMode != mode)
 		{
+			randomWalk = false;
 			UpdateHistogram(newMode);
 			mode = newMode;
 		}
+		GUILayout.BeginHorizontal();
 		useBoxMuller = GUILayout.Toggle(useBoxMuller, "Box-Muller");
+		cutLogTail = GUILayout.Toggle(cutLogTail, "CutLogTail");
+		if (GUILayout.Button("RandomWalk"))
+		{
+			randomWalk = true;
+			BeginRandomWalk();
+		}
+		GUILayout.EndHorizontal();
+	}
+
+	void Update()
+	{
+		if (randomWalk)
+		{
+			UpdateRandomWalk();
+			DrawHistogram();
+		}
+	}
+
+	void BeginRandomWalk()
+	{
+		Sample(sampleCount, AllOne);
+		if (samples != null)
+		{
+			DrawHistogram();
+		}
+	}
+
+	void UpdateRandomWalk()
+	{
+		var dt = Time.deltaTime;
+		if (mode == 2)
+		{
+			for (int i = 0; i < samples.Length; i++)
+			{
+				samples[i] *= 1f + (dt * Random.Range(-1f, 1f));
+			}
+		}
+		else
+		{
+			for (int i = 0; i < samples.Length; i++)
+			{
+				samples[i] += dt * Random.Range(-1f, 1f);
+			}
+		}
 	}
 
 	void UpdateHistogram(int mode)
 	{
-		float[] samples = null;
 		switch (mode)
 		{
-			case 0: samples = Sample(sampleCount, Uniform); break;
-			case 1: samples = Sample(sampleCount, Normal); break;
-			case 2: samples = Sample(sampleCount, LogNormal); break;
+			case 0: Sample(sampleCount, Uniform); break;
+			case 1: Sample(sampleCount, Normal); break;
+			case 2: Sample(sampleCount, LogNormal); break;
 		}
 		if (samples != null)
 		{
-			DrawHistogram(samples, graphCuts[mode]);
+			DrawHistogram();
 		}
 	}
 
-	void DrawHistogram(float[] samples, float graphCut)
+	void DrawHistogram()
 	{
+		var graphCut = 0f;
+		if (cutLogTail && (mode == 2))
+		{
+			graphCut = 0.1f;
+		}
 		// 値をソートしてしまう
 		System.Array.Sort(samples);
 		// 中央値
@@ -83,13 +135,20 @@ public class Main : MonoBehaviour
 		// 分類
 		int[] bins = new int[images.Length];
 		float binWidth = (graphMax - min) / images.Length;
-		foreach (var item in samples)
+		if (binWidth == 0f) // 全部真ん中
 		{
-			if (item < graphMax)
+			bins[bins.Length / 2] = samples.Length;
+		}
+		else
+		{
+			foreach (var item in samples)
 			{
-				int index = (int)((item - min) / binWidth);
-				index = Mathf.Clamp(index, 0, bins.Length - 1);
-				bins[index]++;
+				if (item < graphMax)
+				{
+					int index = (int)((item - min) / binWidth);
+					index = Mathf.Clamp(index, 0, bins.Length - 1);
+					bins[index]++;
+				}
 			}
 		}
 
@@ -112,14 +171,18 @@ public class Main : MonoBehaviour
 		text = string.Format("avg: {0} med:{1} min:{2} max:{3}", avg, median, min, max);
 	}
 
-	static float[] Sample(int n, Func func)
+	void Sample(int n, Func func)
 	{
-		var ret = new float[n];
+		samples = new float[n];
 		for (int i = 0; i < n; i++)
 		{
-			ret[i] = func();
+			samples[i] = func();
 		}
-		return ret;
+	}
+
+	float AllOne()
+	{
+		return 1f;
 	}
 
 	float Uniform()

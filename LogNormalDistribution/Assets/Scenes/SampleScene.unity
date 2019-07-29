@@ -300,7 +300,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   canvasTransform: {fileID: 1944319566}
   binCount: 256
-  sampleCount: 524288
+  sampleCount: 65536
   graphCuts:
   - 0
   - 0
