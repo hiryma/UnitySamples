@@ -1,9 +1,9 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
+using UnityEngine.UI;
 
 public class Main : MonoBehaviour
 {
+	[SerializeField] RectTransform canvasTransform;
 	[SerializeField] AudioSource seSource;
 	[SerializeField] AudioSource bgmSource;
 
@@ -29,6 +29,8 @@ public class Main : MonoBehaviour
 	float x;
 	float y;
 	float lineHeight = 30f;
+	Image[] images;
+	int sampleCount = 256;
 
 	void Awake()
 	{
@@ -38,6 +40,22 @@ public class Main : MonoBehaviour
 		reverb.enabled = false;
 		loPass.cutoffFrequency = loPassHz;
 		hiPass.cutoffFrequency = hiPassHz;
+		images = new Image[sampleCount];
+		var canvasW = canvasTransform.sizeDelta.x;
+		for (int i = 0; i < sampleCount; i++)
+		{
+			var go = new GameObject("SpectrumBar" + i);
+			var im = go.AddComponent<Image>();
+			im.rectTransform.anchorMin = Vector2.zero;
+			im.rectTransform.anchorMax = Vector2.zero;
+			im.rectTransform.pivot = Vector2.zero;
+			im.color = new Color(0.7f, 0.7f, 0.2f, 0.5f);
+			im.rectTransform.anchoredPosition = new Vector2(
+				canvasW * i / sampleCount,
+				0f);
+			images[i] = im;
+			go.transform.SetParent(canvasTransform, false);
+		}
 	}
 	Rect MakeRect(float width)
 	{
@@ -96,6 +114,12 @@ public class Main : MonoBehaviour
 		}
 		Break();
 
+		FilterToggle(ref chorusEnabled, "Chorus", chorus);
+		FilterToggle(ref distortionEnabled, "Distortion", distortion);
+		FilterToggle(ref echoEnabled, "Echo", echo);
+		FilterToggle(ref reverbEnabled, "Reverb", reverb);
+		Break();
+
 		var newLoop = GUI.Toggle(MakeRect(100f), loop, "Loop");
 		if (newLoop != loop)
 		{
@@ -116,17 +140,40 @@ public class Main : MonoBehaviour
 				bgmSource.Stop();
 			}
 		}
-		Break();
-
-		FilterToggle(ref chorusEnabled, "Chorus", chorus);
-		FilterToggle(ref distortionEnabled, "Distortion", distortion);
-		FilterToggle(ref echoEnabled, "Echo", echo);
-		FilterToggle(ref reverbEnabled, "Reverb", reverb);
-		Break();
 
 		if (GUI.Button(MakeRect(100f), "Play"))
 		{
 			seSource.Play();
+		}
+	}
+
+	void Update()
+	{
+		var spectrum = new float[sampleCount];
+		AudioListener.GetSpectrumData(spectrum, 0, FFTWindow.Rectangular);
+
+		float max = -float.MaxValue;
+		float min = -max;
+		float barW = canvasTransform.sizeDelta.x / sampleCount;
+		float barHMax = canvasTransform.sizeDelta.y * 0.5f;
+		float minDb = -80f;
+		for (int i = 0; i < spectrum.Length; i++)
+		{
+			float db = minDb;
+			if (spectrum[i] > 0)
+			{
+				db = Mathf.Log10(spectrum[i]) * 20f;
+				if (db < minDb)
+				{
+					db = minDb;
+				}
+			}
+			max = Mathf.Max(max, db);
+			min = Mathf.Min(min, db);
+			var h = barHMax * (-minDb + db) / -minDb;
+			images[i].rectTransform.sizeDelta = new Vector2(
+				barW,
+				h);
 		}
 	}
 
