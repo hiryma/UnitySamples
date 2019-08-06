@@ -2,7 +2,6 @@
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-
 public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 {
 	[SerializeField] Transform cameraRotation;
@@ -23,6 +22,7 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 	[SerializeField] Slider attenuationSlider;
 	[SerializeField] Slider cameraDistanceSlider;
 	[SerializeField] Toggle perVertexToggle;
+	[SerializeField] Toggle imageShowToggle;
 
 	enum Mode
 	{
@@ -59,12 +59,13 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 	void Update()
 	{
 		frameTimeWatcher.Update();
-		fpsText.text = "FPS: " + frameTimeWatcher.fps.ToString("F1");
+		fpsText.text = "Time: " + (frameTimeWatcher.averageFrameTime / 1024f).ToString("F1");
 
 		float log, newLog;
 		bool materialDirty = false;
 
-		resolutionText.text = "Reso: " + resolutionRatio.ToString("F3");
+		var edge = Mathf.Sqrt(resolutionRatio) * 4096f;
+		resolutionText.text = "Reso: " + edge.ToString("F0") + " (" + resolutionRatio.ToString("F3") + ")";
 		log = Mathf.Log10(resolutionRatio);
 		newLog = resolutionSlider.value;
 		if (newLog != log)
@@ -72,7 +73,10 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 			resolutionRatio = Mathf.Pow(10f, newLog);
 			var sqrtRatio = Mathf.Sqrt(resolutionRatio);
 			camera3d.rect = new Rect(0f, 0f, sqrtRatio, sqrtRatio);
-			rawImage.uvRect = new Rect(0f, 0f, sqrtRatio, sqrtRatio);
+			var vmin = Mathf.Min(Screen.width, Screen.height);
+//			rawImage.uvRect = new Rect(0f, 0f, sqrtRatio, sqrtRatio);
+			var ratio = Mathf.Min(vmin / edge, sqrtRatio);
+			rawImage.uvRect = new Rect(0f, 0f, ratio, ratio);
 		}
 
 		densityText.text = "Density: " + density.ToString("F3");
@@ -109,6 +113,8 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 			perVertex = newValue;
 			SetMaterial();
 		}
+
+		rawImage.enabled = imageShowToggle.isOn;
 
 		if (materialDirty)
 		{
@@ -147,31 +153,38 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 		Mode newMode = mode;
 		if (data.rawPointerPress != null)
 		{
-			noneButton.color = Color.red;
-			expButton.color = Color.red;
-			heightExpButton.color = Color.red;
-			heightUniformButton.color = Color.red;
-
 			var name = data.rawPointerPress.name;
 			if (name == "ExpButton")
 			{
 				newMode = Mode.Exp;
 				expButton.color = Color.green;
+				noneButton.color = Color.red;
+				heightExpButton.color = Color.red;
+				heightUniformButton.color = Color.red;
 			}
 			else if (name == "HeightUniformButton")
 			{
 				newMode = Mode.HeightUniform;
 				heightUniformButton.color = Color.green;
+				noneButton.color = Color.red;
+				expButton.color = Color.red;
+				heightExpButton.color = Color.red;
 			}
 			else if (name == "HeightExpButton")
 			{
 				newMode = Mode.HeightExp;
 				heightExpButton.color = Color.green;
+				noneButton.color = Color.red;
+				expButton.color = Color.red;
+				heightUniformButton.color = Color.red;
 			}
 			else if (name == "NoneButton")
 			{
 				newMode = Mode.None;
 				noneButton.color = Color.green;
+				expButton.color = Color.red;
+				heightExpButton.color = Color.red;
+				heightUniformButton.color = Color.red;
 			}
 			if (newMode != mode)
 			{
