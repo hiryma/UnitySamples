@@ -3,13 +3,26 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 
-public class Main : MonoBehaviour, IDragHandler
+public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 {
 	[SerializeField] Transform cameraRotation;
 	[SerializeField] Camera camera3d;
 	[SerializeField] RawImage rawImage;
 	[SerializeField] Shader[] shaders;
+	[SerializeField] Text expButton;
+	[SerializeField] Text heightUniformButton;
+	[SerializeField] Text heightExpButton;
+	[SerializeField] Text noneButton;
 	[SerializeField] Text fpsText;
+	[SerializeField] Text resolutionText;
+	[SerializeField] Text densityText;
+	[SerializeField] Text attenuationText;
+	[SerializeField] Text cameraDistanceText;
+	[SerializeField] Slider resolutionSlider;
+	[SerializeField] Slider densitySlider;
+	[SerializeField] Slider attenuationSlider;
+	[SerializeField] Slider cameraDistanceSlider;
+	[SerializeField] Toggle perVertexToggle;
 
 	enum Mode
 	{
@@ -23,9 +36,9 @@ public class Main : MonoBehaviour, IDragHandler
 	Material[] materials;
 	float xAngle = 40f;
 	float yAngle = 0f;
-	float cameraDistance = 10f;
-	float density = 0.1f;
-	float heightDensityAttenuation = 0.1f;
+	float cameraDistance;
+	float density;
+	float heightDensityAttenuation;
 	Kayac.FrameTimeWatcher frameTimeWatcher;
 	float resolutionRatio = 1f;
 
@@ -39,13 +52,72 @@ public class Main : MonoBehaviour, IDragHandler
 		{
 			materials[i] = new Material(shaders[i]);
 		}
+		noneButton.color = Color.green;
 		SetMaterial();
 	}
 
 	void Update()
 	{
 		frameTimeWatcher.Update();
-		fpsText.text = "FPS: " + frameTimeWatcher.fps;
+		fpsText.text = "FPS: " + frameTimeWatcher.fps.ToString("F1");
+
+		float log, newLog;
+		bool materialDirty = false;
+
+		resolutionText.text = "Reso: " + resolutionRatio.ToString("F3");
+		log = Mathf.Log10(resolutionRatio);
+		newLog = resolutionSlider.value;
+		if (newLog != log)
+		{
+			resolutionRatio = Mathf.Pow(10f, newLog);
+			var sqrtRatio = Mathf.Sqrt(resolutionRatio);
+			camera3d.rect = new Rect(0f, 0f, sqrtRatio, sqrtRatio);
+			rawImage.uvRect = new Rect(0f, 0f, sqrtRatio, sqrtRatio);
+		}
+
+		densityText.text = "Density: " + density.ToString("F3");
+		log = Mathf.Log10(density);
+		newLog = densitySlider.value;
+		if (newLog != log)
+		{
+			density = Mathf.Pow(10f, newLog);
+			materialDirty = true;
+		}
+
+		attenuationText.text = "Attenuation: " + heightDensityAttenuation.ToString("F3");
+		log = Mathf.Log10(heightDensityAttenuation);
+		newLog = attenuationSlider.value;
+		if (newLog != log)
+		{
+			heightDensityAttenuation = Mathf.Pow(10f, newLog);
+			materialDirty = true;
+		}
+
+		cameraDistanceText.text = "Cam Distance: " + cameraDistance.ToString("F1");
+		log = Mathf.Log10(cameraDistance);
+		newLog = cameraDistanceSlider.value;
+		if (newLog != log)
+		{
+			cameraDistance = Mathf.Pow(10f, newLog);
+			camera3d.transform.localPosition = new Vector3(0f, 0f, -cameraDistance);
+		}
+
+
+		var newValue = perVertexToggle.isOn;
+		if (newValue != perVertex)
+		{
+			perVertex = newValue;
+			SetMaterial();
+		}
+
+		if (materialDirty)
+		{
+			foreach (var material in materials)
+			{
+				material.SetFloat("_FogDensity", density);
+				material.SetFloat("_FogDensityAttenuation", heightDensityAttenuation);
+			}
+		}
 	}
 
 	void SetMaterial()
@@ -70,71 +142,41 @@ public class Main : MonoBehaviour, IDragHandler
 		}
 	}
 
-	void OnGUI()
+	public void OnPointerClick(PointerEventData data)
 	{
-		var changed = false;
-		var names = System.Enum.GetNames(typeof(Mode));
-		var newMode = GUI.SelectionGrid(new Rect(0, 0, 160f, 128f), (int)mode, names, 1);
-
-		GUI.Label(new Rect(256f, 0f, 128f, 32f), "Density: " + density.ToString("F3"));
-		var log = Mathf.Log10(density);
-		var newLog = GUI.HorizontalSlider(new Rect(378f, 0f, 128f, 32f), log, -3f, 1f);
-		if (newLog != log)
+		Mode newMode = mode;
+		if (data.rawPointerPress != null)
 		{
-			changed = true;
-			log = newLog;
-			density = Mathf.Pow(10f, log);
-		}
+			noneButton.color = Color.red;
+			expButton.color = Color.red;
+			heightExpButton.color = Color.red;
+			heightUniformButton.color = Color.red;
 
-		GUI.Label(new Rect(256f, 32f, 128f, 32f), "Height Attn: " + heightDensityAttenuation.ToString("F3"));
-		log = Mathf.Log10(heightDensityAttenuation);
-		newLog = GUI.HorizontalSlider(new Rect(378f, 32f, 128f, 32f), log, -3f, 1f);
-		if (newLog != log)
-		{
-			changed = true;
-			log = newLog;
-			heightDensityAttenuation = Mathf.Pow(10f, log);
-		}
-
-		GUI.Label(new Rect(256f, 64f, 128f, 32f), "Cam Distance: " + cameraDistance.ToString("F1"));
-		log = Mathf.Log10(cameraDistance);
-		newLog = GUI.HorizontalSlider(new Rect(378, 64f, 128f, 32f), log, 0f, 3f);
-		if (newLog != log)
-		{
-			changed = true;
-			log = newLog;
-			cameraDistance = Mathf.Pow(10f, log);
-			camera3d.transform.localPosition = new Vector3(0f, 0f, -cameraDistance);
-		}
-
-		GUI.Label(new Rect(256f, 96f, 128f, 32f), "Reso Ratio: " + resolutionRatio.ToString("F3"));
-		log = Mathf.Log10(resolutionRatio);
-		newLog = GUI.HorizontalSlider(new Rect(378, 96f, 128f, 32f), log, -3f, 0f);
-		if (newLog != log)
-		{
-			log = newLog;
-			resolutionRatio = Mathf.Pow(10f, log);
-			var sqrtRatio = Mathf.Sqrt(resolutionRatio);
-			camera3d.rect = new Rect(0f, 0f, sqrtRatio, sqrtRatio);
-			rawImage.uvRect = new Rect(0f, 0f, sqrtRatio, sqrtRatio);
-		}
-
-		var newPerVertex = GUI.Toggle(new Rect(0f, 128f, 128f, 32f), perVertex, "perVertex");
-
-		if ((newMode != (int)mode) || (newPerVertex != perVertex))
-		{
-			changed = true;
-			mode = (Mode)newMode;
-			perVertex = newPerVertex;;
-			SetMaterial();
-		}
-
-		if (changed)
-		{
-			foreach (var material in materials)
+			var name = data.rawPointerPress.name;
+			if (name == "ExpButton")
 			{
-				material.SetFloat("_FogDensity", density);
-				material.SetFloat("_FogDensityAttenuation", heightDensityAttenuation);
+				newMode = Mode.Exp;
+				expButton.color = Color.green;
+			}
+			else if (name == "HeightUniformButton")
+			{
+				newMode = Mode.HeightUniform;
+				heightUniformButton.color = Color.green;
+			}
+			else if (name == "HeightExpButton")
+			{
+				newMode = Mode.HeightExp;
+				heightExpButton.color = Color.green;
+			}
+			else if (name == "NoneButton")
+			{
+				newMode = Mode.None;
+				noneButton.color = Color.green;
+			}
+			if (newMode != mode)
+			{
+				mode = newMode;
+				SetMaterial();
 			}
 		}
 	}
