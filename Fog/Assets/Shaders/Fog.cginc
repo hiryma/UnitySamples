@@ -2,7 +2,7 @@ float calcFogExp(float3 objectPosition, float3 cameraPosition, float density)
 {
 	float3 camToObj = objectPosition - cameraPosition;
 	float l = length(camToObj);
-	float fog = 1.0 - exp(-l * density);
+	float fog = exp(-l * density);
 	return fog;
 }
 
@@ -14,13 +14,12 @@ float calcFogHeightExp(float3 objectPosition, float3 cameraPosition, float densi
 	float exp0 = exp(-densityAttenuation * objectPosition.y);
 	if (camToObj.y == 0.0) // 単純な均一フォグ
 	{
-		ret = 1.0 - exp(-l * densityY0 * exp0);
+		ret = exp(-l * densityY0 * exp0);
 	}
 	else
 	{
-		float tmp = (l * densityY0) / (densityAttenuation * camToObj.y);
-		float exp1 = exp(-densityAttenuation * cameraPosition.y);
-		ret = 1.0 - exp(tmp * (exp1 - exp0));
+		float ah = densityAttenuation * camToObj.y;
+		ret = exp(l * densityY0 / ah * exp0 * (exp(-ah) - 1.0));
 	}
 	return ret;
 }
@@ -52,7 +51,7 @@ float calcFogHeightUniform(float3 objectPosition, float3 cameraPosition, float f
 		}
 	}
 	float distance = length(camToObj) * t;
-	float fog = 1.0 - exp(-distance * fogDensity);
+	float fog = exp(-distance * fogDensity);
 	return fog;
 }
 

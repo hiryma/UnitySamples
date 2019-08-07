@@ -47,7 +47,7 @@
 			{
 				fixed4 col = fixed4(1.0, 1.0, 1.0, 1.0);
 				col.xyz = DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.lightmapUv));
-				col.xyz = lerp(col.xyz, unity_FogColor.xyz, i.fog);
+				col.xyz = lerp(unity_FogColor.xyz, col.xyz, i.fog);
 				return col;
 			}
 			ENDCG
