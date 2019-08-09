@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Fog
-  m_Shader: {fileID: 4800000, guid: e38e71e94e04d46aebed2420f34e6690, type: 3}
+  m_Shader: {fileID: 4800000, guid: 02b6cfecfef4b4a72b931110edf91c08, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -60,6 +60,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
+    - _Attenuation: 0.1
     - _BumpScale: 1
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
@@ -68,6 +69,8 @@ Material:
     - _FogDensityAttenuation: 0.6
     - _FogDensityY0: 1.5
     - _FogEndHeight: 3
+    - _FogStreangth: -1
+    - _FogStrength: 0.05
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1

@@ -47,7 +47,6 @@
 			fixed4 frag (v2f i) : SV_Target
 			{
 				float fog = calcFogHeightExp(i.worldPosition, _WorldSpaceCameraPos, _FogDensity, _FogDensityAttenuation);
-//return fixed4(fog, frac(fog), -fog, 1);
 				fixed4 col = fixed4(1.0, 1.0, 1.0, 1.0);
 				col.xyz = DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.lightmapUv));
 				col.xyz = lerp(unity_FogColor.xyz, col.xyz, fog);

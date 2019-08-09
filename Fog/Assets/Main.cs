@@ -14,11 +14,11 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 	[SerializeField] Text noneButton;
 	[SerializeField] Text fpsText;
 	[SerializeField] Text resolutionText;
-	[SerializeField] Text densityText;
+	[SerializeField] Text strengthText;
 	[SerializeField] Text attenuationText;
 	[SerializeField] Text cameraDistanceText;
 	[SerializeField] Slider resolutionSlider;
-	[SerializeField] Slider densitySlider;
+	[SerializeField] Slider strengthSlider;
 	[SerializeField] Slider attenuationSlider;
 	[SerializeField] Slider cameraDistanceSlider;
 	[SerializeField] Toggle perVertexToggle;
@@ -37,13 +37,23 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 	float xAngle = 40f;
 	float yAngle = 0f;
 	float cameraDistance;
-	float density;
-	float heightDensityAttenuation;
+	float strength;
+	float attenuation;
+	float resolutionRatio;
 	Kayac.FrameTimeWatcher frameTimeWatcher;
-	float resolutionRatio = 1f;
 
 	void Start()
 	{
+		var vmin = Mathf.Min(Screen.width, Screen.height);
+		var ratio = vmin / 4096f;
+		resolutionSlider.value = Mathf.Log10(ratio * ratio);
+
+		cameraDistance = Mathf.Pow(10f, cameraDistanceSlider.value);
+		strength = Mathf.Pow(10f, strengthSlider.value);
+		attenuation = Mathf.Pow(10f, attenuationSlider.value);
+		resolutionRatio = Mathf.Pow(10f, resolutionSlider.value);
+		ChangeResolution();
+
 		Application.targetFrameRate = 1000;
 		frameTimeWatcher = new Kayac.FrameTimeWatcher();
 		mode = Mode.None;
@@ -56,6 +66,15 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 		SetMaterial();
 	}
 
+	void ChangeResolution()
+	{
+		var sqrtRatio = Mathf.Sqrt(resolutionRatio);
+		camera3d.rect = new Rect(0f, 0f, sqrtRatio, sqrtRatio);
+		var vmin = Mathf.Min(Screen.width, Screen.height);
+		var ratio = Mathf.Min(vmin / 4096f, sqrtRatio);
+		rawImage.uvRect = new Rect(0f, 0f, ratio, ratio);
+	}
+
 	void Update()
 	{
 		frameTimeWatcher.Update();
@@ -64,36 +83,32 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 		float log, newLog;
 		bool materialDirty = false;
 
-		var edge = Mathf.Sqrt(resolutionRatio) * 4096f;
+		var sqrtRatio = Mathf.Sqrt(resolutionRatio);
+		var edge = sqrtRatio * 4096f;
 		resolutionText.text = "Reso: " + edge.ToString("F0") + " (" + resolutionRatio.ToString("F3") + ")";
 		log = Mathf.Log10(resolutionRatio);
 		newLog = resolutionSlider.value;
 		if (newLog != log)
 		{
 			resolutionRatio = Mathf.Pow(10f, newLog);
-			var sqrtRatio = Mathf.Sqrt(resolutionRatio);
-			camera3d.rect = new Rect(0f, 0f, sqrtRatio, sqrtRatio);
-			var vmin = Mathf.Min(Screen.width, Screen.height);
-//			rawImage.uvRect = new Rect(0f, 0f, sqrtRatio, sqrtRatio);
-			var ratio = Mathf.Min(vmin / edge, sqrtRatio);
-			rawImage.uvRect = new Rect(0f, 0f, ratio, ratio);
+			ChangeResolution();
 		}
 
-		densityText.text = "Density: " + density.ToString("F3");
-		log = Mathf.Log10(density);
-		newLog = densitySlider.value;
+		strengthText.text = "Strength: " + strength.ToString("F1");
+		log = Mathf.Log10(strength);
+		newLog = strengthSlider.value;
 		if (newLog != log)
 		{
-			density = Mathf.Pow(10f, newLog);
+			strength = Mathf.Pow(10f, newLog);
 			materialDirty = true;
 		}
 
-		attenuationText.text = "Attenuation: " + heightDensityAttenuation.ToString("F3");
-		log = Mathf.Log10(heightDensityAttenuation);
+		attenuationText.text = "Attenuation: " + attenuation.ToString("F1");
+		log = Mathf.Log10(attenuation);
 		newLog = attenuationSlider.value;
 		if (newLog != log)
 		{
-			heightDensityAttenuation = Mathf.Pow(10f, newLog);
+			attenuation = Mathf.Pow(10f, newLog);
 			materialDirty = true;
 		}
 
@@ -118,11 +133,21 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 
 		if (materialDirty)
 		{
-			foreach (var material in materials)
-			{
-				material.SetFloat("_FogDensity", density);
-				material.SetFloat("_FogDensityAttenuation", heightDensityAttenuation);
-			}
+			UpdateMaterialParams();
+		}
+	}
+
+	void UpdateMaterialParams()
+	{
+		// 50%になる距離 → 1mあたりの量(フォグ密度、密度の減衰)
+		var log05 = Mathf.Log(0.5f);
+		var density = 1f - Mathf.Exp(log05 / strength);
+		var densityAttenuation = 1f - Mathf.Exp(log05 / attenuation);
+		foreach (var material in materials)
+		{
+			material.SetFloat("_FogDensity", density);
+			material.SetFloat("_FogDensityAttenuation", densityAttenuation);
+			material.SetFloat("_FogEndHeight", attenuation * 2f); // 仮にこれを入れておく
 		}
 	}
 
@@ -146,6 +171,7 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 				component.sharedMaterial = materials[materialIndex];
 			}
 		}
+		UpdateMaterialParams();
 	}
 
 	public void OnPointerClick(PointerEventData data)

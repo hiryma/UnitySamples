@@ -9990,7 +9990,7 @@ GameObject:
   - component: {fileID: 339086966}
   - component: {fileID: 339086965}
   m_Layer: 5
-  m_Name: DensityLabel
+  m_Name: StrengthLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -10013,7 +10013,7 @@ RectTransform:
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: -160, y: 0}
-  m_SizeDelta: {x: 160, y: 32}
+  m_SizeDelta: {x: 200, y: 32}
   m_Pivot: {x: 1, y: 1}
 --- !u!114 &339086965
 MonoBehaviour:
@@ -10048,7 +10048,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Density: 0.001'
+  m_Text: 'Strength: 100'
 --- !u!222 &339086966
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -15404,7 +15404,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 534669902}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalPosition: {x: 0, y: 0, z: -20}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 1625334600}
@@ -20378,15 +20378,15 @@ MonoBehaviour:
   noneButton: {fileID: 950505136}
   fpsText: {fileID: 2143482319}
   resolutionText: {fileID: 926473485}
-  densityText: {fileID: 339086965}
+  strengthText: {fileID: 339086965}
   attenuationText: {fileID: 1995151313}
   cameraDistanceText: {fileID: 1894801726}
   resolutionSlider: {fileID: 1152774380}
-  densitySlider: {fileID: 1821951064}
+  strengthSlider: {fileID: 1821951064}
   attenuationSlider: {fileID: 1273847102}
   cameraDistanceSlider: {fileID: 997203325}
   perVertexToggle: {fileID: 1339997152}
-  imageShowToggle: {fileID: 0}
+  imageShowToggle: {fileID: 827248690}
 --- !u!4 &696993710
 Transform:
   m_ObjectHideFlags: 0
@@ -36236,10 +36236,10 @@ MonoBehaviour:
   m_FillRect: {fileID: 1134207906}
   m_HandleRect: {fileID: 447786747}
   m_Direction: 0
-  m_MinValue: -2
+  m_MinValue: -4
   m_MaxValue: 0
   m_WholeNumbers: 0
-  m_Value: -1
+  m_Value: -2
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -40515,10 +40515,10 @@ MonoBehaviour:
   m_FillRect: {fileID: 581899610}
   m_HandleRect: {fileID: 1539063583}
   m_Direction: 0
-  m_MinValue: -3
-  m_MaxValue: 1
+  m_MinValue: -1
+  m_MaxValue: 4
   m_WholeNumbers: 0
-  m_Value: -1
+  m_Value: 2
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -52599,14 +52599,14 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1625334599}
-  m_LocalRotation: {x: 0.3420201, y: 0, z: 0, w: 0.9396927}
+  m_LocalRotation: {x: 0.17364816, y: 0, z: 0, w: 0.9848078}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 534669905}
   m_Father: {fileID: 0}
   m_RootOrder: 6
-  m_LocalEulerAnglesHint: {x: 40, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 20, y: 0, z: 0}
 --- !u!1 &1628154742
 GameObject:
   m_ObjectHideFlags: 0
@@ -59776,7 +59776,7 @@ GameObject:
   - component: {fileID: 1821951063}
   - component: {fileID: 1821951064}
   m_Layer: 5
-  m_Name: DensitySlider
+  m_Name: StrengthSlider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -59844,10 +59844,10 @@ MonoBehaviour:
   m_FillRect: {fileID: 1268884117}
   m_HandleRect: {fileID: 1875085595}
   m_Direction: 0
-  m_MinValue: -3
-  m_MaxValue: 1
+  m_MinValue: -1
+  m_MaxValue: 4
   m_WholeNumbers: 0
-  m_Value: -1
+  m_Value: 2
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -62195,7 +62195,7 @@ RectTransform:
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: -160, y: -64}
-  m_SizeDelta: {x: 160, y: 32}
+  m_SizeDelta: {x: 200, y: 32}
   m_Pivot: {x: 1, y: 1}
 --- !u!114 &1894801726
 MonoBehaviour:
@@ -65771,7 +65771,7 @@ RectTransform:
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: -160, y: -32}
-  m_SizeDelta: {x: 160, y: 32}
+  m_SizeDelta: {x: 200, y: 32}
   m_Pivot: {x: 1, y: 1}
 --- !u!114 &1995151313
 MonoBehaviour:
@@ -65806,7 +65806,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Attenuation: 0.001'
+  m_Text: 'Attenuation: 100'
 --- !u!222 &1995151314
 CanvasRenderer:
   m_ObjectHideFlags: 0
