@@ -283,6 +283,18 @@
 			return ret;
 		};
 		// --------- B-Spline Library End ----------
+		var calculateBasisWeight2Wrong = function (basisT, t) { // 幅が3なだけではダメ、という例
+			var ret = 0;
+			var nt;
+			if (t < (basisT - 1.5)) {
+				// 何もしない
+			} else if (t < basisT) {
+				ret = (t - (basisT - 1.5)) * 2 / 3 / 1.5;
+			} else if (t < (basisT + 1.5)) {
+				ret = (1 - ((t - basisT) * 2 / 3)) / 1.5;
+			}
+			return ret;
+		};
 
 		cyclicCheckbox.addEventListener('change', onChangeCyclic, false);
 		canvas.addEventListener('click', onClickCanvas, false);
