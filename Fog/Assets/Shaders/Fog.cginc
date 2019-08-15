@@ -11,15 +11,15 @@ float calcFogHeightExp(float3 objectPosition, float3 cameraPosition, float densi
 	float3 camToObj = cameraPosition - objectPosition;
 	float l = length(camToObj);
 	float ret;
-	float exp0 = exp(-densityAttenuation * objectPosition.y);
+	float tmp = l * densityY0 * exp(-densityAttenuation * objectPosition.y);
 	if (camToObj.y == 0.0) // 単純な均一フォグ
 	{
-		ret = exp(-l * densityY0 * exp0);
+		ret = exp(-tmp);
 	}
 	else
 	{
-		float ah = densityAttenuation * camToObj.y;
-		ret = exp(l * densityY0 / ah * exp0 * (exp(-ah) - 1.0));
+		float kvy = densityAttenuation * camToObj.y;
+		ret = exp(tmp / kvy * (exp(-kvy) - 1.0));
 	}
 	return ret;
 }

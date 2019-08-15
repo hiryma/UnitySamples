@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="UTF-8" />
+	<title>B-Spline sample</title>
+	<style>
+		canvas {
+			border: 1px solid #666;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>B-Spline sample</h1>
+	<canvas id="canvas" width="512" height="512"></canvas>
+	<ul>
+		<li>次数:
+			<input id="degree1" type="radio" name="degree" value="degree1" />1
+			<input id="degree2" type="radio" name="degree" value="degree2" checked />2
+		<li><input id="clear" type="button" value="消去" />
+		<li><input id="cyclic" type="checkbox">ループ</input>
+	</ul>
+	Basis:
+	<canvas id="basisCanvas" width="512" height="160"></canvas>
+	<script>
+		var basisCanvas = document.getElementById('basisCanvas');
+		var canvas = document.getElementById('canvas');
+		var degree1Radio = document.getElementById('degree1');
+		var degree2Radio = document.getElementById('degree2');
+		var clearButton = document.getElementById('clear');
+		var cyclicCheckbox = document.getElementById('cyclic');
+		var unitPerPixel = 128;
+		var gridSize = 0.25;
+		var xOffset = 1;
+		var basisPlots = [];
+		var basisColors = [
+			"#c00",
+			"#0c0",
+			"#00c",
+			"#880",
+			"#088",
+			"#808",
+			"#c00",
+			"#0c0",
+			"#00c",
+			"#880",
+			"#088",
+			"#808",
+		];
+		var plotUnit = 1.0 / 128.0;
+		var plotEnd = 5;
+		var points = [];
+		var degree = 2;
+		var cyclic = false;
+
+		var onClickCanvas = function (e) {
+			var rect = e.target.getBoundingClientRect();
+			var x = e.clientX - rect.left + 1; // border分
+			var y = e.clientY - rect.top + 1; // border分
+			var snapped = snap(x, y);
+			points.push(snapped);
+			redraw();
+		};
+		var snap = function (x, y) {
+			var unit = gridSize * unitPerPixel;
+			x -= canvas.width * 0.5;
+			y -= canvas.height;
+			x /= unit;
+			y /= unit;
+			x = Math.round(x);
+			y = Math.round(y);
+			x *= unit;
+			y *= unit;
+			x += canvas.width * 0.5;
+			y += canvas.height;
+			return { x: x, y: y };
+		};
+		var plotBasises = function (degree) {
+			basisPlots = [];
+			for (var i = 0; i < basisColors.length; i++) {
+				var plot = plotBasis(i, degree);
+				basisPlots.push(plot);
+			}
+		};
+		var plotBasis = function (basisT, degree) {
+			var ret = [];
+			for (var t = 0; t < plotEnd; t += plotUnit) {
+				var weight = calculateBasisWeight(basisT, t, degree);
+				ret.push(weight);
+			}
+			return ret;
+		};
+		var toPixel = function (canvas, ax, ay) {
+			var x = ((ax - xOffset) * unitPerPixel);
+			var y = canvas.height - (ay * unitPerPixel);
+			return { x: x, y: y };
+		};
+		var clear = function (canvas) {
+			var context = canvas.getContext('2d');
+			context.clearRect(0, 0, canvas.width, canvas.height);
+		};
+		var redraw = function () {
+			clear(canvas);
+			clear(basisCanvas);
+			drawGrid(basisCanvas);
+			drawGrid(canvas);
+			drawBasis(basisCanvas);
+			drawSpline(canvas);
+		};
+		var drawSpline = function (canvas) {
+			var context = canvas.getContext('2d');
+			context.strokeStyle = '#c00';
+			for (var i = 0; i < points.length; ++i) {
+				context.beginPath();
+				context.arc(points[i].x, points[i].y, 6, 0.0, 360.0);
+				context.stroke();
+			}
+			if (points.length > 0) {
+				var splinePoints = generateBSpline(points, 8, degree, cyclic);
+				for (var i = 0; i < splinePoints.length; ++i) {
+					context.beginPath();
+					context.arc(splinePoints[i].x, splinePoints[i].y, 3, 0.0, 360.0);
+					context.stroke();
+				}
+				context.beginPath();
+				context.moveTo(splinePoints[0].x, splinePoints[0].y);
+				for (var i = 1; i < splinePoints.length; ++i) {
+					context.lineTo(splinePoints[i].x, splinePoints[i].y);
+				}
+				context.stroke();
+			}
+		};
+		var drawBasis = function (canvas) {
+			for (var i = 0; i < basisPlots.length; ++i) {
+				drawGraph(canvas, basisPlots[i], basisColors[i]);
+			}
+			// 合計
+			var sums = [];
+			for (var i = 0; i < basisPlots[0].length; ++i) {
+				var sum = 0;
+				for (var j = 0; j < basisPlots.length; ++j) {
+					sum += basisPlots[j][i];
+				}
+				sums.push(sum);
+			}
+			drawGraph(canvas, sums, '#000');
+		};
+		var drawGraph = function (canvas, plot, color) {
+			var context = canvas.getContext('2d');
+			context.beginPath();
+			context.strokeStyle = color;
+			var x = 0;
+			var p = toPixel(canvas, x, plot[0]);
+			context.moveTo(p.x, p.y);
+			for (var i = 1; i < plot.length; ++i) {
+				x += plotUnit;
+				p = toPixel(canvas, x, plot[i]);
+				context.lineTo(p.x, p.y);
+			}
+			context.stroke();
+		};
+		var drawGrid = function (canvas) {
+			var context = canvas.getContext('2d');
+			context.beginPath();
+			context.strokeStyle = '#ccc';
+			var x = 0;
+			while (x < canvas.width) {
+				context.moveTo(x, 0);
+				context.lineTo(x, canvas.height);
+				x += gridSize * unitPerPixel;
+			}
+			// yは下起点
+			var y = canvas.height;
+			while (y > 0.0) {
+				context.moveTo(0, y);
+				context.lineTo(canvas.width, y);
+				y -= gridSize * unitPerPixel;
+			}
+			context.stroke();
+		};
+		var onChangeDegree = function (e) {
+			if (e.target.id === 'degree1') {
+				degree = 1;
+			} else if (e.target.id === 'degree2') {
+				degree = 2;
+			}
+			plotBasises(degree);
+			redraw();
+		};
+		var onClickClear = function (e) {
+			points = [];
+			redraw();
+		};
+		var onChangeCyclic = function (e) {
+			cyclic = cyclicCheckbox.checked;
+			redraw();
+		};
+
+		// --------- B-Spline Library Begin ----------
+		var generateBSpline = function (points, div, degree, cyclic) {
+			var ret = [];
+			var beginT, endT;
+			if (cyclic) {
+				beginT = 0;
+				endT = points.length;
+			} else {
+				beginT = -1;
+				endT = points.length;
+			}
+			var count = (endT - beginT) * div;
+			for (var i = 0; i <= count; i++) {
+				var t = beginT + ((endT - beginT) * (i / count));
+				var point = evaluateSpline(points, t, degree, cyclic);
+				ret.push(point);
+			}
+			return ret;
+		};
+		var evaluateSpline = function (points, t, degree, cyclic) {
+			var x = 0;
+			var y = 0;
+			// tと次数でどの範囲の点を足すかを判断する。
+			var basisWidth = degree + 1;
+			var pointBegin = Math.ceil(t - (basisWidth * 0.5));
+			var pointEnd = pointBegin + basisWidth;
+			for (var i = 0; i < basisWidth; ++i) {
+				var index = pointBegin + i;
+				var basisT = index;
+				var basisWeight = calculateBasisWeight(basisT, t, degree);
+				if (index < 0) {
+					if (cyclic) {
+						index += points.length;
+					} else {
+						index = 0;
+					}
+				} else if (index >= points.length) {
+					if (cyclic) {
+						index = index % points.length;
+					} else {
+						index = points.length - 1;
+					}
+				}
+				x += basisWeight * points[index].x;
+				y += basisWeight * points[index].y;
+			}
+			return { x: x, y: y };
+		};
+		var calculateBasisWeight = function (basisT, t, degree) {
+			var ret = 0;
+			if (degree === 1) {
+				ret = calculateBasisWeight1(basisT, t);
+			} else if (degree === 2) {
+				ret = calculateBasisWeight2(basisT, t);
+			}
+			return ret;
+		};
+		var calculateBasisWeight1 = function (basisT, t) {
+			var ret = 0;
+			if (t < (basisT - 1)) {
+				// 何もしない
+			} else if (t < basisT) {
+				ret = t - (basisT - 1);
+			} else if (t < (basisT + 1)) {
+				ret = 1 - (t - basisT);
+			}
+			return ret;
+		};
+		var calculateBasisWeight2 = function (basisT, t) {
+			var ret = 0;
+			var nt;
+			if (t < (basisT - 1.5)) {
+				// 何もしない
+			} else if (t < (basisT - 0.5)) {
+				nt = (t - (basisT - 1.5));
+				ret = 0.5 * nt * nt;
+			} else if (t < (basisT + 0.5)) {
+				nt = (t - basisT);
+				ret = 0.75 - (nt * nt);
+			} else if (t < (basisT + 1.5)) {
+				nt = (t - (basisT + 1.5));
+				ret = 0.5 * nt * nt;
+			}
+			return ret;
+		};
+		// --------- B-Spline Library End ----------
+
+		cyclicCheckbox.addEventListener('change', onChangeCyclic, false);
+		canvas.addEventListener('click', onClickCanvas, false);
+		degree1Radio.addEventListener('change', onChangeDegree, false);
+		degree2Radio.addEventListener('change', onChangeDegree, false);
+		clearButton.addEventListener('click', onClickClear, false);
+		plotBasises(degree);
+		redraw();
+	</script>
+</body>
+
+</html>

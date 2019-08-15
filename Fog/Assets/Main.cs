@@ -56,13 +56,14 @@ public class Main : MonoBehaviour, IDragHandler, IPointerClickHandler
 
 		Application.targetFrameRate = 1000;
 		frameTimeWatcher = new Kayac.FrameTimeWatcher();
-		mode = Mode.None;
+		mode = Mode.HeightExp;
+		heightExpButton.color = Color.green;
+
 		materials = new Material[shaders.Length];
 		for (int i = 0; i < shaders.Length; i++)
 		{
 			materials[i] = new Material(shaders[i]);
 		}
-		noneButton.color = Color.green;
 		SetMaterial();
 	}
 
