@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 namespace Kayac
 {
-	public class SpectrumView : Graphic
+	public class SpectrumViewer : Graphic
 	{
 		[SerializeField] int dataResolution = 6; // 元データの解像度。多いほど重い。6-13
 		[SerializeField] int graphResolution = 6;
