@@ -172,10 +172,13 @@ MonoBehaviour:
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 0
-  dataResolution: 13
-  graphResolution: 10
+  sampleCount: 8192
+  binCount: 512
   graphCenterFrequency: 1000
-  minFrequency: 20
+  graphMinFrequency: 20
+  graphMaxFrequency: 22000
+  graphMaxDb: 6
+  graphMinDb: -96
 --- !u!222 &258892312
 CanvasRenderer:
   m_ObjectHideFlags: 0
