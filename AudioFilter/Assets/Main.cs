@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using UnityEngine.UI;
+using System.Collections;
 
 public class Main : MonoBehaviour
 {
@@ -29,6 +29,9 @@ public class Main : MonoBehaviour
 	float x;
 	float y;
 	float lineHeight = 30f;
+	Coroutine loadingCoroutine;
+	string bgmName;
+	string seName;
 
 	void Awake()
 	{
@@ -38,7 +41,10 @@ public class Main : MonoBehaviour
 		reverb.enabled = false;
 		loPass.cutoffFrequency = loPassHz;
 		hiPass.cutoffFrequency = hiPassHz;
+		bgmName = bgmSource.clip.name;
+		seName = seSource.clip.name;
 	}
+
 	Rect MakeRect(float width)
 	{
 		var ret = new Rect(x, y, width, lineHeight);
@@ -54,8 +60,12 @@ public class Main : MonoBehaviour
 
 	void OnGUI()
 	{
+		if (loadingCoroutine != null)
+		{
+			return;
+		}
 		x = y = 0f;
-		GUI.Label(MakeRect(200f), "Volume: " + volume);
+		GUI.Label(MakeRect(150f), "Volume: " + volume);
 		var newVolume = GUI.HorizontalSlider(MakeRect(200f), volume, -60f, 0f);
 		if (newVolume != volume)
 		{
@@ -66,7 +76,7 @@ public class Main : MonoBehaviour
 		}
 		Break();
 
-		GUI.Label(MakeRect(200f), "Pitch: " + pitch);
+		GUI.Label(MakeRect(150f), "Pitch: " + pitch);
 		var newPitch = GUI.HorizontalSlider(MakeRect(200f), pitch, 0f, 4f);
 		if (newPitch != pitch)
 		{
@@ -76,7 +86,7 @@ public class Main : MonoBehaviour
 		}
 		Break();
 
-		GUI.Label(MakeRect(200f), "LoPassHz: " + loPassHz);
+		GUI.Label(MakeRect(150f), "LoPassHz: " + loPassHz);
 		var loPassHzLog = LogHz(loPassHz);
 		var newLoPassHzLog = GUI.HorizontalSlider(MakeRect(200f), loPassHzLog, 0f, 1f);
 		if (newLoPassHzLog != loPassHzLog)
@@ -86,7 +96,7 @@ public class Main : MonoBehaviour
 		}
 		Break();
 
-		GUI.Label(MakeRect(200f), "HiPassHz: " + hiPassHz);
+		GUI.Label(MakeRect(150f), "HiPassHz: " + hiPassHz);
 		var hiPassHzLog = LogHz(hiPassHz);
 		var newHiPassHzLog = GUI.HorizontalSlider(MakeRect(200f), hiPassHzLog, 0f, 1f);
 		if (newHiPassHzLog != hiPassHzLog)
@@ -127,6 +137,79 @@ public class Main : MonoBehaviour
 		{
 			seSource.Play();
 		}
+
+		if (GUI.Button(MakeRect(100f), "Load"))
+		{
+			seSource.Stop();
+			bgmSource.Stop();
+			bgm = false;
+			loadingCoroutine = StartCoroutine(CoLoad());
+		}
+		GUI.Label(new Rect(360f, 0f, 300f, 30f), "BGM: " + bgmName);
+		GUI.Label(new Rect(360f, 30f, 300f, 30f), "SE: " + seName);
+	}
+
+	IEnumerator CoLoad()
+	{
+		var dir = System.IO.Directory.GetCurrentDirectory();
+		var files = System.IO.Directory.GetFiles(dir);
+		foreach (var file in files)
+		{
+			var small = file.ToLower();
+			bool bgm = false;
+			if (small.Contains("bgm"))
+			{
+				bgm = true;
+			}
+			var url = "file://" + file;
+			var type = AudioType.UNKNOWN;
+			if (small.Contains(".wav"))
+			{
+				type = AudioType.WAV;
+			}
+			else if (small.Contains(".ogg"))
+			{
+				type = AudioType.OGGVORBIS;
+			}
+			if (type != AudioType.UNKNOWN)
+			{
+				Debug.Log("load: bgm=" + bgm + " type=" + type + " " + url);
+				var req = UnityEngine.Networking.UnityWebRequest.Get(url);
+				var downloadHandler = new UnityEngine.Networking.DownloadHandlerAudioClip(url, type);
+				downloadHandler.streamAudio = false;
+				downloadHandler.compressed = false;
+				req.downloadHandler = downloadHandler;
+				req.SendWebRequest();
+				while (true)
+				{
+					if (downloadHandler.isDone)
+					{
+						break;
+					}
+					yield return null;
+				}
+				if (req.error == null)
+				{
+					var clip = downloadHandler.audioClip;
+					var filename = System.IO.Path.GetFileName(file);
+					if (bgm)
+					{
+						bgmSource.clip = clip;
+						bgmName = filename;
+					}
+					else
+					{
+						seSource.clip = clip;
+						seName = filename;
+					}
+				}
+				else
+				{
+					Debug.LogError(req.error);
+				}
+			}
+		}
+		loadingCoroutine = null;
 	}
 
 	void FilterToggle(ref bool enabled, string label, Behaviour filter)
