@@ -17,7 +17,7 @@ public class Main : MonoBehaviour
 
 	void OnGUI()
 	{
-		GUI.Label(new Rect(0f, 0f, 100f, 50f), "mantissa: " + mantissaBits.ToString("F0"));
+		GUI.Label(new Rect(0f, 0f, 100f, 50f), "mantissa: " + (int)mantissaBits);
 		var newMantissaBits = GUI.HorizontalSlider(new Rect(100f, 0f, 300f, 50f), mantissaBits, 0f, 23.5f);
 		var uvScale = Mathf.Pow(2f, uvScaleLog);
 		GUI.Label(new Rect(0f, 50f, 100f, 50f), "uvScale: " + uvScale.ToString("F2"));
