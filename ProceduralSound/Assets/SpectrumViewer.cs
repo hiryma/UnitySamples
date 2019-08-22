@@ -15,7 +15,6 @@ namespace Kayac
 		[SerializeField] int graphMinDb = -96;
 		float[] spectrum;
 		float[] bins;
-		int[] binSampleCounts;
 		// Start is called before the first frame update
 		protected override void Start()
 		{
@@ -28,7 +27,6 @@ namespace Kayac
 			spectrum = new float[actualSampleCount];
 
 			bins = new float[binCount];
-			binSampleCounts = new int[binCount];
 		}
 
 		int toPow2(int x)
@@ -57,7 +55,6 @@ namespace Kayac
 			for (int i = 0; i < bins.Length; i++)
 			{
 				bins[i] = 0f;
-				binSampleCounts[i] = 0;
 			}
 
 			var logMaxF = Mathf.Log(graphMaxFrequency); // 上のbinの周波数のlog
@@ -82,7 +79,6 @@ namespace Kayac
 				{
 					// そのビンにデータを加算
 					bins[binIndex] += spectrum[i];
-					binSampleCounts[binIndex] += 1;
 				}
 			}
 			// 背景描画
@@ -148,11 +144,6 @@ namespace Kayac
 				var db = minDb;
 				// 平均取る
 				var v = bins[i];
-				if (binSampleCounts[i] > 0)
-				{
-					v /= (float)binSampleCounts[i];
-				}
-
 				if (v > 0)
 				{
 					db = Mathf.Log10(v) * 20f;

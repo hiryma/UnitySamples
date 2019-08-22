@@ -128,6 +128,14 @@ public class Main : MonoBehaviour
 		oscillators[index].Attack(strength);
 	}
 
+	uint x = 1;
+	uint X(){
+		x ^= x >>  13;
+		x ^= x << 17;
+		x ^= x >> 5;
+		return x;
+	}
+
 	void OnAudioFilterRead(float[] data, int channels)
 	{
 		if (!running)
