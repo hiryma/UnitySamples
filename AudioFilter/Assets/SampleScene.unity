@@ -178,7 +178,7 @@ MonoBehaviour:
   graphMinFrequency: 20
   graphMaxFrequency: 22000
   graphMaxDb: 6
-  graphMinDb: -96
+  graphMinDb: -78
 --- !u!222 &258892312
 CanvasRenderer:
   m_ObjectHideFlags: 0

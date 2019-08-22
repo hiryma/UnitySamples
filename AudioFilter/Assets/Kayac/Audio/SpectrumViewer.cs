@@ -11,8 +11,8 @@ namespace Kayac
 		[SerializeField] int graphCenterFrequency = 1000;
 		[SerializeField] int graphMinFrequency = 20;
 		[SerializeField] int graphMaxFrequency = 20000;
-		[SerializeField] int graphMaxDb = 12;
-		[SerializeField] int graphMinDb = -96;
+		[SerializeField] int graphMaxDb = 6;
+		[SerializeField] int graphMinDb = -78;
 		float[] spectrum;
 		float[] bins;
 		// Start is called before the first frame update
