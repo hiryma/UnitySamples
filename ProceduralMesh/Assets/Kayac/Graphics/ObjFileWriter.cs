@@ -31,7 +31,7 @@ namespace Kayac
 					item.z.ToString("F8"));
 			}
 
-			if (uvs != null)
+			if ((uvs != null) && (uvs.Count != 0))
 			{
 				Debug.Assert(uvs.Count == positions.Count);
 				sb.AppendLine("\n# texcoords");

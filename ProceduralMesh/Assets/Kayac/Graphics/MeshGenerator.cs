@@ -384,15 +384,102 @@ namespace Kayac
 			var ret = false;
 			if (GenerateSphere(out vertices, out normals, out indices, subdivision))
 			{
-				mesh.Clear();
-				mesh.vertices = vertices;
-				mesh.normals = normals;
-				mesh.SetIndices(indices, MeshTopology.Triangles, 0);
+				FillMesh(mesh, vertices, normals, null, indices);
 				ret = true;
 			}
 			return ret;
 		}
 
+		static void FillMesh(
+			Mesh mesh,
+			Vector3[] vertices,
+			Vector3[] normals,
+			Vector2[] uvs,
+			int[] indices)
+		{
+			mesh.Clear();
+			mesh.vertices = vertices;
+			mesh.normals = normals;
+			if (uvs != null)
+			{
+				mesh.uv = uvs;
+			}
+			mesh.SetIndices(indices, MeshTopology.Triangles, 0);
+		}
+
+		public static bool GenerateCylinderSide(
+			Mesh mesh,
+			float height,
+			float radius,
+			int subdivision)
+		{
+			Vector3[] vertices;
+			Vector3[] normals;
+			int[] indices;
+			var ret = false;
+			if (GenerateCylinderSide(out vertices, out normals, out indices, height, radius, subdivision))
+			{
+				FillMesh(mesh, vertices, normals, null, indices);
+				ret = true;
+			}
+			return ret;
+		}
+
+		// 円柱。divは面分割数。最低2だが、2だとただの面になる。
+		public static bool GenerateCylinderSide(
+			out Vector3[] vertices,
+			out Vector3[] normals,
+			out int[] indices,
+			float height,
+			float radius,
+			int subdivision)
+		{
+			int div = 4 << subdivision;
+			if ((div < 2) || (div >= 0x8000))
+			{
+				vertices = normals = null;
+				indices = null;
+				return false;
+			}
+			vertices = new Vector3[div * 2];
+			normals = new Vector3[div * 2];
+			var indexCount = div * 6;
+			indices = new int[indexCount];
+			var hHeight = height * 0.5f;
+			int vi = 0;
+			for (int i = 0; i < div; i++)
+			{
+				var angle = 2f * Mathf.PI * (float)i / (float)div;
+				var x = Mathf.Cos(angle) * radius;
+				var z = Mathf.Sin(angle) * radius;
+				vertices[vi].x = x;
+				vertices[vi].z = z;
+				vertices[vi].y = -hHeight;
+				normals[vi].x = x;
+				normals[vi].z = z;
+				normals[vi].y = 0f;
+				vi++;
+				vertices[vi].x = x;
+				vertices[vi].z = z;
+				vertices[vi].y = hHeight;
+				normals[vi].x = x;
+				normals[vi].z = z;
+				normals[vi].y = 0f;
+				vi++;
+			}
+			var start = 0;
+			vi = 0;
+			for (int i = 0; i < (div - 1); i++) // 最後は別扱い
+			{
+				start = SetQuad(indices, start, vi, vi + 1, vi + 3, vi + 2);
+				vi += 2;
+			}
+			start = SetQuad(indices, start, vi, vi + 1, 1, 0);
+			return true;
+		}
+
+
+		// 角で法線共有しているために滑らか。基本再分割してより滑らかな図形を作るための種として使う。
 		public static void GenerateSmoothCube(
 			out Vector3[] vertices,
 			out Vector3[] normals,
@@ -418,6 +505,7 @@ namespace Kayac
 			start = SetQuad(indices, start, 2, 3, 7, 6);
 		}
 
+		// 角で法線共有しているために滑らか。基本再分割してより滑らかな図形を作るための種として使う。
 		public static void GenerateSmoothTetrahedron(
 			out Vector3[] vertices,
 			out Vector3[] normals,

@@ -6,7 +6,8 @@ public class Main : MonoBehaviour
 	[SerializeField] Material material;
 	GameObject sphereObject;
 	Mesh mesh;
-	float div = 0;
+	float div = 0f;
+	float displace = 0f;
 
 	void Start()
 	{
@@ -30,19 +31,22 @@ public class Main : MonoBehaviour
 	{
 		GUI.Label(new Rect(0f, 0f, 100f, 50f), ((int)div).ToString());
 		div = GUI.HorizontalSlider(new Rect(100f, 0f, 300f, 50f), div, 0f, 10.5f);
-		GUI.Label(new Rect(0f, 50f, 100f, 50f), "VertexCount: " + mesh.vertexCount);
-		if (GUI.Button(new Rect(0f, 100f, 100f, 50f), "GenSphere"))
+		GUI.Label(new Rect(0f, 50f, 200f, 50f), "VertexCount: " + mesh.vertexCount);
+		if (GUI.Button(new Rect(0f, 100f, 100f, 50f), "Sphere"))
 		{
 			if (MeshGenerator.GenerateSphere(mesh, (int)div))
 			{
-				var path = string.Format("Assets/GeneratedMeshes/sphere_{0}.obj", (int)div);
-				ObjFileWriter.Write(
-					path,
-					mesh.vertices,
-					null,
-					mesh.normals,
-					mesh.triangles,
-					importImmediately: true);
+				mesh.name = string.Format("sphere_{0}", (int)div);
+				ObjFileWriter.Write("Assets/GeneratedMeshes", mesh, importImmediately: true);
+			}
+		}
+
+		if (GUI.Button(new Rect(100f, 100f, 100f, 50f), "Cylinder"))
+		{
+			if (MeshGenerator.GenerateCylinderSide(mesh, 1f, 0.5f, (int)div))
+			{
+				mesh.name = string.Format("cylinder_{0}", (int)div);
+				ObjFileWriter.Write("Assets/GeneratedMeshes", mesh, importImmediately: true);
 			}
 		}
 	}
