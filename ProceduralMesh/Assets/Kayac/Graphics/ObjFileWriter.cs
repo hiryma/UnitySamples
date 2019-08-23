@@ -126,7 +126,15 @@ namespace Kayac
 			bool ret = true;
 			for (int i = 0; i < mesh.subMeshCount; i++)
 			{
-				var filename = string.Format("{0}_{1}.obj", mesh.name, i);
+				string filename;
+				if (mesh.subMeshCount == 1) // 1個なら番号ついても邪魔だろう
+				{
+					filename = string.Format("{0}.obj", mesh.name);
+				}
+				else
+				{
+					filename = string.Format("{0}_{1}.obj", mesh.name, i);
+				}
 				var path = System.IO.Path.Combine(directory, filename);
 				if (!Write(path, mesh, i, importImmediately))
 				{
@@ -158,6 +166,24 @@ namespace Kayac
 			return Write(path, text, importImmediately);
 		}
 
+		// おまけ。 TODO: Objと何の関係もないので、別ファイルが望ましい。
+		[MenuItem("CONTEXT/MeshFilter/Save .asset")]
+		public static void SaveAssetFromInspector(MenuCommand menuCommand)
+		{
+			var meshFilter = menuCommand.context as MeshFilter;
+			if (meshFilter != null)
+			{
+				var mesh = meshFilter.sharedMesh;
+				if (mesh != null)
+				{
+					var path = string.Format("Assets/{0}.asset", mesh.name);
+					AssetDatabase.CreateAsset(mesh, path);
+					AssetDatabase.SaveAssets(); // これがないと中身が空になる仕様らしい
+				}
+			}
+		}
+
+		// non-public ------------------
 		static bool Write(string path, string objFileText, bool importImmediately)
 		{
 			bool ret = false;
@@ -175,24 +201,6 @@ namespace Kayac
 				Debug.LogException(e);
 			}
 			return ret;
-		}
-
-
-		// おまけ。 TODO: Objと何の関係もないので、別ファイルが望ましい。
-		[MenuItem("CONTEXT/MeshFilter/Save .asset")]
-		public static void SaveAssetFromInspector(MenuCommand menuCommand)
-		{
-			var meshFilter = menuCommand.context as MeshFilter;
-			if (meshFilter != null)
-			{
-				var mesh = meshFilter.sharedMesh;
-				if (mesh != null)
-				{
-					var path = string.Format("Assets/{0}.asset", mesh.name);
-					AssetDatabase.CreateAsset(mesh, path);
-					AssetDatabase.SaveAssets(); // これがないと中身が空になる仕様らしい
-				}
-			}
 		}
 #endif
 	}
