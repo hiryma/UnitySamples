@@ -70,11 +70,12 @@ public class Main : MonoBehaviour
 			}
 		}
 
+#if UNITY_EDITOR
 		if (GUI.Button(new Rect(0f, 180f, 100f, 50f), "Save"))
 		{
 			ObjFileWriter.Write("Assets/GeneratedMeshes", mesh, importImmediately: true);
 		}
-
+#endif
 		staticCamera.enabled = GUI.Toggle(new Rect(0f, 230f, 200f, 30f),  staticCamera.enabled, "ShowStaticSample");
 		separateFaces = GUI.Toggle(new Rect(0f, 260f, 200f, 30f),  separateFaces, "SeparateFaces");
 	}

@@ -31,7 +31,8 @@ namespace Kayac
 					item.z.ToString("F8"));
 			}
 
-			if ((uvs != null) && (uvs.Count != 0))
+			bool hasUv = (uvs != null) && (uvs.Count > 0);
+			if (hasUv)
 			{
 				Debug.Assert(uvs.Count == positions.Count);
 				sb.AppendLine("\n# texcoords");
@@ -61,7 +62,7 @@ namespace Kayac
 				var i0 = indices[i + 0] + 1; // 1 based index.
 				var i1 = indices[i + 1] + 1;
 				var i2 = indices[i + 2] + 1;
-				if (uvs != null)
+				if (hasUv)
 				{
 					sb.AppendFormat("f {0}/{0}/{0} {1}/{1}/{1} {2}/{2}/{2}\n",
 						i0,
@@ -78,8 +79,9 @@ namespace Kayac
 			}
 			return sb.ToString();
 		}
+
 #if UNITY_EDITOR
-		[MenuItem("Assets/Save .Obj File")]
+		[MenuItem("Assets/Save .obj")]
 		public static void Save()
 		{
 			var selected = Selection.activeObject;
@@ -94,20 +96,20 @@ namespace Kayac
 			Write(dir, mesh, importImmediately: true);
 		}
 
-		[MenuItem("Assets/Save .Obj File", true)]
+		[MenuItem("Assets/Save .obj", true)]
 		private static bool ValidateSave()
 		{
 			// 選択したオブジェクトが Texture2D の場合は true を返します (そうでない場合は、メニュー項目は無効になります)
 			return Selection.activeObject.GetType() == typeof(Mesh);
 		}
 
-		[MenuItem("CONTEXT/MeshFilter/Save .Obj File")]
-		public static void SaveFromInspector(MenuCommand menuCommand)
+		[MenuItem("CONTEXT/MeshFilter/Save .obj")]
+		public static void SaveObjFromInspector(MenuCommand menuCommand)
 		{
-		    var meshFilter = menuCommand.context as MeshFilter;
+			var meshFilter = menuCommand.context as MeshFilter;
 			if (meshFilter != null)
 			{
-				var mesh = meshFilter.mesh;
+				var mesh = meshFilter.sharedMesh;
 				if (mesh != null)
 				{
 					Write("Assets", mesh, importImmediately: true);
@@ -173,6 +175,24 @@ namespace Kayac
 				Debug.LogException(e);
 			}
 			return ret;
+		}
+
+
+		// おまけ。 TODO: Objと何の関係もないので、別ファイルが望ましい。
+		[MenuItem("CONTEXT/MeshFilter/Save .asset")]
+		public static void SaveAssetFromInspector(MenuCommand menuCommand)
+		{
+			var meshFilter = menuCommand.context as MeshFilter;
+			if (meshFilter != null)
+			{
+				var mesh = meshFilter.sharedMesh;
+				if (mesh != null)
+				{
+					var path = string.Format("Assets/{0}.asset", mesh.name);
+					AssetDatabase.CreateAsset(mesh, path);
+					AssetDatabase.SaveAssets(); // これがないと中身が空になる仕様らしい
+				}
+			}
 		}
 #endif
 	}
