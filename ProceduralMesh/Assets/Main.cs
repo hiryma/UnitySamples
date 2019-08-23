@@ -4,6 +4,7 @@ using Kayac;
 public class Main : MonoBehaviour
 {
 	[SerializeField] Material material;
+	[SerializeField] Camera staticCamera;
 	GameObject sphereObject;
 	Mesh mesh;
 	float div = 0f;
@@ -29,25 +30,50 @@ public class Main : MonoBehaviour
 
 	void OnGUI()
 	{
-		GUI.Label(new Rect(0f, 0f, 100f, 50f), ((int)div).ToString());
-		div = GUI.HorizontalSlider(new Rect(100f, 0f, 300f, 50f), div, 0f, 10.5f);
-		GUI.Label(new Rect(0f, 50f, 200f, 50f), "VertexCount: " + mesh.vertexCount);
-		if (GUI.Button(new Rect(0f, 100f, 100f, 50f), "Sphere"))
+		GUI.Label(new Rect(0f, 0f, 100f, 30f), ((int)div).ToString());
+		div = GUI.HorizontalSlider(new Rect(100f, 0f, 180f, 30f), div, 0f, 10.5f);
+		GUI.Label(new Rect(300f, 0f, 200f, 30f), "V: " + mesh.vertexCount);
+		if (GUI.Button(new Rect(0f, 30f, 100f, 50f), "Sphere"))
 		{
 			if (MeshGenerator.GenerateSphere(mesh, (int)div))
 			{
 				mesh.name = string.Format("sphere_{0}", (int)div);
-				ObjFileWriter.Write("Assets/GeneratedMeshes", mesh, importImmediately: true);
 			}
 		}
 
-		if (GUI.Button(new Rect(100f, 100f, 100f, 50f), "Cylinder"))
+		if (GUI.Button(new Rect(0f, 80f, 100f, 50f), "Cylinder"))
 		{
 			if (MeshGenerator.GenerateCylinderSide(mesh, 1f, 0.5f, (int)div))
 			{
 				mesh.name = string.Format("cylinder_{0}", (int)div);
-				ObjFileWriter.Write("Assets/GeneratedMeshes", mesh, importImmediately: true);
 			}
 		}
+
+		if (GUI.Button(new Rect(0f, 130f, 100f, 50f), "Wall"))
+		{
+			var d = 2 << (int)div;
+			var radMax = Mathf.PI * 2f * 4f;
+			var positions = new Vector2[d + 1];
+			for (int i = 0; i <= d; i++)
+			{
+				var t = (float)i / (float)d;
+				var rad = radMax * t;
+				positions[i] = new Vector2(
+					Mathf.Cos(rad) * t * 0.5f,
+					Mathf.Sin(rad) * t * 0.5f);
+			}
+
+			if (MeshGenerator.GenerateWall(mesh, positions, 0.1f, 0.05f, false))
+			{
+				mesh.name = string.Format("wall_{0}", (int)div);
+			}
+		}
+
+		if (GUI.Button(new Rect(0f, 180f, 100f, 50f), "Save"))
+		{
+			ObjFileWriter.Write("Assets/GeneratedMeshes", mesh, importImmediately: true);
+		}
+
+		staticCamera.enabled = GUI.Toggle(new Rect(0f, 230f, 200f, 30f),  staticCamera.enabled, "ShowStaticSample");
 	}
 }
