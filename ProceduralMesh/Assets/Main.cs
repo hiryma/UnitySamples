@@ -9,6 +9,7 @@ public class Main : MonoBehaviour
 	Mesh mesh;
 	float div = 0f;
 	float displace = 0f;
+	bool separateFaces;
 
 	void Start()
 	{
@@ -35,7 +36,7 @@ public class Main : MonoBehaviour
 		GUI.Label(new Rect(300f, 0f, 200f, 30f), "V: " + mesh.vertexCount);
 		if (GUI.Button(new Rect(0f, 30f, 100f, 50f), "Sphere"))
 		{
-			if (MeshGenerator.GenerateSphere(mesh, (int)div))
+			if (MeshGenerator.GenerateSphere(mesh, (int)div, separateFaces))
 			{
 				mesh.name = string.Format("sphere_{0}", (int)div);
 			}
@@ -43,7 +44,7 @@ public class Main : MonoBehaviour
 
 		if (GUI.Button(new Rect(0f, 80f, 100f, 50f), "Cylinder"))
 		{
-			if (MeshGenerator.GenerateCylinderSide(mesh, 1f, 0.5f, (int)div))
+			if (MeshGenerator.GenerateCylinderSide(mesh, 1f, 0.5f, (int)div, separateFaces))
 			{
 				mesh.name = string.Format("cylinder_{0}", (int)div);
 			}
@@ -63,7 +64,7 @@ public class Main : MonoBehaviour
 					Mathf.Sin(rad) * t * 0.5f);
 			}
 
-			if (MeshGenerator.GenerateWall(mesh, positions, 0.1f, 0.05f, false))
+			if (MeshGenerator.GenerateWall(mesh, positions, 0.1f, 0.05f, looped: false, separateFaces))
 			{
 				mesh.name = string.Format("wall_{0}", (int)div);
 			}
@@ -75,5 +76,6 @@ public class Main : MonoBehaviour
 		}
 
 		staticCamera.enabled = GUI.Toggle(new Rect(0f, 230f, 200f, 30f),  staticCamera.enabled, "ShowStaticSample");
+		separateFaces = GUI.Toggle(new Rect(0f, 260f, 200f, 30f),  separateFaces, "SeparateFaces");
 	}
 }
