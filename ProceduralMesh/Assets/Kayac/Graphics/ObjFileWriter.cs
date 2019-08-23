@@ -26,7 +26,7 @@ namespace Kayac
 			foreach (var item in positions)
 			{
 				sb.AppendFormat("v {0} {1} {2}\n",
-					item.x.ToString("F8"),
+					item.x.ToString("F8"), //精度指定しないとfloat精度の全体を吐かないので劣化してしまう。10進8桁必要
 					item.y.ToString("F8"),
 					item.z.ToString("F8"));
 			}
@@ -99,7 +99,7 @@ namespace Kayac
 		[MenuItem("Assets/Save .obj", true)]
 		private static bool ValidateSave()
 		{
-			// 選択したオブジェクトが Texture2D の場合は true を返します (そうでない場合は、メニュー項目は無効になります)
+			// Meshでだけ有効
 			return Selection.activeObject.GetType() == typeof(Mesh);
 		}
 
