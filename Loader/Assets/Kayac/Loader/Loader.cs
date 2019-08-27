@@ -72,7 +72,7 @@ namespace Kayac
 
 		public void Start(
 			string downloadRoot,
-			AssetFileDatabase database,
+			IAssetFileDatabase database,
 			int parallelDownloadCount = 16,
 			int downloadRetryCount = 3,
 			int timeoutSeconds = 30,

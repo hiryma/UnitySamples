@@ -60,31 +60,35 @@ namespace Kayac
 
 				Vector2 tangent = next - prev;
 				tangent.Normalize();
-				Vector2 normal; // tangentをXZ平面で90度回したもの
+				Vector2 normal; // tangentを2D平面で90度回したもの(上から見て反時計周り)
 				normal.x = -tangent.y;
 				normal.y = tangent.x;
 				Vector2 inner = positions[i] - (normal * halfThickness);
 				Vector2 outer = positions[i] + (normal * halfThickness);
+				Vector3 innerN = new Vector3(-normal.x, 0f, -normal.y);
+				Vector3 outerN = new Vector3(normal.x, 0f, normal.y);
+				Vector3 upN = new Vector3(0f, 1f, 0f);
 				// 接地頂点
 				float u = (float)i / (float)(positions.Count - 1);
 				vertices[vi] = new Vector3(inner.x, 0f, inner.y);
-				normals[vi] = new Vector3(-normal.x, 0f, -normal.y);
+				normals[vi] = innerN;
 				uvs[vi] = new Vector2(u, 0f);
 				vi++;
 				vertices[vi] = new Vector3(inner.x, height, inner.y);
-				normals[vi] = new Vector3(-normal.x, 0f, -normal.y);
+				normals[vi] = Vector3.Lerp(innerN, upN, 0.5f).normalized;
 				uvs[vi] = new Vector2(u, 1f / 3f);
 				vi++;
 				vertices[vi] = new Vector3(outer.x, height, outer.y);
-				normals[vi] = new Vector3(normal.x, 0f, normal.y);
+				normals[vi] = Vector3.Lerp(outerN, upN, 0.5f).normalized;
 				uvs[vi] = new Vector2(u, 2f / 3f);
 				vi++;
 				vertices[vi] = new Vector3(outer.x, 0f, outer.y);
-				normals[vi] = new Vector3(normal.x, 0f, normal.y);
+				normals[vi] = outerN;
 				uvs[vi] = new Vector2(u, 1f);
 				vi++;
 			}
-			FillStripIndices(indices, 0, 0, positions.Count - 1, 3, looped);
+			var indexPos = FillStripIndices(indices, 0, 0, positions.Count - 1, 3, looped);
+			Debug.Assert(indexCount == indexPos);
 
 			if (separateFaces)
 			{
@@ -109,6 +113,122 @@ namespace Kayac
 			if (GenerateWall(out vertices, out normals, out uvs, out indices, positions, height, thickness, looped, separateFaces))
 			{
 				FillMesh(mesh, vertices, normals, uvs, indices);
+				ret = true;
+			}
+			return ret;
+		}
+
+		// XZ平面上の点列をもらって、一定の厚さの凸多角形を作る
+		public static bool GenerateConvexPolygon(
+			out Vector3[] vertices,
+			out Vector3[] normals,
+			out int[] indices,
+			IList<Vector2> positions,
+			float height,
+			bool separateFaces)
+		{
+			int n = positions.Count;
+			vertices = new Vector3[(n * 2) + 2];
+			normals = new Vector3[vertices.Length];
+			var indexCount = (n * (6 + 3 + 3));
+			indices = new int[indexCount];
+			// 三点見て舐める方向を確定する。
+			Debug.Assert(n >= 3);
+			var v0 = positions[0];
+			var v1 = positions[1];
+			var v2 = positions[2];
+			// 時計周りであれば、cross(v01,v12)>0
+			var v01 = v1 - v0;
+			var v12 = v2 - v1;
+			var cross = (v01.x * v12.y) - (v01.y * v12.x);
+			int iBegin, iEnd, iInc;
+			if (cross > 0f)
+			{
+				iBegin = 0;
+				iEnd = n;
+				iInc = 1;
+			}
+			else
+			{
+				iBegin = n - 1;
+				iEnd = -1;
+				iInc = -1;
+			}
+			int vi = 0; // 下面中央と上面中央を空けておく
+
+			var g = Vector2.zero; //重心
+			int i = iBegin;
+			int nextIndex, prevIndex;
+			var nDown = new Vector3(0f, -1f, 0f);
+			var nUp = new Vector3(0f, 1f, 0f);
+			while (i != iEnd)
+			{
+				nextIndex = (i + iInc + n) % n;
+				prevIndex = (i - iInc + n) % n;
+				Vector2 prev = positions[prevIndex];
+				Vector2 next = positions[nextIndex];
+				Vector2 tangent = next - prev;
+				tangent.Normalize();
+				Vector2 normal; // tangentをXZ平面で90度回したもの
+				normal.x = -tangent.y;
+				normal.y = tangent.x;
+				Vector3 n3d = new Vector3(normal.x, 0f, normal.y);
+				// 接地頂点
+				vertices[vi] = new Vector3(positions[i].x, 0f, positions[i].y);
+				normals[vi] = Vector3.Lerp(n3d, nDown, 0.5f).normalized;
+				vi++;
+				vertices[vi] = new Vector3(positions[i].x, height, positions[i].y);
+				normals[vi] = Vector3.Lerp(n3d, nUp, 0.5f).normalized;
+				vi++;
+				g += positions[i];
+				i += iInc;
+			}
+			// 重心確定
+			g /= (float)positions.Count;
+			vertices[vi] = new Vector3(g.x, 0f, g.y);
+			normals[vi] = nDown;
+			vi++;
+			vertices[vi] = new Vector3(g.x, height, g.y);
+			normals[vi] = nUp;
+			vi++;
+			var indexStart = FillStripIndices(indices, 0, 0, n - 1, 1, looped: true);
+			// ファンを生成
+			var fanStart = indexStart;
+			prevIndex = n - 1;
+			for (i = 0; i < n; i++)
+			{
+				indices[indexStart + 0] = vi - 2;
+				indices[indexStart + 1] = (prevIndex * 2);
+				indices[indexStart + 2] = (i * 2);
+				indexStart += 3;
+				indices[indexStart + 0] = vi - 1; // 重心上面
+				indices[indexStart + 1] = (i * 2) + 1;
+				indices[indexStart + 2] = (prevIndex * 2) + 1;
+				indexStart += 3;
+				prevIndex = i;
+			}
+			Debug.Assert(indexStart == indexCount);
+
+			if (separateFaces)
+			{
+				SeparateFaces(out vertices, out normals, out indices, vertices, indices);
+			}
+			return true;
+		}
+
+		public static bool GenerateConvexPolygon(
+			Mesh mesh,
+			IList<Vector2> positions,
+			float height,
+			bool separateFaces)
+		{
+			Vector3[] vertices;
+			Vector3[] normals;
+			int[] indices;
+			var ret = false;
+			if (GenerateConvexPolygon(out vertices, out normals, out indices, positions, height, separateFaces))
+			{
+				FillMesh(mesh, vertices, normals, null, indices);
 				ret = true;
 			}
 			return ret;
@@ -394,18 +514,17 @@ namespace Kayac
 
 
 		// non-public ------------------
-		static void FillStripIndices(int[] indices, int indexStart, int vertexStart, int stripLength, int stripWidth, bool looped)
+		static int FillStripIndices(int[] indices, int indexStart, int vertexStart, int stripLength, int stripWidth, bool looped)
 		{
-			var start = 0;
 			int vi = vertexStart;
 			int vUnit = stripWidth + 1;
 			for (int li = 0; li < stripLength; li++)
 			{
 				for (int wi = 0; wi < stripWidth; wi++)
 				{
-					start = SetQuad(
+					indexStart = SetQuad(
 						indices,
-						start,
+						indexStart,
 						vi + wi,
 						vi + wi + 1,
 						vi + vUnit + wi + 1,
@@ -417,15 +536,16 @@ namespace Kayac
 			{
 				for (int wi = 0; wi < stripWidth; wi++)
 				{
-					start = SetQuad(
+					indexStart = SetQuad(
 						indices,
-						start,
+						indexStart,
 						vi + wi,
 						vi + wi + 1,
 						wi + 1,
 						wi);
 				}
 			}
+			return indexStart;
 		}
 
 		static void FillMesh(
