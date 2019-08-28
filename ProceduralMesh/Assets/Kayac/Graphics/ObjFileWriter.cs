@@ -124,16 +124,21 @@ namespace Kayac
 		{
 			Debug.Assert(mesh != null);
 			bool ret = true;
+			string name = mesh.name;
+			if (string.IsNullOrEmpty(name))
+			{
+				name = "noname";
+			}
 			for (int i = 0; i < mesh.subMeshCount; i++)
 			{
 				string filename;
 				if (mesh.subMeshCount == 1) // 1個なら番号ついても邪魔だろう
 				{
-					filename = string.Format("{0}.obj", mesh.name);
+					filename = string.Format("{0}.obj", name);
 				}
 				else
 				{
-					filename = string.Format("{0}_{1}.obj", mesh.name, i);
+					filename = string.Format("{0}_{1}.obj", name, i);
 				}
 				var path = System.IO.Path.Combine(directory, filename);
 				if (!Write(path, mesh, i, importImmediately))
@@ -176,7 +181,12 @@ namespace Kayac
 				var mesh = meshFilter.sharedMesh;
 				if (mesh != null)
 				{
-					var path = string.Format("Assets/{0}.asset", mesh.name);
+					string name = mesh.name;
+					if (string.IsNullOrEmpty(name))
+					{
+						name = "noname";
+					}
+					var path = string.Format("Assets/{0}.asset", name);
 					AssetDatabase.CreateAsset(mesh, path);
 					AssetDatabase.SaveAssets(); // これがないと中身が空になる仕様らしい
 				}

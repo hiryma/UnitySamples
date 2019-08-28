@@ -72,12 +72,15 @@ public class Main : MonoBehaviour
 
 		if (GUI.Button(new Rect(0f, y, 100f, 50f), "ConvexPolygon"))
 		{
-			var positions = new Vector2[4];
-			positions[0] = new Vector3(-0.5f, -0.5f);
-			positions[1] = new Vector3(-0.5f, 0.5f);
-			positions[2] = new Vector3(0.5f, 0.5f);
-			positions[3] = new Vector3(0.5f, -0.5f);
-
+			int d = 3 << (int)div;
+			var positions = new Vector2[d];
+			for (int i = 0; i < positions.Length; i++)
+			{
+				var rad = 2f * Mathf.PI * (float)i / (float)positions.Length;
+				positions[i] = new Vector2(
+					Mathf.Sin(rad),
+					Mathf.Cos(rad)) * 0.5f;
+			}
 			if (MeshGenerator.GenerateConvexPolygon(mesh, positions, 0.1f, separateFaces))
 			{
 				mesh.name = string.Format("wall_{0}", (int)div);
