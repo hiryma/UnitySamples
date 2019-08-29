@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
-using Q = Kayac.QuaternionHelper;
 
 namespace Kayac
 {
@@ -63,8 +62,8 @@ namespace Kayac
 			}
 			float dt = Time.deltaTime;
 			angularVelocity *= (1f - (dt * Drag));
-			orientation = Q.Integrate(orientation, angularVelocity, dt);
-			var vw = Q.Transform(orientation, new Vector3(0f, 0f, -1f));
+			orientation = IntegrateOrientation(orientation, angularVelocity, dt);
+			var vw = orientation * new Vector3(0f, 0f, -1f);
 			var ow = Vector3.zero;
 			if (centerTransform != null)
 			{
@@ -81,6 +80,20 @@ namespace Kayac
 		Vector2 currentScreenPoint;
 		Vector2 downScreenPoint;
 		bool pointerDown;
+
+		//q: 姿勢 w:角速度
+		static Quaternion IntegrateOrientation(Quaternion q, Vector3 w, float dt)
+		{
+			var t = w * (0.5f * dt);
+			var dq = q * new Quaternion(t.x, t.y, t.z, 0f);
+			q = new Quaternion(
+				q.x + dq.x,
+				q.y + dq.y,
+				q.z + dq.z,
+				q.w + dq.w);
+			q.Normalize();
+			return q;
+		}
 
 		Vector3 CalcPointOnSphere(
 			Vector2 screenSphereCenter,
