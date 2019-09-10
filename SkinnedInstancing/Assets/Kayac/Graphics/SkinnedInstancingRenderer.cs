@@ -19,7 +19,6 @@ namespace Kayac
         public void EndUpdatePoses()
         {
             myRenderer.sharedMesh.bindposes = poses;
-            
         }
         
 
