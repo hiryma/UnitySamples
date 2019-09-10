@@ -7,9 +7,18 @@ namespace Kayac
     {
         [SerializeField] SkinnedMeshRenderer myRenderer;
         [SerializeField] Mesh originalMesh;
-        [SerializeField] int count;
+        [SerializeField] int count = 16;
+        [SerializeField] bool autoStart = true;
 
         Matrix4x4[] poses;
+
+        public int Count { get { return count; } }
+
+
+        public void SetMaterial(Material material)
+        {
+            myRenderer.sharedMaterial = material;
+        }
 
         public Matrix4x4[] BeginUpdatePoses()
         {
@@ -20,7 +29,15 @@ namespace Kayac
         {
             myRenderer.sharedMesh.bindposes = poses;
         }
-        
+
+        void OnEnable()
+        {
+            if (autoStart && (poses == null) && (originalMesh != null))
+            {
+                ManualStart(null, 0);
+            }
+        }
+
 
         public void ManualStart(Mesh overrideMesh = null, int overrideCount = 0)
         {

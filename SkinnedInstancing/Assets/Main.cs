@@ -7,6 +7,7 @@ public class Main : MonoBehaviour
     [SerializeField] int count;
     [SerializeField] Camera myCamera;
     [SerializeField] GameObject cubePrefab;
+    [SerializeField] Material originalMaterial;
 
     struct State
     {
@@ -41,10 +42,14 @@ public class Main : MonoBehaviour
     State[] states;
     bool pause;
     bool useSkinning = true;
+    bool gpuInstancingEnabled = false;
     GameObject[] cubes;
+    Material material;
 
     void Start()
     {
+        material = new Material(originalMaterial);
+        myRenderer.SetMaterial(material);
         Reset();
     }
 
@@ -71,6 +76,7 @@ public class Main : MonoBehaviour
             for (int i = 0; i < count; i++)
             {
                 cubes[i] = Instantiate(cubePrefab, transform, false);
+                cubes[i].GetComponent<MeshRenderer>().sharedMaterial = material;
             }
         }
         states = new State[count];
@@ -130,6 +136,13 @@ public class Main : MonoBehaviour
         if (newUseSkininng != useSkinning)
         {
             useSkinning = newUseSkininng;
+            Reset();
+        }
+        var newGpuInstancingEnabled = GUILayout.Toggle(gpuInstancingEnabled, "GPU Instancing");
+        if (newGpuInstancingEnabled != gpuInstancingEnabled)
+        {
+            material.enableInstancing = newGpuInstancingEnabled;
+            gpuInstancingEnabled = newGpuInstancingEnabled;
             Reset();
         }
     }

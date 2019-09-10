@@ -216,6 +216,7 @@ MonoBehaviour:
   myRenderer: {fileID: 56409927}
   originalMesh: {fileID: 0}
   count: 2730
+  autoStart: 0
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -422,6 +423,7 @@ MonoBehaviour:
   myCamera: {fileID: 963194227}
   cubePrefab: {fileID: 4036648894160749604, guid: 4ce4f57cb6db940a8be61d763d920fa4,
     type: 3}
+  originalMaterial: {fileID: 2100000, guid: 2c270e8e9f58e40ac88e2f43b3030d33, type: 2}
 --- !u!4 &1162630064
 Transform:
   m_ObjectHideFlags: 0
