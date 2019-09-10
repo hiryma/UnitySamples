@@ -88,11 +88,10 @@ namespace Kayac
 
 		public static void GetSphericalDistribution(
 			out float xAngle,
-			out float yAngle,
-			ref Random32 random)
+			out float yAngle)
 		{
-			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
-			var r = random.GetFloat();
+			yAngle = UnityEngine.Random.Range(-Mathf.PI, Mathf.PI);
+			var r = UnityEngine.Random.Range(0f, 1f);
 			xAngle = Mathf.Asin((2f * r) - 1f);
 		}
 
@@ -108,22 +107,20 @@ namespace Kayac
 
 		public static void GetHemisphericalCosDistribution(
 			out float xAngle,
-			out float yAngle,
-			ref Random32 random)
+			out float yAngle)
 		{
-			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
-			var r = random.GetFloat();
+			yAngle = UnityEngine.Random.Range(-Mathf.PI, Mathf.PI);
+			var r = UnityEngine.Random.Range(0f, 1f);
 			xAngle = Mathf.Asin(Mathf.Sqrt(r));
 		}
 
 		public static void GetHemisphericalCosPoweredDistribution(
 			out float xAngle,
 			out float yAngle,
-			float power,
-			ref Random32 random)
+			float power)
 		{
-			yAngle = random.GetFloat(-Mathf.PI, Mathf.PI);
-			var r = random.GetFloat();
+			yAngle = UnityEngine.Random.Range(-Mathf.PI, Mathf.PI);
+			var r = UnityEngine.Random.Range(0f, 1f);
 			var powered = Mathf.Pow(r, 1f / (power + 1f));
 			xAngle = Mathf.Acos(powered);
 		}

@@ -63,7 +63,7 @@ public class Main : MonoBehaviour
 					Mathf.Sin(rad) * t * 0.5f);
 			}
 
-			if (MeshGenerator.GenerateWall(mesh, positions, 0.1f, 0.05f, looped: false, separateFaces))
+			if (MeshGenerator.GenerateWall(mesh, positions, 0.1f, 0.05f, looped: false, separateFaces, 2))
 			{
 				mesh.name = string.Format("wall_{0}", (int)div);
 			}
@@ -81,9 +81,9 @@ public class Main : MonoBehaviour
 					Mathf.Sin(rad),
 					Mathf.Cos(rad)) * 0.5f;
 			}
-			if (MeshGenerator.GenerateConvexPolygon(mesh, positions, 0.1f, separateFaces))
+			if (MeshGenerator.GenerateConvexPolygon(mesh, positions, 0.1f, separateFaces, 0.1f, 1))
 			{
-				mesh.name = string.Format("wall_{0}", (int)div);
+				mesh.name = string.Format("convex_{0}", (int)div);
 			}
 		}
 		y += 50f;

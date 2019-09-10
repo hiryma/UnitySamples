@@ -1,108 +1,79 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 
 namespace Kayac
 {
-	public class ParticleMesh : DynamicMesh
+	public class ParticleMesh : MonoBehaviour
 	{
-		public ParticleMesh(
-			MeshRenderer meshRenderer,
-			MeshFilter meshFilter,
-			int capacity = defaultTriangleCapacity) : base(meshRenderer, meshFilter, capacity)
+		[SerializeField] MeshFilter meshFilter;
+		[SerializeField] Vector3 boundingCenter = Vector3.zero;
+		[SerializeField] Vector3 boundingSize = new Vector3(1000f, 1000f, 1000f);
+
+		Mesh mesh;
+		List<Vector3> vertices;
+		List<Vector3> normals;
+		List<Vector2> uvs;
+		List<int> indices;
+
+		void Start()
 		{
+			Debug.Assert(meshFilter != null);
+			mesh = new Mesh();
+			mesh.name = "ParticleMesh";
+			meshFilter.sharedMesh = mesh;
+			vertices = new List<Vector3>();
+			normals = new List<Vector3>();
+			uvs = new List<Vector2>();
+			indices = new List<int>();
 		}
 
-		public void AddRectangle(
-			ref Vector3 center,
-			ref Vector3 halfAxis0,
-			ref Vector3 halfAxis1)
+		public void UpdateMesh()
 		{
-			Vector3 tp0, tp1;
-			Math.SetAdd(out tp0, ref center, ref halfAxis0);
-			Math.SetSub(out tp1, ref center, ref halfAxis0);
-			Math.SetSub(out vertices[vertexCount + 0], ref tp0, ref halfAxis1);
-			Math.SetAdd(out vertices[vertexCount + 1], ref tp0, ref halfAxis1);
-			Math.SetAdd(out vertices[vertexCount + 2], ref tp1, ref halfAxis1);
-			Math.SetSub(out vertices[vertexCount + 3], ref tp1, ref halfAxis1);
-			colors[vertexCount + 0] = color;
-			colors[vertexCount + 1] = color;
-			colors[vertexCount + 2] = color;
-			colors[vertexCount + 3] = color;
-			uv[vertexCount + 0] = Vector2.zero;
-			uv[vertexCount + 1] = Vector2.zero;
-			uv[vertexCount + 2] = Vector2.zero;
-			uv[vertexCount + 3] = Vector2.zero;
-			this.AddQuadIndices(0, 1, 2, 3);
-			vertexCount += 4;
-		}
-
-		public void AddRectangleWholeTexture(
-			ref Vector3 center,
-			ref Vector3 halfAxis0,
-			ref Vector3 halfAxis1)
-		{
-			Vector3 tp0, tp1;
-			Math.SetAdd(out tp0, ref center, ref halfAxis0);
-			Math.SetSub(out tp1, ref center, ref halfAxis0);
-			Math.SetSub(out vertices[vertexCount + 0], ref tp0, ref halfAxis1);
-			Math.SetAdd(out vertices[vertexCount + 1], ref tp0, ref halfAxis1);
-			Math.SetAdd(out vertices[vertexCount + 2], ref tp1, ref halfAxis1);
-			Math.SetSub(out vertices[vertexCount + 3], ref tp1, ref halfAxis1);
-			colors[vertexCount + 0] = color;
-			colors[vertexCount + 1] = color;
-			colors[vertexCount + 2] = color;
-			colors[vertexCount + 3] = color;
-			uv[vertexCount + 0] = new Vector2(0f, 0f);
-			uv[vertexCount + 1] = new Vector2(0f, 1f);
-			uv[vertexCount + 2] = new Vector2(1f, 1f);
-			uv[vertexCount + 3] = new Vector2(1f, 0f);
-			this.AddQuadIndices(0, 1, 2, 3);
-			vertexCount += 4;
+			mesh.Clear();
+			mesh.SetVertices(vertices);
+			mesh.SetNormals(normals);
+			mesh.SetUVs(0, uvs);
+			mesh.SetTriangles(indices, 0, calculateBounds: false);
+			mesh.bounds = new Bounds(boundingCenter, boundingSize);
+			vertices.Clear();
+			normals.Clear();
+			uvs.Clear();
+			indices.Clear();
 		}
 
 		public void AddRectangle(
 			ref Vector3 center,
 			ref Vector3 halfAxis0,
 			ref Vector3 halfAxis1,
+			ref Vector3 normal,
 			ref Vector2 uvAll)
 		{
-			Vector3 tp0, tp1;
-			Math.SetAdd(out tp0, ref center, ref halfAxis0);
-			Math.SetSub(out tp1, ref center, ref halfAxis0);
-			Math.SetSub(out vertices[vertexCount + 0], ref tp0, ref halfAxis1);
-			Math.SetAdd(out vertices[vertexCount + 1], ref tp0, ref halfAxis1);
-			Math.SetAdd(out vertices[vertexCount + 2], ref tp1, ref halfAxis1);
-			Math.SetSub(out vertices[vertexCount + 3], ref tp1, ref halfAxis1);
-			colors[vertexCount + 0] = color;
-			colors[vertexCount + 1] = color;
-			colors[vertexCount + 2] = color;
-			colors[vertexCount + 3] = color;
-			uv[vertexCount + 0] = uvAll;
-			uv[vertexCount + 1] = uvAll;
-			uv[vertexCount + 2] = uvAll;
-			uv[vertexCount + 3] = uvAll;
-			this.AddQuadIndices(0, 1, 2, 3);
-			vertexCount += 4;
+			AddQuadIndices(0, 1, 3, 2);
+			var p0 = center - halfAxis0;
+			var p1 = center + halfAxis0;
+			vertices.Add(p0 - halfAxis1);
+			vertices.Add(p0 + halfAxis1);
+			vertices.Add(p1 - halfAxis1);
+			vertices.Add(p1 + halfAxis1);
+			normals.Add(normal);
+			normals.Add(normal);
+			normals.Add(normal);
+			normals.Add(normal);
+			uvs.Add(uvAll);
+			uvs.Add(uvAll);
+			uvs.Add(uvAll);
+			uvs.Add(uvAll);
 		}
 
-		public void AddTriangle(
-			ref Vector3 p0,
-			ref Vector3 p1,
-			ref Vector3 p2,
-			ref Vector2 uv0,
-			ref Vector2 uv1,
-			ref Vector2 uv2)
+		void AddQuadIndices(int i0, int i1, int i2, int i3)
 		{
-			vertices[vertexCount + 0] = p0;
-			vertices[vertexCount + 1] = p1;
-			vertices[vertexCount + 2] = p2;
-			colors[vertexCount + 0] = color;
-			colors[vertexCount + 1] = color;
-			colors[vertexCount + 2] = color;
-			uv[vertexCount + 0] = uv0;
-			uv[vertexCount + 1] = uv1;
-			uv[vertexCount + 2] = uv2;
-			AddTriangleIndices(0, 1, 2);
-			vertexCount += 3;
+			var vOffset = vertices.Count;
+			indices.Add(vOffset + i0);
+			indices.Add(vOffset + i1);
+			indices.Add(vOffset + i2);
+			indices.Add(vOffset + i2);
+			indices.Add(vOffset + i3);
+			indices.Add(vOffset + i0);
 		}
 	}
 }

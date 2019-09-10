@@ -1,12 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
 
-/* prerequisits.
-1. EventSystem
-2. PhysicRaycaster
-3. attach SphereCollider on a child of BallCameraController
-*/
-
 namespace Kayac
 {
 	public class BallCameraController :

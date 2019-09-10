@@ -62,24 +62,19 @@ namespace Kayac
             float height,
             float thickness,
             bool looped,
-            bool separateFaces,
-            int topDiv = 1)
+            bool separateFaces)
         {
-            int verticesPerPoint = 3 + topDiv;
-            int indicesPerBand = (verticesPerPoint - 1) * 6;
-            vertices = new Vector3[positions.Count * verticesPerPoint];
+            vertices = new Vector3[positions.Count * 4];
             normals = new Vector3[vertices.Length];
             uvs = new Vector2[vertices.Length];
-            var indexCount = (positions.Count - 1) * indicesPerBand;
+            var indexCount = (positions.Count - 1) * 3 * 6;
             if (looped)
             {
-                indexCount += indicesPerBand;
+                indexCount += 3 * 6;
             }
             indices = new int[indexCount];
             int vi = 0;
             float halfThickness = 0.5f * thickness;
-            float vSide = height / ((height * 2f) + thickness);
-            float vDiv = thickness / (topDiv * ((height * 2f) + thickness));
             for (int i = 0; i < positions.Count; i++)
             {
                 Vector2 prev;
@@ -126,10 +121,11 @@ namespace Kayac
                 Vector2 normal; // tangentを2D平面で90度回したもの(上から見て反時計周り)
                 normal.x = -tangent.y;
                 normal.y = tangent.x;
-                var inner = positions[i] - (normal * halfThickness);
-                var outer = positions[i] + (normal * halfThickness);
-                var innerN = new Vector3(-normal.x, 0f, -normal.y);
-                var outerN = new Vector3(normal.x, 0f, normal.y);
+                Vector2 inner = positions[i] - (normal * halfThickness);
+                Vector2 outer = positions[i] + (normal * halfThickness);
+                Vector3 innerN = new Vector3(-normal.x, 0f, -normal.y);
+                Vector3 outerN = new Vector3(normal.x, 0f, normal.y);
+                Vector3 upN = new Vector3(0f, 1f, 0f);
                 // 接地頂点
                 float u = (float)i / (float)(positions.Count - 1);
                 vertices[vi] = new Vector3(inner.x, 0f, inner.y);
@@ -137,29 +133,19 @@ namespace Kayac
                 uvs[vi] = new Vector2(u, 0f);
                 vi++;
                 vertices[vi] = new Vector3(inner.x, height, inner.y);
-                normals[vi] = innerN;
-                uvs[vi] = new Vector2(u, vSide);
+                normals[vi] = Vector3.Lerp(innerN, upN, 0.5f).normalized;
+                uvs[vi] = new Vector2(u, 1f / 3f);
                 vi++;
-                var tangent3d = new Vector3(tangent.x, 0f, tangent.y);
-                for (int j = 1; j < topDiv; j++)
-                {
-                    var rad = Mathf.PI * (float)j / (float)topDiv;
-                    var n = RotateVector(innerN, tangent3d, rad);
-                    vertices[vi] = new Vector3(positions[i].x, height, positions[i].y) + (n * halfThickness);
-                    normals[vi] = n;
-                    uvs[vi] = new Vector2(u, vSide + (vDiv * j));
-                    vi++;
-                }
                 vertices[vi] = new Vector3(outer.x, height, outer.y);
-                normals[vi] = outerN;
-                uvs[vi] = new Vector2(u, 1f - vSide);
+                normals[vi] = Vector3.Lerp(outerN, upN, 0.5f).normalized;
+                uvs[vi] = new Vector2(u, 2f / 3f);
                 vi++;
                 vertices[vi] = new Vector3(outer.x, 0f, outer.y);
                 normals[vi] = outerN;
                 uvs[vi] = new Vector2(u, 1f);
                 vi++;
             }
-            var indexPos = FillStripIndices(indices, 0, 0, positions.Count - 1, 2 + topDiv, looped);
+            var indexPos = FillStripIndices(indices, 0, 0, positions.Count - 1, 3, looped);
             Debug.Assert(indexCount == indexPos);
 
             if (separateFaces)
@@ -175,15 +161,14 @@ namespace Kayac
             float height,
             float thickness,
             bool looped,
-            bool separateFaces,
-            int topDiv = 1)
+            bool separateFaces)
         {
             Vector3[] vertices;
             Vector3[] normals;
             Vector2[] uvs;
             int[] indices;
             var ret = false;
-            if (GenerateWall(out vertices, out normals, out uvs, out indices, positions, height, thickness, looped, separateFaces, topDiv))
+            if (GenerateWall(out vertices, out normals, out uvs, out indices, positions, height, thickness, looped, separateFaces))
             {
                 FillMesh(mesh, vertices, normals, uvs, indices);
                 ret = true;
@@ -198,16 +183,12 @@ namespace Kayac
             out int[] indices,
             IList<Vector2> positions,
             float height,
-            bool separateFaces,
-            float roundingRadius = 0f,
-            int roundingDiv = 1)
+            bool separateFaces)
         {
             int n = positions.Count;
-            int verticesPerPoint = 2 + roundingDiv;
-            int indicesPerBand = ((verticesPerPoint - 1) * 6) + (3 + 3);
-            vertices = new Vector3[(n * verticesPerPoint) + 2];
+            vertices = new Vector3[(n * 2) + 2];
             normals = new Vector3[vertices.Length];
-            var indexCount = n * indicesPerBand;
+            var indexCount = (n * (6 + 3 + 3));
             indices = new int[indexCount];
             // 三点見て舐める方向を確定する。
             Debug.Assert(n >= 3);
@@ -218,7 +199,6 @@ namespace Kayac
             var v01 = v1 - v0;
             var v12 = v2 - v1;
             var cross = (v01.x * v12.y) - (v01.y * v12.x);
-            Debug.Log(cross);
             int iBegin, iEnd, iInc;
             if (cross > 0f)
             {
@@ -243,31 +223,23 @@ namespace Kayac
             {
                 nextIndex = (i + iInc + n) % n;
                 prevIndex = (i - iInc + n) % n;
-                var prev = positions[prevIndex];
-                var next = positions[nextIndex];
-                var p01 = (positions[i] - prev).normalized;
-                var p12 = (next - positions[i]).normalized;
-                var tangent = p01 + p12;
+                Vector2 prev = positions[prevIndex];
+                Vector2 next = positions[nextIndex];
+                Vector2 p01 = (positions[i] - prev).normalized;
+                Vector2 p12 = (next - positions[i]).normalized;
+                Vector2 tangent = (p01 + p12) * 0.5f;
                 tangent.Normalize();
-                var tangent3d = new Vector3(tangent.x, 0f, tangent.y);
-                Vector3 normal; // tangentをXZ平面で90度回したもの
-                normal.x = tangent.y;
-                normal.y = -tangent.x;
-                var n3d = new Vector3(normal.x, 0f, normal.y);
+                Vector2 normal; // tangentをXZ平面で90度回したもの
+                normal.x = -tangent.y;
+                normal.y = tangent.x;
+                Vector3 n3d = new Vector3(normal.x, 0f, normal.y);
                 // 接地頂点
                 vertices[vi] = new Vector3(positions[i].x, 0f, positions[i].y);
-                normals[vi] = n3d;
+                normals[vi] = Vector3.Lerp(n3d, nDown, 0.5f).normalized;
                 vi++;
-                var c = new Vector3(positions[i].x, height, positions[i].y);
-                c -= n3d * roundingRadius;
-                for (int j = 0; j <= roundingDiv; j++)
-                {
-                    var rad = Mathf.PI * 0.5f * (float)j / (float)roundingDiv;
-                    var vn = RotateVector(n3d, tangent3d, rad);
-                    vertices[vi] = c + (vn * roundingRadius);
-                    normals[vi] = vn;
-                    vi++;
-                }
+                vertices[vi] = new Vector3(positions[i].x, height, positions[i].y);
+                normals[vi] = Vector3.Lerp(n3d, nUp, 0.5f).normalized;
+                vi++;
                 g += positions[i];
                 i += iInc;
             }
@@ -276,21 +248,22 @@ namespace Kayac
             vertices[vi] = new Vector3(g.x, 0f, g.y);
             normals[vi] = nDown;
             vi++;
-            vertices[vi] = new Vector3(g.x, height + roundingRadius, g.y);
+            vertices[vi] = new Vector3(g.x, height, g.y);
             normals[vi] = nUp;
             vi++;
-            var indexStart = FillStripIndices(indices, 0, 0, n - 1, 1 + roundingDiv, looped: true);
+            var indexStart = FillStripIndices(indices, 0, 0, n - 1, 1, looped: true);
             // ファンを生成
+            var fanStart = indexStart;
             prevIndex = n - 1;
             for (i = 0; i < n; i++)
             {
-                indices[indexStart + 0] = vi - 2; // 重心下面
-                indices[indexStart + 1] = (prevIndex * verticesPerPoint);
-                indices[indexStart + 2] = (i * verticesPerPoint);
+                indices[indexStart + 0] = vi - 2;
+                indices[indexStart + 1] = (prevIndex * 2);
+                indices[indexStart + 2] = (i * 2);
                 indexStart += 3;
                 indices[indexStart + 0] = vi - 1; // 重心上面
-                indices[indexStart + 1] = ((i + 1) * verticesPerPoint) - 1;
-                indices[indexStart + 2] = ((prevIndex + 1) * verticesPerPoint) - 1;
+                indices[indexStart + 1] = (i * 2) + 1;
+                indices[indexStart + 2] = (prevIndex * 2) + 1;
                 indexStart += 3;
                 prevIndex = i;
             }
@@ -307,15 +280,13 @@ namespace Kayac
             Mesh mesh,
             IList<Vector2> positions,
             float height,
-            bool separateFaces,
-            float roundingRadius = 0f,
-            int roundingDiv = 1)
+            bool separateFaces)
         {
             Vector3[] vertices;
             Vector3[] normals;
             int[] indices;
             var ret = false;
-            if (GenerateConvexPolygon(out vertices, out normals, out indices, positions, height, separateFaces, roundingRadius, roundingDiv))
+            if (GenerateConvexPolygon(out vertices, out normals, out indices, positions, height, separateFaces))
             {
                 FillMesh(mesh, vertices, normals, null, indices);
                 ret = true;
@@ -337,13 +308,17 @@ namespace Kayac
                 return false;
             }
             GenerateOctahedron(out verticesOut, out normalsOut, out indicesOut, separateFaces: false);
-            var table = new VertexEdgeFaceTable(verticesOut, normalsOut, null, indicesOut);
+#if true
+            var model = new MeshModel(verticesOut, normalsOut, null, indicesOut);
+#else
+            var model = new VertexEdgeFaceTable(verticesOut, normalsOut, null, indicesOut);
+#endif
             for (int i = 0; i < subdivision; i++)
             {
-                table.SubDivide();
+                model.SubDivide();
             }
             // 全頂点を球面に移動
-            var vertices = table.Vertices;
+            var vertices = model.Vertices;
             for (int i = 0; i < vertices.Count; i++)
             {
                 var v = vertices[i];
@@ -351,7 +326,7 @@ namespace Kayac
                 v.position *= 0.5f; // 半径は0.5に
                 v.normal = v.position;
             }
-            table.GetArrays(out verticesOut, out normalsOut, out indicesOut);
+            model.GetArrays(out verticesOut, out normalsOut, out indicesOut);
             if (separateFaces)
             {
                 SeparateFaces(out verticesOut, out normalsOut, out indicesOut, verticesOut, indicesOut);
@@ -672,33 +647,6 @@ namespace Kayac
             indices[start + 5] = v0;
             return start + 6;
         }
-
-        static Vector3 RotateVector(
-            Vector3 v,
-            Vector3 axisNormalized, // 軸ベクトルは要正規化
-            float radian)
-        {
-            // vを軸に射影して、回転円中心cを得る
-            var c = ProjectVector(v, axisNormalized);
-            var p = v - c;
-
-            // p及びaと直交するベクタを得る
-            var q = Vector3.Cross(axisNormalized, p);
-            // a,pは直交しているから、|q|=|p|
-
-            // 回転後のv'の終点V'は、V' = C + s*p + t*q と表せる。
-            // ここで、s = cosθ t = sinθ
-            var s = Mathf.Cos(radian);
-            var t = Mathf.Sin(radian);
-            return c + (p * s) + (q * t);
-        }
-
-        static Vector3 ProjectVector(
-            Vector3 v,
-            Vector3 axisNormalized)
-        {
-            return Vector3.Dot(v, axisNormalized) * axisNormalized;
-        }
     }
 
     public class VertexEdgeFaceTable
@@ -790,7 +738,7 @@ namespace Kayac
             for (int i = 0; i < vertices.Count; i++)
             {
                 var v = vertices[i];
-                sb.AppendFormat("\t{0}: {1} {1} {2}\n", i, v.position, v.normal, v.uv);
+                sb.AppendFormat("\t{0}: {1} {2} {3}\n", i, v.position, v.normal, v.uv);
             }
             sb.AppendLine("[Edges]");
             for (int i = 0; i < edges.Count; i++)
