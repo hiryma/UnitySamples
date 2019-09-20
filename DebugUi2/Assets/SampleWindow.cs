@@ -5,19 +5,19 @@ using Kayac.Debug.Ui;
 
 public class SampleWindow : Window
 {
-    readonly LogWindow _log;
-    readonly Graph _graph;
-    readonly FrameTimeWatcher _frameTimeWatcher;
+    readonly LogWindow log;
+    readonly Graph graph;
+    readonly FrameTimeWatcher frameTimeWatcher;
 
     public SampleWindow(DebugUiManager manager) : base(manager, "SampleWindow")
     {
-        _frameTimeWatcher = new FrameTimeWatcher();
+        frameTimeWatcher = new FrameTimeWatcher();
 
         var button = new Button("ボタン", 100f)
         {
             OnClick = () =>
             {
-                _log.Add("ボタンが押された!");
+                log.Add("ボタンが押された!");
             }
         };
         AddAuto(button);
@@ -28,7 +28,7 @@ public class SampleWindow : Window
         {
             OnChangeToOn = () =>
             {
-                _log.Add("Aが有効になった");
+                log.Add("Aが有効になった");
 
             }
         };
@@ -37,7 +37,7 @@ public class SampleWindow : Window
         {
             OnChangeToOn = () =>
             {
-                _log.Add("Bが有効になった");
+                log.Add("Bが有効になった");
             }
         };
         AddAuto(toggles[1]);
@@ -47,27 +47,27 @@ public class SampleWindow : Window
 
         BreakLine();
 
-        _log = new LogWindow(
+        log = new LogWindow(
             fontSize: 20f,
             width: 600f,
             height: 220f,
             borderEnabled: true,
             captureUnityLog: true); // Unityのログも出しちゃうよ
-        AddAuto(_log);
+        AddAuto(log);
 
-        _graph = new Graph(5, 200f, 220f);
-        _graph.AddSeries(new Color32(255, 64, 64, 255));
-        AddAuto(_graph);
+        graph = new Graph(5, 200f, 220f);
+        graph.AddSeries(new Color32(255, 64, 64, 255));
+        AddAuto(graph);
 
         BreakLine();
 
-        var frameTimeGauge = new FrameTimeGauge(200f, 30f, _frameTimeWatcher);
+        var frameTimeGauge = new FrameTimeGauge(200f, 30f, frameTimeWatcher);
         AddAuto(frameTimeGauge);
 
         var slider = new Slider("スライダー", -100f, 100f, 400f);
         slider.OnDragEnd = () =>
         {
-            _log.Add("スライダーが" + slider.Value + "に変更された");
+            log.Add("スライダーが" + slider.Value + "に変更された");
         };
         AddAuto(slider);
 
@@ -94,7 +94,7 @@ public class SampleWindow : Window
 
     public override void UpdateWindow()
     {
-        _frameTimeWatcher.Update();
-        _graph.AddData(0, _frameTimeWatcher.Fps);
+        frameTimeWatcher.Update();
+        graph.AddData(0, frameTimeWatcher.Fps);
     }
 }
