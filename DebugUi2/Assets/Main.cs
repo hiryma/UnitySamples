@@ -4,24 +4,17 @@ using Kayac.Debug.Ui;
 
 public class Main : MonoBehaviour
 {
-    [SerializeField] DebugRendererAsset asset;
     [SerializeField] Camera mainCamera;
-
-    DebugUiManager debugUi;
+    [SerializeField] DebugUiManager debugUiManagerPrefab;
     SampleWindow sampleWindow;
     Menu menu;
 
     void Start()
     {
-        debugUi = DebugUiManager.Create(
-            mainCamera,
-            asset,
-            referenceScreenWidth: 1024,
-            referenceScreenHeight: 576,
-            screenPlaneDistance: 100f,
-            triangleCapacity: 8192);
-        sampleWindow = new SampleWindow(debugUi);
-        debugUi.Add(sampleWindow, 0, 0, AlignX.Right, AlignY.Bottom);
+        var manager = Instantiate(debugUiManagerPrefab, null, false);
+        manager.ManualStart(mainCamera);
+        sampleWindow = new SampleWindow(manager);
+        manager.Add(sampleWindow, 0, 0, AlignX.Right, AlignY.Bottom);
 
         menu = new Menu(100, 40);
         var subA = new SubMenu("SubA", 100, 40, Direction.Down);
@@ -34,11 +27,6 @@ public class Main : MonoBehaviour
         menu.AddSubMenu(subA, Direction.Down);
         menu.AddItem("1", () => Debug.Log("1"));
         menu.AddItem("2", () => Debug.Log("2"));
-        debugUi.Add(menu, 0, 0);
-    }
-
-    void Update()
-    {
-        debugUi.ManualUpdate(Time.deltaTime);
+        manager.Add(menu, 0, 0);
     }
 }
