@@ -382,12 +382,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 15, y: 0, z: 0}
---- !u!33 &1117088034 stripped
-MeshFilter:
-  m_CorrespondingSourceObject: {fileID: 4036648894160749593, guid: 4ce4f57cb6db940a8be61d763d920fa4,
-    type: 3}
-  m_PrefabInstance: {fileID: 4036648895210171707}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1162630062
 GameObject:
   m_ObjectHideFlags: 0
@@ -418,8 +412,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   myRenderer: {fileID: 56409929}
-  originalMeshFilter: {fileID: 1117088034}
-  count: 2048
+  originalMeshFilter: {fileID: 4036648894160749593, guid: 4ce4f57cb6db940a8be61d763d920fa4,
+    type: 3}
+  count: 2730
   myCamera: {fileID: 963194227}
   cubePrefab: {fileID: 4036648894160749604, guid: 4ce4f57cb6db940a8be61d763d920fa4,
     type: 3}

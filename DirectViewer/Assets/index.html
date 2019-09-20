@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>DebugService</title>
+</head>
+<body>
+	<h1>DebugService</h1>
+
+	<a href="assets/">ファイル選択</a>
+
+	<ul>
+		<li><input id="toggle-debug" type="button" value="デバグOn/Off">
+		<li>行き先パス: <input id="path" type="text" value="">
+		<li>送るファイルを選択: <input type="file" id="file">
+		<li><input id="upload" type="button" value="アップロード">
+		<li><input id="delete" type="button" value="実機から削除">
+		<li><input id="delete-all" type="button" value="実機から全ファイル削除">
+	</ul>
+	<output id="log"></output>
+	<script>
+		var log = document.getElementById('log');
+		var onLoad = function (arrayBuffer) {
+			var path = document.getElementById('path').value;
+			var request = new XMLHttpRequest();
+			request.onload = function () {
+				log.value = 'アップロード受理\n';
+			};
+			request.onerror = function () {
+				log.value = 'アップロード失敗\n';
+			};
+			request.open('PUT', document.location.origin + '/api/upload-file?path=' + path, true);
+			request.send(new Int8Array(arrayBuffer));
+		};
+		var onUpload = function () {
+			var files = document.getElementById('file').files;
+			if (files.length == 0) {
+				return;
+			}
+			var reader = new FileReader();
+			reader.onload = function (e) {
+				onLoad(e.target.result);
+			};
+			reader.readAsArrayBuffer(files[0]);
+		};
+		var onFileSelected = function () {
+			var path = document.getElementById('path').value;
+			if ((typeof path === 'undefined') || (path.length === 0)) {
+				var files = document.getElementById('file').files;
+				if (files.length > 0) {
+					document.getElementById('path').value = files[0].name;
+				}
+			}
+		};
+		var onDelete = function () {
+			var path = document.getElementById('path').value;
+			var request = new XMLHttpRequest();
+			request.onload = function () {
+				log.value = '削除受理\n';
+			};
+			request.onerror = function () {
+				log.value = '削除失敗\n';
+			};
+			request.open('PUT', document.location.origin + '/api/delete-file?path=' + path, true);
+
+			request.send();
+		};
+		var onDeleteAll = function () {
+			var path = document.getElementById('path').value;
+			var request = new XMLHttpRequest();
+			request.onload = function () {
+				log.value = '全削除受理\n';
+			};
+			request.onerror = function () {
+				log.value = '全削除失敗\n';
+			};
+			request.open('PUT', document.location.origin + '/api/delete-all-file', true);
+			request.send();
+		};
+		var onToggleDebug = function () {
+			var request = new XMLHttpRequest();
+			request.onload = function () {
+				log.value = 'デバグトグル受理\n';
+			};
+			request.onerror = function () {
+				log.value = 'デバグトグル受理失敗\n';
+			};
+			request.open('PUT', document.location.origin + '/api/toggle-debug', true);
+			request.send();
+		};
+		document.getElementById('upload').addEventListener('click', onUpload, false);
+		document.getElementById('delete').addEventListener('click', onDelete, false);
+		document.getElementById('delete-all').addEventListener('click', onDeleteAll, false);
+		document.getElementById('toggle-debug').addEventListener('click', onToggleDebug, false);
+		document.getElementById('file').addEventListener('change', onFileSelected, false);
+	</script>
+</body>
+</html>
