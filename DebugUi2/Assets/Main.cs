@@ -11,7 +11,9 @@ public class Main : MonoBehaviour
 
     void Start()
     {
+        // プレハブをInstantiate
         var manager = Instantiate(debugUiManagerPrefab, null, false);
+        // 描画カメラを指定して手動で開始
         manager.ManualStart(mainCamera);
         sampleWindow = new SampleWindow(manager);
         manager.Add(sampleWindow, 0, 0, AlignX.Right, AlignY.Bottom);
