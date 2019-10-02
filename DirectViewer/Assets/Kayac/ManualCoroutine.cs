@@ -47,9 +47,9 @@ namespace Kayac
 
 		public void Start(IEnumerator root)
 		{
-			Debug.Assert(!Disposed);
-			Debug.Assert(next == null);
-			Debug.Assert(stack.Count == 0);
+            UnityEngine.Debug.Assert(!Disposed);
+            UnityEngine.Debug.Assert(next == null);
+            UnityEngine.Debug.Assert(stack.Count == 0);
 			stack.Push(root);
 			MoveNext(); // 初回実行
 		}
@@ -57,8 +57,8 @@ namespace Kayac
 		// 現在のものが終わったら自動遷移するものをセットしておく
 		public void SetNext(IEnumerator root)
 		{
-			Debug.Assert(!Disposed);
-			Debug.Assert(next == null);
+            UnityEngine.Debug.Assert(!Disposed);
+            UnityEngine.Debug.Assert(next == null);
 			if (stack.Count == 0) // すでに空なら開始
 			{
 				stack.Push(root);
@@ -71,7 +71,7 @@ namespace Kayac
 
 		public bool MoveNext()
 		{
-			Debug.Assert(!Disposed);
+            UnityEngine.Debug.Assert(!Disposed);
 			if (stack.Count <= 0)
 			{
 				return false;
@@ -98,8 +98,8 @@ namespace Kayac
 			}
 			else
 			{
-				// WaitForSecondsとかは未対応。方法が見つからないというかたぶん無理。
-				Debug.Assert(
+                // WaitForSecondsとかは未対応。方法が見つからないというかたぶん無理。
+                UnityEngine.Debug.Assert(
 					!(current is YieldInstruction),
 					"ManualCoroutine doesn't support YieldInstruction(WaitForSeconds, Coroutine, WaitUntil). use ManualCoroutine.Wait. executing:" + ExecutingTypeName());
 			}
@@ -167,7 +167,7 @@ namespace Kayac
 
 			public Wait(ConditionFunc untilFunc)
 			{
-				Debug.Assert(untilFunc != null);
+                UnityEngine.Debug.Assert(untilFunc != null);
 				this.untilFunc = untilFunc;
 			}
 
@@ -220,7 +220,7 @@ namespace Kayac
 			if (idles.Count > 0)
 			{
 				coroutine = idles.Pop();
-				Debug.Assert(coroutine.Idle);
+                UnityEngine.Debug.Assert(coroutine.Idle);
 			}
 			else
 			{
@@ -242,7 +242,7 @@ namespace Kayac
 				}
 				else
 				{
-					Debug.Assert(actives[dst].Idle);
+                    UnityEngine.Debug.Assert(actives[dst].Idle);
 					idles.Push(actives[dst]);
 				}
 			}

@@ -188,6 +188,16 @@ namespace Kayac.Debug.Ui
             InputEnabled = true;
             // 初回サイズ決定
             UpdateTransform();
+
+            // チェック
+            if (myCamera.GetComponent<PhysicsRaycaster>() == null)
+            {
+                UnityEngine.Debug.LogError("Attached Camera doesn't have PhysicsRaycaster.");
+            }
+            if (EventSystem.current == null)
+            {
+                UnityEngine.Debug.LogError("any EventSystem doesn't exists.");
+            }
         }
 
         public void Dispose()

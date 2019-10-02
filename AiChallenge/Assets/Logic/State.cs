@@ -61,8 +61,7 @@ namespace Logic
 
     public class Action
     {
-        public int x;
-        public int y;
+        public Piece piece;
         public int moveToX;
         public int moveToY;
         public DateTime time;

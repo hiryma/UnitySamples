@@ -67,13 +67,12 @@ public class Main : MonoBehaviour
                 id++;
             }
         }
-        if ((dragged >= 0) || (clicked >= 0) || (dropped >= 0))
+        if ((dragged >= 0) || (dropped >= 0))
         {
             Debug.Log("Click " + clicked + " Drag: " + dragged + " -> " + dropped);
             var action = new Logic.Action();
             var piece = state.board[dragged % 4, dragged / 4];
-            action.x = dragged % 4;
-            action.y = dragged / 4;
+            action.piece = piece;
             action.moveToX = dropped % 4;
             action.moveToY = dropped / 4;
             state.players[piece.playerIndex].EnqueueAction(action);

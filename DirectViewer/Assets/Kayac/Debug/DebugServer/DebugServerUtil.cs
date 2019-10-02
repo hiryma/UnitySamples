@@ -44,8 +44,8 @@ namespace Kayac
 			return ret;
 		}
 
-		// StreamingAssetsからファイルテキストをロードする
-		public static IEnumerator CoLoad(
+        // StreamingAssetsからファイルテキストをロードする
+        public static IEnumerator CoLoad(
 			CoroutineReturnValue<string> ret,
 			string pathInStreamingAssets,
 			bool overrideEnabled = true)
@@ -65,7 +65,7 @@ namespace Kayac
             string url = MakeUrl(pathInStreamingAssets, overrideEnabled);
 			var req = UnityWebRequest.Get(url);
 			yield return req.SendWebRequest();
-			Debug.Assert(req.isDone);
+            UnityEngine.Debug.Assert(req.isDone);
 			if (req.error != null)
 			{
 				ret.Fail(new System.IO.FileLoadException(url));
@@ -112,7 +112,7 @@ namespace Kayac
             yield return req.SendWebRequest();
             if (req.error != null)
             {
-                ret.Fail(new System.IO.FileLoadException(url));
+                ret.Fail(new FileLoadException(url));
             }
             else
             {
@@ -156,7 +156,7 @@ namespace Kayac
 			var req = new UnityWebRequest(url);
 			req.method = UnityWebRequest.kHttpVerbGET;
 			AudioType type = AudioType.UNKNOWN;
-			var ext = System.IO.Path.GetExtension(url).ToLower();
+			var ext = Path.GetExtension(url).ToLower();
 			switch (ext)
 			{
 				case ".wav": type = AudioType.WAV; break;
@@ -170,7 +170,7 @@ namespace Kayac
 			yield return req.SendWebRequest();
 			if (req.error != null)
 			{
-				ret.Fail(new System.IO.FileLoadException(url));
+				ret.Fail(new FileLoadException(url));
 			}
 			else
 			{
@@ -179,22 +179,28 @@ namespace Kayac
 			req.Dispose();
 		}
 
-		public static void SaveOverride(string path, Stream stream)
-		{
-			path = Path.Combine(DirectoryName, path);
-			WriteFile(path, stream);
-		}
+        public static void SaveOverride(string path, byte[] data, int size)
+        {
+            path = Path.Combine(DirectoryName, path);
+            WriteFile(path, data, size, append: false);
+        }
 
-		public static void DeleteOverride(string path)
+        public static void AppendOverride(string path, byte[] data, int size)
+        {
+            path = Path.Combine(DirectoryName, path);
+            WriteFile(path, data, size, append: true);
+        }
+
+        public static void DeleteOverride(string path)
 		{
-			Debug.Assert(!path.StartsWith("/"));
+            UnityEngine.Debug.Assert(!path.StartsWith("/"));
 			path = Path.Combine(DirectoryName, path);
 			DeleteFile(path);
 		}
 
 		public static bool ExistsInStreamingAssets(string path)
 		{
-			Debug.Assert(!path.StartsWith("/"));
+            UnityEngine.Debug.Assert(!path.StartsWith("/"));
 			var absolutePath = string.Format(
 				"{0}/{1}",
 				Application.streamingAssetsPath,
@@ -204,7 +210,7 @@ namespace Kayac
 
 		public static string MakeUrl(string path, bool overrideEnabled)
 		{
-			Debug.Assert(!path.StartsWith("/"));
+            UnityEngine.Debug.Assert(!path.StartsWith("/"));
 			string url = null;
 			if (overrideEnabled)
 			{
@@ -270,36 +276,29 @@ namespace Kayac
 			}
 		}
 
-		static void WriteFile(string path, Stream stream)
-		{
-			path = Path.Combine(GetPersistentDataPath(), path);
-			try
-			{
-				var dir = Path.GetDirectoryName(path);
-				TryCreateDirectory(dir);
-				using (var outStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
-				{
-					const int bufferSize = 1024 * 1024; // TODO: これ128とかにしてファイルちゃんと保存されるか確認しとけ
-					var buffer = new byte[bufferSize];
-					while (true)
-					{
-						var advance = stream.Read(buffer, 0, bufferSize);
-						if (advance > 0)
-						{
-							outStream.Write(buffer, 0, advance);
-						}
-						else
-						{
-							break;
-						}
-					}
-				}
-			}
-			catch (System.Exception e)
-			{
-				Debug.LogException(e);
-			}
-		}
+        // TODO: 全量書き込み終わった後にリネームすべき
+        static void WriteFile(string path, byte[] data, int size = -1, bool append = false)
+        {
+            path = Path.Combine(GetPersistentDataPath(), path);
+            if (size < 0)
+            {
+                size = data.Length;
+            }
+            try
+            {
+                var dir = Path.GetDirectoryName(path);
+                TryCreateDirectory(dir);
+                var mode = append ? FileMode.Append : FileMode.Create;
+                using (var outStream = new FileStream(path, mode, FileAccess.Write, FileShare.None))
+                {
+                    outStream.Write(data, 0, size);
+                }
+            }
+            catch (System.Exception e)
+            {
+                UnityEngine.Debug.LogException(e);
+            }
+        }
 
 		static void DeleteFile(string path)
 		{
@@ -310,7 +309,7 @@ namespace Kayac
 			}
 			catch (System.Exception e)
 			{
-				Debug.LogException(e);
+                UnityEngine.Debug.LogException(e);
 			}
 		}
 
@@ -324,7 +323,7 @@ namespace Kayac
 			var parentPattern = separator + ".." + separator;
 			if (fullPath.Contains(parentPattern))
 			{
-				Debug.LogError("DeleteFileRecursive: contains " + parentPattern);
+                UnityEngine.Debug.LogError("DeleteFileRecursive: contains " + parentPattern);
 				return;
 			}
 			if (Directory.Exists(fullPath))
@@ -335,7 +334,7 @@ namespace Kayac
 				}
 				catch (System.Exception e)
 				{
-					Debug.LogException(e);
+                    UnityEngine.Debug.LogException(e);
 				}
 			}
 		}

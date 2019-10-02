@@ -47,11 +47,11 @@ namespace Kayac
                 else // そうでなければファイル
                 {
                     var request = context.Request;
-                    if (request.HttpMethod == "PUT") // Putなら即時処理
+                    if (request.HttpMethod == "PUT")
                     {
-                        ProcessFilePut(context, path);
+                        coroutineRunner.Start(CoProcessFilePut(context, path));
                     }
-                    else if (request.HttpMethod == "GET") // GETはロードが必要なのでコルーチンで処理
+                    else if (request.HttpMethod == "GET")
                     {
                         coroutineRunner.Start(CoProcessFileGet(context, path));
                     }
@@ -64,7 +64,7 @@ namespace Kayac
             }
             else
             {
-                Debug.Assert(false, "url does not contain prefix: " + pathPrefix);
+                UnityEngine.Debug.Assert(false, "url does not contain prefix: " + pathPrefix);
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 response.Close();
             }
@@ -181,21 +181,43 @@ document.getElementById('delete').addEventListener('click', onDelete, false);
 downloadAnchor.addEventListener('click', onDownload, false);
 		";
 
-        void ProcessFilePut(HttpListenerContext context, string path)
+        IEnumerator CoProcessFilePut(HttpListenerContext context, string path)
         {
             var request = context.Request;
-            Debug.Assert(request.HttpMethod == "PUT");
+            UnityEngine.Debug.Assert(request.HttpMethod == "PUT");
             // 内容があるが?delete=trueがあれば、それは削除
             var deleteValue = request.QueryString["delete"];
             if (deleteValue == "true")
             {
-                Debug.Log("ProcessPut: Delete");
                 DebugServerUtil.DeleteOverride(path);
             }
             else
             {
                 var bodyData = request.InputStream;
-                DebugServerUtil.SaveOverride(path, bodyData); // TODO: 非同期化
+                var buffer = new byte[1024 * 1024]; // 秒間60MBはありえない数字じゃないのでこれくらい用意しておく
+                bool first = true;
+                while (true)
+                {
+                    var asyncResult = bodyData.BeginRead(buffer, 0, buffer.Length, null, null);
+                    while (!asyncResult.IsCompleted)
+                    {
+                        yield return null;
+                    }
+                    var size = bodyData.EndRead(asyncResult);
+                    if (size == 0)
+                    {
+                        break;
+                    }
+                    if (first)
+                    {
+                        DebugServerUtil.SaveOverride(path, buffer, size);
+                        first = false;
+                    }
+                    else
+                    {
+                        DebugServerUtil.AppendOverride(path, buffer, size);
+                    }
+                }
                 bodyData.Close();
             }
             var response = context.Response;
@@ -203,10 +225,11 @@ downloadAnchor.addEventListener('click', onDownload, false);
             OnChanged(path);
         }
 
+
         IEnumerator CoProcessFileGet(HttpListenerContext context, string path)
         {
             var request = context.Request;
-            Debug.Assert(request.HttpMethod == "GET");
+            UnityEngine.Debug.Assert(request.HttpMethod == "GET");
             var ret = new CoroutineReturnValue<string>();
             yield return DebugServerUtil.CoLoad(ret, path, overrideEnabled: true);
             var response = context.Response;
@@ -335,7 +358,7 @@ downloadAnchor.addEventListener('click', onDownload, false);
         {
             if (streamingAssetsMap == null)
             {
-                Debug.LogError("No StreamingAssetsMap.json!");
+                UnityEngine.Debug.LogError("No StreamingAssetsMap.json!");
                 return null;
             }
             else

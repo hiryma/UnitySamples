@@ -1,11 +1,8 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Specialized;
-using UnityEngine;
 using System;
 using System.IO;
 using System.Net;
-using System.Text;
 
 namespace Kayac
 {
@@ -70,8 +67,7 @@ namespace Kayac
 		void OnRequestArrival(IAsyncResult asyncResult)
 		{
 			var context = listener.EndGetContext(asyncResult);
-			Debug.Log("Kayac.DebugServer access: " + context.Request.RawUrl);
-			listener.BeginGetContext(OnRequestArrival, this); // 次の受け取り
+            listener.BeginGetContext(OnRequestArrival, this); // 次の受け取り
 			lock (requestContexts) // コールバックをメインスレッド実行するためにキューに溜める
 			{
 				requestContexts.Enqueue(context);
@@ -80,17 +76,16 @@ namespace Kayac
 
 		void ProcessRequest(HttpListenerContext context)
 		{
-			UnityEngine.Profiling.Profiler.BeginSample("DebugServer.ProcessRequest");
+            UnityEngine.Profiling.Profiler.BeginSample("DebugServer.ProcessRequest");
 			var request = context.Request;
 			var path = DebugServerUtil.RemoveQueryString(request.RawUrl); // QueryStringいらない
             if (path.StartsWith(fileService.pathPrefix))
 			{
-                Debug.Log("FileService.ProcessReq");
                 fileService.ProcessRequest(context);
 			}
 			else
 			{
-				OnRequest callback = null;
+                OnRequest callback = null;
 				if (callbacks.TryGetValue(path, out callback))
 				{
 					ProcessRequest(context, callback);
@@ -112,9 +107,9 @@ namespace Kayac
 			string outputHtml = null;
 			try // ユーザ処理でコケたら500返す。それ以外は200にしちゃってるがマズければ番号ももらうようにした方がいいのかも。
 			{
-				var bodyData = request.InputStream;
+                var bodyData = request.InputStream;
 				callback(out outputHtml, request.QueryString, bodyData);
-				bodyData.Close();
+                bodyData.Close();
 				if (outputHtml != null)
 				{
 					var outputData = System.Text.Encoding.UTF8.GetBytes(outputHtml);
@@ -127,7 +122,7 @@ namespace Kayac
 			}
 			catch (System.Exception e)
 			{
-				Debug.LogException(e);
+                UnityEngine.Debug.LogException(e);
 				response.StatusCode = (int)HttpStatusCode.InternalServerError;
 				response.Close();
 			}

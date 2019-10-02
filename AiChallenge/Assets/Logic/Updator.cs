@@ -108,29 +108,13 @@ namespace Logic
 
         bool ValidateAction(State state, Action action, int playerIndex)
         {
-            UnityEngine.Debug.LogFormat("ValidateAction ({0},{1}) -> ({2},{3})", action.x, action.y, action.moveToX, action.moveToY);
-            // そもそも範囲内か?
-            int x = action.x;
-            int y = action.y;
-            if ((x < 0) || (x >= state.board.GetLength(0)))
+            // そもそも動かす駒がないぞ
+            if (action.piece == null)
             {
-                UnityEngine.Debug.Log("A");
-                return false;
-            }
-            if ((y < 0) || (y >= state.board.GetLength(1)))
-            {
-                UnityEngine.Debug.Log("B");
-                return false;
-            }
-            // そこにマスあるのか?
-            var piece = state.board[x, y];
-            if (piece == null)
-            {
-                UnityEngine.Debug.Log("C");
                 return false;
             }
             // それは自分のか?
-            if (piece.playerIndex != playerIndex)
+            if (action.piece.playerIndex != playerIndex)
             {
                 UnityEngine.Debug.Log("D");
                 return false;
@@ -149,13 +133,33 @@ namespace Logic
                 return false;
             }
             // それはこのタイプで移動可能か?
+            int x, y;
+            FindPiece(out x, out y, state, action.piece);
             int dx = toX - x;
             int dy = toY - y;
-            if (!CheckMovable(piece, dx, dy))
+            if (!CheckMovable(action.piece, dx, dy))
             {
                 return false;
             }
             return true; 
+        }
+
+        void FindPiece(out int xOut, out int yOut, State state, Piece piece)
+        {
+            // 現行動解決
+            for (int x = 0; x < 4; x++)
+            {
+                for (int y = 0; y < 3; y++)
+                {
+                    if (state.board[x, y] == piece)
+                    {
+                        xOut = x;
+                        yOut = y;
+                        return;
+                    }
+                }
+            }
+            xOut = yOut = int.MinValue;
         }
 
         public bool CheckMovable(Piece piece, int dx, int dy)
@@ -320,10 +324,9 @@ namespace Logic
             // 実行するactionが決定
             if (action != null)
             {
-                var fromPiece = state.board[action.x, action.y];
+                var fromPiece = action.piece;
                 fromPiece.moveToX = action.moveToX;
                 fromPiece.moveToY = action.moveToY;
-                UnityEngine.Debug.LogFormat("Action: ({0},{1}) -> ({2},{3})", action.x, action.y, action.moveToX, action.moveToY);
             }
         }
     }
