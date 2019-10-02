@@ -22,6 +22,8 @@ namespace Kayac
         bool pingSucceeded;
         string message;
         string error;
+        const string ipKey = "Kayac/DirectViewer/ip";
+        const string portKey = "Kayac/DirectViewer/port";
         enum State
         {
             Connecting,
@@ -45,6 +47,8 @@ namespace Kayac
         {
             state = State.Retrying;
             lastPingTime = System.DateTime.Now - System.TimeSpan.FromSeconds(pingInterval);
+            ip = EditorPrefs.GetString(ipKey);
+            port = EditorPrefs.GetInt(portKey);
         }
 
         void OnGUI()
@@ -263,6 +267,9 @@ namespace Kayac
                     if (pingSucceeded)
                     {
                         state = State.Ready;
+                        // 最後にpingが通った設定を保存しておく
+                        EditorPrefs.SetString(ipKey, ip);
+                        EditorPrefs.SetInt(portKey, port);
                     }
                     else
                     {

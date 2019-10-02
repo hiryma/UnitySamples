@@ -44,8 +44,10 @@ public class Ui
         }
         ipButton = menu.AddItem(ip, () =>
         {
+#if UNITY_EDITOR || UNITY_STANDALONE
             var url = string.Format("http://{0}:{1}/", DebugServerUtil.GetLanIpAddress(), serverPort);
             Application.OpenURL(url);
+#endif
         });
         menu.AddItem("Play", onClickPlay);
         menu.AddItem("Stop", onClickStop);

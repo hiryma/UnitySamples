@@ -10,6 +10,7 @@ public class Main : MonoBehaviour
     [SerializeField] Kayac.Debug.Ui.DebugUiManager debugUi;
     [SerializeField] int debugServerPort = 8080;
     [SerializeField] Camera mainCamera;
+    [SerializeField] Kayac.Debug.DebugCameraController cameraController;
     AssetBundle assetBundle;
     GameObject[] prefabs;
     int prefabIndex ;
@@ -183,15 +184,16 @@ public class Main : MonoBehaviour
                 min = Vector3.Min(min, bounds.min);
                 max = Vector3.Max(max, bounds.max);
             }
-            // 面倒くさいから球でやっちゃうよ TODO: 後でいい感じにしようね
-            var rad = (max - min).magnitude * 0.5f;
-            var tan = Mathf.Tan(mainCamera.fieldOfView * 0.5f * Mathf.Deg2Rad);
-            var d = rad / tan;
-            if (mainCamera.aspect < 1f)
-            {
-                d /= mainCamera.aspect;
-            }
-            mainCamera.transform.position = Vector3.Lerp(min, max, 0.5f) + new Vector3(0f, 0f, -d);
+            var points = new Vector3[8];
+            points[0] = new Vector3(min.x, min.y, min.z);
+            points[1] = new Vector3(min.x, min.y, max.z);
+            points[2] = new Vector3(min.x, max.y, min.z);
+            points[3] = new Vector3(min.x, max.y, max.z);
+            points[4] = new Vector3(max.x, min.y, min.z);
+            points[5] = new Vector3(max.x, min.y, max.z);
+            points[6] = new Vector3(max.x, max.y, min.z);
+            points[7] = new Vector3(max.x, max.y, max.z);
+            cameraController.Focus(points);
         }
     }
 

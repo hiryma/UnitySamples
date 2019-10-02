@@ -215,6 +215,7 @@ MonoBehaviour:
   debugUi: {fileID: 1212147398}
   debugServerPort: 8080
   mainCamera: {fileID: 534669904}
+  cameraController: {fileID: 534669906}
 --- !u!4 &293451782
 Transform:
   m_ObjectHideFlags: 0
@@ -238,6 +239,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 534669905}
+  - component: {fileID: 534669906}
   - component: {fileID: 534669904}
   - component: {fileID: 534669903}
   m_Layer: 0
@@ -311,6 +313,20 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &534669906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 534669902}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: feaff64e3bfe748388dad5019a8e3eca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  myCamera: {fileID: 0}
+  rotationSpeed: 200
 --- !u!1001 &584517641
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -432,7 +448,7 @@ GameObject:
   - component: {fileID: 825705928}
   - component: {fileID: 825705930}
   m_Layer: 5
-  m_Name: Camera
+  m_Name: DebugUiCamera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
