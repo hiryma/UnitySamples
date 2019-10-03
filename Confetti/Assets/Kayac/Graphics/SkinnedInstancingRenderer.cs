@@ -64,6 +64,11 @@ namespace Kayac
             var origVn = originalMesh.vertexCount;
             var indicesSrc = originalMesh.triangles;
             var origIn = indicesSrc.Length;
+            // 16bitインデクスなので、元インデクス数に応じて最大数を落とす
+            if (count * origIn >= 0x10000)
+            {
+                count = 0x10000 / origIn;
+            }
             var verticesSrc = originalMesh.vertices;
             var normalsSrc = originalMesh.normals;
             var uvsSrc = originalMesh.uv;
@@ -108,5 +113,4 @@ namespace Kayac
             myRenderer.sharedMesh = mesh;
         }
     }
-
 }

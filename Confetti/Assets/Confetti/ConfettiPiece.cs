@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-struct Piece
+struct ConfettiPiece
 {
 	public void Init(
 		Vector3 position,
@@ -64,8 +64,6 @@ struct Piece
         // 重力を追加
         accel0 += gravity;
 		accel1 += gravity;
-//        accel0 += v0 * 0.1f;
-  //      accel1 += v1 * 0.1f;
         // 独立に積分
         var dt2 = deltaTime * deltaTime;
         var dp0 = p0 - prevPosition0 + (accel0 * dt2);
@@ -84,14 +82,6 @@ struct Piece
 		var dq = Quaternion.FromToRotation(forward, newForward);
         orientation = dq * orientation; // dqは時間的に後の回転だから、ベクタから遠い方、つまり前から乗算
         orientation.Normalize();
-        return;
-                Debug.Log(dot0 + " " + dot1 + "\n" +
-                    "DP: " + dp0.ToString("F2") + " " + dp1.ToString("F2") + "\n" +
-                    "A: " + accel0.ToString("F2") + " " + accel1.ToString("F2") + "\n" +
-                    "PP: " + prevPosition0.ToString("F2") + " " + prevPosition1.ToString("F2") + "\n" +
-                    "RV: " + relativeWind0.ToString("F2") + " " + relativeWind1.ToString("F2") + "\n" +
-                    "N: " + n0.ToString("F2") + " " + n1.ToString("F2"));
-        
     }
 
     public void GetTransform(
