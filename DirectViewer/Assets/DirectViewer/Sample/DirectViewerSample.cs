@@ -4,25 +4,29 @@ using System.Collections;
 using System.Collections.Specialized;
 using Kayac;
 
-public class Main : MonoBehaviour
+public class DirectViewerSample : MonoBehaviour
 {
     [SerializeField] TextAsset indexHtml;
     [SerializeField] Kayac.Debug.Ui.DebugUiManager debugUi;
     [SerializeField] int debugServerPort = 8080;
     [SerializeField] Camera mainCamera;
     [SerializeField] Kayac.Debug.DebugCameraController cameraController;
+    [SerializeField] Light defaultLight;
+
+    public Light DefaultLight { get { return defaultLight;  } }
+
     AssetBundle assetBundle;
     GameObject[] prefabs;
     int prefabIndex ;
     GameObject instance;
     Coroutine loadCoroutine;
     DebugServer debugServer;
-    Ui ui;
+    DirectViewerSampleUi ui;
     IncompatibleShaderReplacer shaderReplacer;
 
     void Start()
     {
-        ui = new Ui(
+        ui = new DirectViewerSampleUi(
             debugUi,
             debugServerPort,
             OnClickPlay,

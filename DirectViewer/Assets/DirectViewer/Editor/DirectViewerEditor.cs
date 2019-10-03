@@ -7,23 +7,24 @@ using System.IO;
 namespace Kayac
 {
 
-    public class DirectViewer : EditorWindow
+    public class DirectViewerEditor : EditorWindow
     {
+        const string outputPath = "Assets/DirectViewer/Temp";
+        const string ipKey = "Kayac/DirectViewer/ip";
+        const string portKey = "Kayac/DirectViewer/port";
+        const float pingInterval = 10f;
+
         string ip;
         int port = 8080;
         UnityWebRequest request;
         UnityWebRequest pingRequest;
         long uploadFileSize;
         ulong uploadedBytes;
-        static DirectViewer instance;
-        const string outputPath = "Assets/DirectViewer/Temp";
+        static DirectViewerEditor instance;
         System.DateTime lastPingTime;
-        const float pingInterval = 10f;
         bool pingSucceeded;
         string message;
         string error;
-        const string ipKey = "Kayac/DirectViewer/ip";
-        const string portKey = "Kayac/DirectViewer/port";
         enum State
         {
             Connecting,
@@ -38,7 +39,7 @@ namespace Kayac
         {
             if (instance == null)
             {
-                instance = (DirectViewer)GetWindow(typeof(DirectViewer));
+                instance = (DirectViewerEditor)GetWindow(typeof(DirectViewerEditor));
             }
             instance.Show();
         }
@@ -53,27 +54,27 @@ namespace Kayac
 
         void OnGUI()
         {
-            ip = EditorGUILayout.TextField("実機のIPアドレス", ip);
-            port = EditorGUILayout.IntField("実機のポート番号", port);
-            GUILayout.Label("状態: " + message);
-            GUILayout.Label("エラー: " + error);
+            ip = EditorGUILayout.TextField("Device IP Address", ip);
+            port = EditorGUILayout.IntField("Device Port", port);
+            GUILayout.Label("state: " + message);
+            GUILayout.Label("error: " + error);
             if (state == State.Connecting)
             {
                 // やることない
-                message = "実機に接続試行中";
+                message = "connecting...";
             }
             else if (state == State.Retrying)
             {
-                if (GUILayout.Button("接続再試行"))
+                if (GUILayout.Button("Connect Now"))
                 {
                     lastPingTime -= System.TimeSpan.FromSeconds(pingInterval);
                 }
-                message = "実機とつながってない";
+                message = "disconnected.";
             }
             else if (state == State.Ready)
             {
-                message = "実機に送信できます";
-                if (GUILayout.Button("選択してるものを送る"))
+                message = "ready.";
+                if (GUILayout.Button("Send Selected"))
                 {
                     if (!EditorApplication.isPlaying) //プレイ中はビルドできないので、あるものを送る。あれば、だが。
                     {
@@ -90,15 +91,15 @@ namespace Kayac
             }
             else if (state == State.Sending)
             {
-                message = "転送中: " + uploadedBytes + " / " + uploadFileSize;
+                message = "sending: " + uploadedBytes + " / " + uploadFileSize;
             }
-            if (GUILayout.Button("一時データ削除"))
+            if (GUILayout.Button("Delete Temporary"))
             {
-                AssetDatabase.DeleteAsset("Assets/DirectViewer/Temp");
+                AssetDatabase.DeleteAsset(outputPath);
             }
             if (!EditorApplication.isPlaying)
             {
-                if (GUILayout.Button("[デバグ用]選択してるものをAB化"))
+                if (GUILayout.Button("[DEBUG]build AB from selected."))
                 {
                     BuildAssetBundle();
                 }
@@ -109,7 +110,7 @@ namespace Kayac
         {
             var root = Selection.activeObject;
             var rootPath = AssetDatabase.GetAssetPath(root);
-            EditorUtility.DisplayProgressBar("DirectViewer", "送る物のリストを作ってます", 0f);
+            EditorUtility.DisplayProgressBar("DirectViewer", "making transfer list", 0f);
             var validAssetPaths = new List<string>();
             if (AssetDatabase.IsValidFolder(rootPath))
             {
@@ -133,7 +134,7 @@ namespace Kayac
                 if (validAssetPaths.Count <= 0)
                 {
                     EditorUtility.ClearProgressBar();
-                    error = "フォルダにアセットが入ってないです!";
+                    error = "no asset in folder!";
                     return;
                 }
             }
@@ -158,11 +159,13 @@ namespace Kayac
             var builds = new AssetBundleBuild[1];
             builds[0] = build;
 
-            if (!Directory.Exists("Assets/DirectViewer/Temp"))
+            if (!Directory.Exists(outputPath))
             {
-                AssetDatabase.CreateFolder("Assets/DirectViewer", "Temp");
+                AssetDatabase.CreateFolder(
+                    Path.GetDirectoryName(outputPath),
+                    Path.GetFileName(outputPath));
             }
-            EditorUtility.DisplayProgressBar("DirectViewer", "荷造り中", 33f);
+            EditorUtility.DisplayProgressBar("DirectViewer", "packaging...", 33f);
             try
             {
                 var manifest = BuildPipeline.BuildAssetBundles(
@@ -173,7 +176,7 @@ namespace Kayac
 
                 if (manifest == null)
                 {
-                    error = "荷造りに失敗!たぶんバグだからプログラマに伝えてね!";
+                    error = "packaging failure! IT MUST BE BUG.";
                 }
                 // 確認
 #if false
@@ -191,11 +194,11 @@ namespace Kayac
             {
                 UnityEngine.Debug.LogException(e);
                 EditorUtility.ClearProgressBar();
-                error = "送信失敗しました";
+                error = "send failed.";
                 return;
             }
             EditorUtility.ClearProgressBar();
-            error = "正常";
+            error = "";
         }
 
         void Send()
@@ -207,7 +210,7 @@ namespace Kayac
             var info = new FileInfo(path);
             if (!info.Exists)
             {
-                error = "フォルダが選択されていないか、フォルダが空です。";
+                error = "no asset in selection.";
                 return;
             }
             uploadFileSize = info.Length;
@@ -218,7 +221,7 @@ namespace Kayac
             request.uploadHandler = new UploadHandlerFile(path);
             request.SendWebRequest();
             uploadedBytes = 0;
-            error = "正常";
+            error = "";
             state = State.Sending;
         }
 

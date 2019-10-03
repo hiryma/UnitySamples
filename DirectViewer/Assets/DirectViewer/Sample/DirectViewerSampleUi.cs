@@ -3,7 +3,7 @@ using Kayac;
 using Kayac.Debug;
 using Kayac.Debug.Ui;
 
-public class Ui
+public class DirectViewerSampleUi
 {
     LogWindow logWindow;
     Menu menu;
@@ -12,7 +12,7 @@ public class Ui
     int initialWidth;
     int initialHeight;
 
-    public Ui(
+    public DirectViewerSampleUi(
         DebugUiManager manager,
         int serverPort,
         System.Action onClickPlay,
