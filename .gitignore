@@ -39,3 +39,7 @@ build.app/
 
 .vscode
 **/Logs/Packages-Update.log
+
+#Kayac.SecretData
+secretData_MUST_BE_GITIGNORED.json
+secretData_MUST_BE_GITIGNORED.json.meta

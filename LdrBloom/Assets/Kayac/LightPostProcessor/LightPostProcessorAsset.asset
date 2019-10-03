@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6325f7dde743d41c8a82ab145898d210, type: 3}
+  m_Name: LightPostProcessorAsset
+  m_EditorClassIdentifier: 
+  bloomCombineShader: {fileID: 4800000, guid: bcbf0595dff694c01886e154b8c42d74, type: 3}
+  brightnessExtractionShader: {fileID: 4800000, guid: ce4f491524a314cce957bb4e170d0e42,
+    type: 3}
+  compositionShader: {fileID: 4800000, guid: 099e5bad4c4634f22a361e5dfa6148e7, type: 3}
+  gaussianBlurShader: {fileID: 4800000, guid: 2262cc1d992ef450385885861dd23358, type: 3}

@@ -264,7 +264,7 @@ namespace Kayac
 			string channel = null)
 		{
 			Debug.Assert(binary != null);
-			Debug.Assert(filename != null);
+            Debug.Assert(filename != null);
 			if (channel == null)
 			{
 				channel = _defaultChannel;
