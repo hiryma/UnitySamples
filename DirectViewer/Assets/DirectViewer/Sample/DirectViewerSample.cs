@@ -39,6 +39,11 @@ public class DirectViewerSample : MonoBehaviour
         shaderReplacer = new IncompatibleShaderReplacer();
     }
 
+    private void OnDestroy()
+    {
+        debugServer.Dispose();
+    }
+
     void OnAccessRoot(
 		out string outputHtml,
         NameValueCollection queryString,
