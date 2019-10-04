@@ -3,12 +3,6 @@
 public class Main : MonoBehaviour
 {
     [SerializeField] Confetti confetti;
-    [SerializeField] float emitSpeed = 30f;
-
-    void Start()
-    {
-        confetti.Emit(emitSpeed, looped: true);
-    }
 
     float ShowLogSlider(string name, float value, float y, bool isInteger, float logMin, float logMax)
     {
@@ -31,15 +25,10 @@ public class Main : MonoBehaviour
         if (newPieceCount != (int)confetti.PieceCount)
         {
             confetti.ManualStart(newPieceCount);
-            confetti.Emit(emitSpeed, looped: true);
+            confetti.StartEmission();
         }
 
-        float newEmitSpeed = ShowLogSlider("EmitSpeed", emitSpeed, 30f, false, 0f, 3f);
-        if (newEmitSpeed != emitSpeed)
-        {
-            emitSpeed = newEmitSpeed;
-            confetti.Emit(emitSpeed, looped: true);
-        }
+        confetti.EmitPiecePerSecond = ShowLogSlider("EmitSpeed", confetti.EmitPiecePerSecond, 30f, false, 0f, 3f);
 
         float gravity = ShowLogSlider("Gravity", -confetti.Gravity.y, 60f, false, -2f, 2f);
         confetti.Gravity = new Vector3(0f, -gravity, 0f);

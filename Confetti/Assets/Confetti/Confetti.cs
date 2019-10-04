@@ -4,6 +4,9 @@ using Kayac;
 public class Confetti : MonoBehaviour
 {
     [SerializeField] SkinnedInstancingRenderer instanceRenderer;
+    [SerializeField] int pieceCount = 500;
+    [SerializeField] float emitPiecePerSecond = 30f;
+    [SerializeField] bool emissionLooped = true;
     [SerializeField] float positionRandomizeRadius;
     [SerializeField] float velocityRandomizeRadius;
     [SerializeField] float pieceWidth = 1f;
@@ -12,7 +15,6 @@ public class Confetti : MonoBehaviour
     [SerializeField] float resistance = 5f;
     [SerializeField] Vector3 gravity = new Vector3(0f, -9.81f, 0f);
     [SerializeField] Vector3 wind = Vector3.zero;
-    [SerializeField] int pieceCount = 100;
     [SerializeField] bool autoStart;
 
     public int PieceCount { get { return pieceCount; } }
@@ -113,12 +115,34 @@ public class Confetti : MonoBehaviour
         }
     }
 
+    public bool EmissionLooped
+    {
+        get
+        {
+            return emissionLooped;
+        }
+        set
+        {
+            emissionLooped = value;
+        }
+    }
+
+    public float EmitPiecePerSecond
+    {
+        get
+        {
+            return emitPiecePerSecond;
+        }
+        set
+        {
+            emitPiecePerSecond = value;
+        }
+    }
+
     Mesh originalMesh;
     ConfettiPiece[] pieces;
     int emitIndex;
-    float emitSpeed;
     float emitCarry; // 端数持ち越し
-    bool looped;
 
     private void Start()
     {
@@ -157,36 +181,26 @@ public class Confetti : MonoBehaviour
         pieces = new ConfettiPiece[pieceCount];
     }
 
-    public void Emit(float emitSpeed = 0f, bool looped = false)
+    public void StartEmission()
     {
         if (originalMesh == null)
         {
             ManualStart();
         }
-        this.emitSpeed = emitSpeed;
         emitCarry = 0f;
-        this.looped = looped;
-        if (emitSpeed < 0f) // 全量
+        for (int i = 0; i < pieces.Length; i++)
         {
-            emitIndex = 0; // 初期化
-            Emit(pieces.Length);
-        }
-        else // 全量初期化
-        {
-            for (int i = 0; i < pieces.Length; i++)
-            {
-                pieces[i].Init(
-                    Vector3.zero,
-                    Vector3.zero,
-                    0f,
-                    Quaternion.identity,
-                    0f,
-                    0f);
-            }
+            pieces[i].Init(
+                Vector3.zero,
+                Vector3.zero,
+                0f,
+                Quaternion.identity,
+                0f,
+                0f);
         }
     }
 
-    void Emit(int count)
+    void EmitPiece(int count)
     {
         for (int i = 0; i < count; i++)
         {
@@ -217,9 +231,9 @@ public class Confetti : MonoBehaviour
             if (emitIndex >= pieces.Length)
             {
                 emitIndex = 0;
-                if (!looped)
+                if (!emissionLooped)
                 {
-                    emitSpeed = 0f;
+                    emitPiecePerSecond = 0f;
                     break;
                 }
             }
@@ -234,11 +248,12 @@ public class Confetti : MonoBehaviour
         }
 
         float dt = Time.deltaTime;
-        if (emitSpeed > 0f)
+        Debug.Log(dt);
+        if (emitPiecePerSecond > 0f)
         {
-            var countF = (emitSpeed * dt) + emitCarry;
+            var countF = (emitPiecePerSecond * dt) + emitCarry;
             var countI = (int)countF;
-            Emit(countI);
+            EmitPiece(countI);
             emitCarry = countF - (float)countI;
         }
 

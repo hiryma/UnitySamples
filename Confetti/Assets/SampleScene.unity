@@ -163,7 +163,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   confetti: {fileID: 231992073}
-  emitPerFrame: 1
 --- !u!4 &545428885
 Transform:
   m_ObjectHideFlags: 0
@@ -364,6 +363,16 @@ PrefabInstance:
       propertyPath: m_Name
       value: Confetti
       objectReference: {fileID: 0}
+    - target: {fileID: 9218780224184280615, guid: 514c7e149f71f456988bc9816d5ef692,
+        type: 3}
+      propertyPath: pieceCount
+      value: 1000
+      objectReference: {fileID: 0}
+    - target: {fileID: 9218780224184280615, guid: 514c7e149f71f456988bc9816d5ef692,
+        type: 3}
+      propertyPath: emitPiecePerSecond
+      value: 30
+      objectReference: {fileID: 0}
     - target: {fileID: 9218780224184280614, guid: 514c7e149f71f456988bc9816d5ef692,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -419,10 +428,5 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 9218780224184280616, guid: 514c7e149f71f456988bc9816d5ef692,
-        type: 3}
-      propertyPath: m_Materials.Array.data[0]
-      value: 
-      objectReference: {fileID: 2100000, guid: d48b83c48ac2c48339a66b0dbdc5aeeb, type: 2}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 514c7e149f71f456988bc9816d5ef692, type: 3}
