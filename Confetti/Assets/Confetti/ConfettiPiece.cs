@@ -49,16 +49,6 @@ struct ConfettiPiece
 		// 風ベクトルの法線方向成分を、加速度とする
 		var dot0 = Vector3.Dot(n0, relativeWind0);
 		var dot1 = Vector3.Dot(n1, relativeWind1);
-        if (dot0 < 0)
-        {
-            n0 = -n0;
-            dot0 = -dot0;
-        }
-        if (dot1 < 0)
-        {
-            n1 = -n1;
-            dot1 = -dot1;
-        }
         var accel0 = n0 * (dot0 * resistance);
 		var accel1 = n1 * (dot1 * resistance);
         // 重力を追加

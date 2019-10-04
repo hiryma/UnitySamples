@@ -248,7 +248,6 @@ public class Confetti : MonoBehaviour
         }
 
         float dt = Time.deltaTime;
-        Debug.Log(dt);
         if (emitPiecePerSecond > 0f)
         {
             var countF = (emitPiecePerSecond * dt) + emitCarry;
