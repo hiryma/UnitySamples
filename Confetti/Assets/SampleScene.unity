@@ -163,6 +163,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   confetti: {fileID: 231992073}
+  compute: {fileID: 7200000, guid: ea8005f34f9ee471e90652b7ed0ce559, type: 3}
 --- !u!4 &545428885
 Transform:
   m_ObjectHideFlags: 0
@@ -366,12 +367,12 @@ PrefabInstance:
     - target: {fileID: 9218780224184280615, guid: 514c7e149f71f456988bc9816d5ef692,
         type: 3}
       propertyPath: pieceCount
-      value: 1000
+      value: 5000
       objectReference: {fileID: 0}
     - target: {fileID: 9218780224184280615, guid: 514c7e149f71f456988bc9816d5ef692,
         type: 3}
       propertyPath: emitPiecePerSecond
-      value: 30
+      value: 300
       objectReference: {fileID: 0}
     - target: {fileID: 9218780224184280614, guid: 514c7e149f71f456988bc9816d5ef692,
         type: 3}

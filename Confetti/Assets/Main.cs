@@ -33,7 +33,7 @@ public class Main : MonoBehaviour
         float gravity = ShowLogSlider("Gravity", -confetti.Gravity.y, 60f, false, -2f, 2f);
         confetti.Gravity = new Vector3(0f, -gravity, 0f);
 
-        float wind = ShowLogSlider("Wind", confetti.Wind.y, 90f, false, -2f, 2f);
+        float wind = ShowLogSlider("Wind", confetti.Wind.x, 90f, false, -2f, 2f);
         confetti.Wind = new Vector3(wind, 0f, 0f);
 
         confetti.Resistance = ShowLogSlider("Resistance", confetti.Resistance, 120f, false, -3f, 2f);
