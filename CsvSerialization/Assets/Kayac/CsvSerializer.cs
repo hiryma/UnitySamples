@@ -245,6 +245,22 @@ namespace Kayac
                 {
                     text = ((bool)value) ? "true" : "false"; // ただToStringさせるとTrueとFalseになるので、jsonに合わせて小文字にしておく
                 }
+                else if (value is char)
+                {
+                    var c = (char)value;
+                    if (c == '"') //"はエスケープが必要。
+                    {
+                        text = new string(c, 4);
+                    }
+                    else if ((c == ',') || (c < ' ')) //,と制御文字は""で囲む
+                    {
+                        text = "\",\"";
+                    }
+                    else
+                    {
+                        text = new string(c, 1);
+                    }
+                }
                 else
                 {
                     text = value.ToString();
@@ -707,7 +723,14 @@ namespace Kayac
                 {
                     if (valueText.Length > 0)
                     {
-                        ret = valueText[0]; // boxing
+                        if ((valueText[0] == '"') && (valueText.Length >= 2)) // ""でくくられてるケース
+                        {
+                            ret = valueText[1]; // boxing
+                        }
+                        else
+                        {
+                            ret = valueText[0]; // boxing
+                        }
                     }
                 }
                 return ret;

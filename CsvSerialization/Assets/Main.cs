@@ -109,14 +109,16 @@ public class Main : MonoBehaviour
         {
             var dataArray = GenerateData();
             var csv = Kayac.CsvSerializer.ToCsv(dataArray);
-            System.IO.File.WriteAllText("serialized.csv", csv);
+            System.IO.File.WriteAllText("CsvOutput/serialized.csv", csv);
             var deserialized = Kayac.CsvSerializer.FromCsv<Data>(csv);
             var csv2 = Kayac.CsvSerializer.ToCsv(deserialized);
-            System.IO.File.WriteAllText("serialized2.csv", csv2);
+            System.IO.File.WriteAllText("CsvOutput/serialized2.csv", csv2);
+            Debug.Assert(csv == csv2);
         }
         if (GUILayout.Button("Ordered Save Test"))
         {
             var dataArray = GenerateData();
+            // 順序指定
             string[] order =
             {
                 "id",
@@ -142,11 +144,13 @@ public class Main : MonoBehaviour
                 "nonSerializedPublicField"
             };
             var csv = Kayac.CsvSerializer.ToCsv(dataArray, order);
-            System.IO.File.WriteAllText("serializedOrdered.csv", csv);
+            System.IO.File.WriteAllText("CsvOutput/serializedOrdered.csv", csv);
             var deserialized = Kayac.CsvSerializer.FromCsv<Data>(csv);
             var csv2 = Kayac.CsvSerializer.ToCsv(deserialized, order);
-            System.IO.File.WriteAllText("serializedOrdered2.csv", csv2);
+            System.IO.File.WriteAllText("CsvOutput/serializedOrdered2.csv", csv2);
+            Debug.Assert(csv == csv2);
         }
+        GUILayout.Label(log);
     }
 
     IEnumerable<Data> GenerateData()
@@ -159,4 +163,29 @@ public class Main : MonoBehaviour
         }
         return dataArray;
     }
+
+    void Start()
+    {
+        watcher = new Kayac.FileWatcher("CsvOutput"); //CsvOutputフォルダを監視。
+        // これをプロジェクトルートにしたりするとえらい数のファイルを監視してひどいことになるので注意。
+    }
+
+    void Update()
+    {
+        var path = watcher.GetChangedPath(); // ポーリングで変更イベントを取得
+        if (path != null)
+        {
+            log = "Changed: " + path;
+            Debug.Log(Time.frameCount + " " + log);
+        }
+    }
+
+    void OnDestroy()
+    {
+        watcher.Dispose();
+    }
+
+    // 監視
+    Kayac.FileWatcher watcher;
+    string log;
 }
