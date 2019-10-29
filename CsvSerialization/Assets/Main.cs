@@ -103,9 +103,53 @@ public class Main : MonoBehaviour
         [System.NonSerialized] public int nonSerializedPublicField;
     }
 
+    void OnGUI()
+    {
+        if (GUILayout.Button("Save/Load Test"))
+        {
+            var dataArray = GenerateData();
+            var csv = Kayac.CsvSerializer.ToCsv(dataArray);
+            System.IO.File.WriteAllText("serialized.csv", csv);
+            var deserialized = Kayac.CsvSerializer.FromCsv<Data>(csv);
+            var csv2 = Kayac.CsvSerializer.ToCsv(deserialized);
+            System.IO.File.WriteAllText("serialized2.csv", csv2);
+        }
+        if (GUILayout.Button("Ordered Save Test"))
+        {
+            var dataArray = GenerateData();
+            string[] order =
+            {
+                "id",
+                "boolValue",
+                "charValue",
+                "sbyteValue",
+                "byteValue",
+                "shortValue",
+                "ushortValue",
+                "NonExistance",
+                "intValue",
+                "uintValue",
+                "longValue",
+                "ulongValue",
+                "floatValue",
+                "doubleValue",
+                "stringValue",
+                "nonSerializedTypeValue",
+                "serializedTypeValue",
+                "arrayValue",
+                "listValue",
+                "nonSerializedPrivateField",
+                "nonSerializedPublicField"
+            };
+            var csv = Kayac.CsvSerializer.ToCsv(dataArray, order);
+            System.IO.File.WriteAllText("serializedOrdered.csv", csv);
+            var deserialized = Kayac.CsvSerializer.FromCsv<Data>(csv);
+            var csv2 = Kayac.CsvSerializer.ToCsv(deserialized, order);
+            System.IO.File.WriteAllText("serializedOrdered2.csv", csv2);
+        }
+    }
 
-    // Start is called before the first frame update
-    void Start()
+    IEnumerable<Data> GenerateData()
     {
         var dataArray = new Data[10];
         for (int i = 0; i < dataArray.Length; i++)
@@ -113,11 +157,6 @@ public class Main : MonoBehaviour
             dataArray[i] = new Data();
             dataArray[i].SetRandom(i);
         }
-        var csv = Kayac.CsvSerializer.ToCsv(dataArray);
-        System.IO.File.WriteAllText("serialized.csv", csv);
-        var deserialized = Kayac.CsvSerializer.FromCsv<Data>(csv);
-        var csv2 = Kayac.CsvSerializer.ToCsv(deserialized);
-        System.IO.File.WriteAllText("serialized2.csv", csv2);
-        Debug.Assert(csv == csv2);
+        return dataArray;
     }
 }

@@ -20,6 +20,7 @@ namespace Kayac
         [SerializeField] int maxBloomLevelCount = 7;
         [SerializeField] int minBloomLevelSize = 16;
         [SerializeField] float bloomSigmaInPixel = 3f;
+        [SerializeField] bool useARGB2101010 = false;
 
         Material extractionMaterial;
         Material blurMaterial;
@@ -576,14 +577,13 @@ namespace Kayac
             maxBloomLevelCountOnSetup = maxBloomLevelCount;
             minBloomLevelSizeOnSetup = minBloomLevelSize;
 #endif
-            var format = RenderTextureFormat.ARGB32;
 
-#if false // 手持ちの京セラS2にて、GLES2でビルドすると絵が出なくなる。そもそもtrueを返すなよ...。ver2018.3.9
-			if (SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGB2101010))
+            // 精度上げるよ
+            var format = RenderTextureFormat.ARGB32;
+			if (useARGB2101010 && SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGB2101010))
 			{
 				format = RenderTextureFormat.ARGB2101010;
 			}
-#endif
             int topBloomWidth = source.width >> bloomStartLevel;
             int topBloomHeight = source.height >> bloomStartLevel;
             brightness = new RenderTexture(

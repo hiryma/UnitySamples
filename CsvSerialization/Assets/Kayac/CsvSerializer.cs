@@ -19,10 +19,10 @@ namespace Kayac
 {
     public class CsvSerializer
     {
-        public static string ToCsv<T>(IEnumerable<T> items)
+        public static string ToCsv<T>(IEnumerable<T> items, IEnumerable<string> columnOrder = null)
         {
             var instance = new CsvSerializer();
-            return instance.Serialize(items);
+            return instance.Serialize(items, columnOrder);
         }
 
         public static List<T> FromCsv<T>(string csv) where T : new()
@@ -36,16 +36,35 @@ namespace Kayac
         {
         }
 
-        string Serialize<T>(IEnumerable<T> items)
+        string Serialize<T>(IEnumerable<T> items, IEnumerable<string> columnOrder)
         {
             var sb = new StringBuilder();
             // フィールド列挙
             Type type = typeof(T);
             var members = ExtractMembers(type);
-            WriteHeader(sb, members);
-            foreach (var item in items)
+            if (columnOrder != null) // 列指定があるのでその通りに並べる
             {
-                WriteRecords(sb, members, item);
+                WriteHeader(sb, columnOrder);
+                // members.Valuesを書き出し順に配列に並べる
+                var memberInfos = new List<MemberInfo>();
+                foreach (var key in columnOrder)
+                {
+                    MemberInfo memberInfo;
+                    members.TryGetValue(key, out memberInfo);
+                    memberInfos.Add(memberInfo); // もし見つからなくてもnullを入れる。
+                }
+                foreach (var item in items)
+                {
+                    WriteRecord(sb, memberInfos, item);
+                }
+            }
+            else // 自動吐き出し
+            {
+                WriteHeader(sb, members.Keys);
+                foreach (var item in items)
+                {
+                    WriteRecord(sb, members.Values, item);
+                }
             }
             return sb.ToString();
         }
@@ -121,79 +140,92 @@ namespace Kayac
             }
         }
 
-        void WriteHeader(
-            StringBuilder sb,
-            SortedDictionary<string, MemberInfo> members)
+        void WriteHeader(StringBuilder sb, IEnumerable<string> keys)
         {
             bool first = true;
-            foreach (var name in members.Keys)
+            foreach (var key in keys)
             {
                 if (!first)
                 {
                     sb.Append(',');
                 }
-                sb.Append(name);
+                sb.Append(key);
                 first = false;
             }
             sb.Append("\r\n");
         }
 
-        void WriteRecords<T>(StringBuilder sb, SortedDictionary<string, MemberInfo> members, T item)
+        void WriteRecord<T>(StringBuilder sb, IEnumerable<MemberInfo> members, T item)
         {
             bool firstMember = true;
-            foreach (var member in members.Values)
+            foreach (var member in members)
             {
-                Type type = null;
-                object value = null;
-                if (member is FieldInfo)
+                if (member == null) // 吐いてくれと言われたメンバがない場合、カラムをスキップせず空カラムを吐き出す
                 {
-                    var field = member as FieldInfo;
-                    value = field.GetValue(item);
-                    type = field.FieldType;
-                }
-                else if (member is PropertyInfo)
-                {
-                    var property = member as PropertyInfo;
-                    value = property.GetValue(item, null);
-                    type = property.PropertyType;
-                }
-                string text = "";
-                if ((value != null) && (type != null))
-                {
-                    text = TryConvertSimpleTypeToString(type, value);
-                    // 単純型でなければ複合型を処理
-                    if (text == null)
-                    {
-                        if (type.IsArray) // 配列
-                        {
-                            text = JsonizeIList(value);
-                        }
-                        else if (type.IsGenericType)
-                        {
-                            var def = type.GetGenericTypeDefinition();
-                            if (def == typeof(List<>)) // Listだから面倒見る
-                            {
-                                text = JsonizeIList(value);
-                            }
-                        }
-                        else // 複合型はJSONにして保存
-                        {
-                            text = JsonUtility.ToJson(value);
-                            text = Quote(text);
-                        }
-                    }
                     if (!firstMember)
                     {
                         sb.Append(',');
                     }
-                    else
-                    {
-                        firstMember = false;
-                    }
-                    sb.Append(text);
+                    firstMember = false;
+                }
+                else if (WriteMember<T>(sb, member, item, firstMember))
+                {
+                    firstMember = false;
                 }
             }
             sb.Append("\r\n");
+        }
+
+        bool WriteMember<T>(StringBuilder sb, MemberInfo member, T item, bool firstMember)
+        {
+            bool ret = false;
+            Type type = null;
+            object value = null;
+            if (member is FieldInfo)
+            {
+                var field = member as FieldInfo;
+                value = field.GetValue(item);
+                type = field.FieldType;
+            }
+            else if (member is PropertyInfo)
+            {
+                var property = member as PropertyInfo;
+                value = property.GetValue(item, null);
+                type = property.PropertyType;
+            }
+            string text;
+            if ((value != null) && (type != null)) // メンバが吐き出し不能な型の場合、
+            {
+                text = TryConvertSimpleTypeToString(type, value);
+                // 単純型でなければ複合型を処理
+                if (text == null)
+                {
+                    if (type.IsArray) // 配列
+                    {
+                        text = JsonizeIList(value);
+                    }
+                    else if (type.IsGenericType)
+                    {
+                        var def = type.GetGenericTypeDefinition();
+                        if (def == typeof(List<>)) // Listだから面倒見る
+                        {
+                            text = JsonizeIList(value);
+                        }
+                    }
+                    else // 複合型はJSONにして保存
+                    {
+                        text = JsonUtility.ToJson(value);
+                        text = Quote(text);
+                    }
+                }
+                if (!firstMember)
+                {
+                    sb.Append(',');
+                }
+                sb.Append(text);
+                ret = true;
+            }
+            return ret;
         }
 
         string TryConvertSimpleTypeToString(Type type, object value)
