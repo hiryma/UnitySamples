@@ -62,3 +62,4 @@ namespace Kayac
         HashSet<string> changedPaths;
     }
 }
+
