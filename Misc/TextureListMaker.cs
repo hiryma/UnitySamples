@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 
@@ -31,8 +31,12 @@ public class TextureListMaker
             for (int i = 0; i < guids.Length; i++)
             {
                 EditorUtility.DisplayProgressBar("テクスチャ検索中", null, (float)i / (float)guids.Length);
-                var item = GetInfo(guids[i]);
-                items.Add(item);
+                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (path.StartsWith("Assets/", System.StringComparison.Ordinal))
+                {
+                    var item = GetInfo(path);
+                    items.Add(item);
+                }
             }
             EditorUtility.DisplayProgressBar("ソート中", null, 1f);
             items.Sort((a, b) => b.byteSize.CompareTo(a.byteSize));
@@ -55,12 +59,11 @@ public class TextureListMaker
         EditorUtility.ClearProgressBar();
     }
 
-    static Item GetInfo(string guid)
+    static Item GetInfo(string path)
     {
-        var path = AssetDatabase.GUIDToAssetPath(guid);
         var texture = AssetDatabase.LoadAssetAtPath<Texture>(path);
         Item item;
-        item.name = path;
+        item.name = path.Remove(0, "Assets/".Length);
         item.width = texture.width;
         item.height = texture.height;
         item.readable = texture.isReadable;
