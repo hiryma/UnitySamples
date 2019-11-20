@@ -120,7 +120,7 @@ namespace Kayac
                     {
                         name = (attrs[0] as JsonPropertyAttribute).PropertyName;
                     }
-                    else // アトリビューットなければ出さない
+                    else // アトリビュートなければ出さない
                     {
                         continue;
                     }
