@@ -24,10 +24,7 @@ public class ReferenceGraphMaker
         foreach (var guid in guids)
         {
             var path = AssetDatabase.GUIDToAssetPath(guid);
-            if (!set.Contains(path))
-            {
-                set.Add(path);
-            }
+			set.Add(path);
         }
         var list = new List<string>();
         list.AddRange(set);
