@@ -1,0 +1,22 @@
+﻿#pragma kernel CSMain
+
+Texture2D<float4> Source;
+RWTexture2D<float4> Destination;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 threadId : SV_DispatchThreadID) 
+{
+    float4 c = Source[threadId.xy] * 255.0;
+    c += 0.5;
+    int4 i = (int4)c;
+    uint x = (i.w << 24) | (i.x << 16) | (i.y << 8)| i.z;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    i.x = (x >> 16) & 0xff;
+    i.y = (x >> 8) & 0xff;
+    i.z = x & 0xff;
+    i.w = (x >> 24) & 0xff;
+    c = i / 255.0;
+    Destination[threadId.xy] = c;
+}
