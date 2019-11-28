@@ -34,8 +34,8 @@ sysinfo.txt
 # Builds
 *.apk
 build/
-build.app
-build.app/
+*.app
+*.app/
 
 .vscode
 **/Logs/Packages-Update.log

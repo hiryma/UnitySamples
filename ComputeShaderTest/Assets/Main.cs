@@ -5,10 +5,11 @@ using System;
 public class Main : MonoBehaviour
 {
     [SerializeField] RawImage image;
-    [SerializeField] Slider slider;
+    [SerializeField] Slider sizeSlider;
+    [SerializeField] Slider threadSlider;
     [SerializeField] Text sizeText;
     [SerializeField] Text fpsText;
-    [SerializeField] Text coresText;
+    [SerializeField] Text threadText;
     [SerializeField] Toggle gpuToggle;
     [SerializeField] ComputeShader computeShader;
 
@@ -30,10 +31,16 @@ public class Main : MonoBehaviour
     void Start()
     {
         threadPool = new Kayac.SimpleThreadPool();
-        coresText.text = "Core:" + threadPool.threadCount.ToString();
         mode = Mode.Gpu;
+        UpdateThreadCountText();
+        threadSlider.value = threadPool.threadCount;
         Reset();
         prevFrameTime = DateTime.Now;
+    }
+
+    void UpdateThreadCountText()
+    {
+        threadText.text = string.Format("Th: {0}/{1}", threadPool.threadCount, SystemInfo.processorCount);
     }
 
     void Update()
@@ -56,7 +63,7 @@ public class Main : MonoBehaviour
             changed = true;
             mode = Mode.Cpu;
         }
-        var newSizeLog = Mathf.RoundToInt(slider.value);
+        var newSizeLog = Mathf.RoundToInt(sizeSlider.value);
         if (newSizeLog != sizeLog)
         {
             sizeLog = newSizeLog;
@@ -67,6 +74,14 @@ public class Main : MonoBehaviour
             Reset();
         }
         UpdateTexture();
+
+        var newThreadCount = Mathf.RoundToInt(threadSlider.value);
+        if (newThreadCount != threadPool.threadCount)
+        {
+            UpdateThreadCountText();
+            threadPool.Dispose();
+            threadPool = new Kayac.SimpleThreadPool(newThreadCount);
+        }
     }
 
     void UpdateTexture()
@@ -103,7 +118,11 @@ public class Main : MonoBehaviour
 
     void UpdateTextureCpu()
     {
-        const int jobCount = 64;
+        int jobCount = threadPool.threadCount * 4; // 特に根拠ない
+        if (jobCount == 0)
+        {
+            jobCount = 1;
+        }
         int begin = 0;
         int rest = cpuData.Length;
         int unit = (cpuData.Length + jobCount - 1) / jobCount;
@@ -113,6 +132,7 @@ public class Main : MonoBehaviour
             int countCaptured = (unit <= rest) ? unit : rest;
             threadPool.AddJob(() => Job(cpuData, beginCaptured, countCaptured));
             begin += countCaptured;
+            rest -= countCaptured;
         }
         threadPool.Wait();
         texture2d.SetPixels32(cpuData);
@@ -126,20 +146,20 @@ public class Main : MonoBehaviour
         var kernelIndex = computeShader.FindKernel("CSMain");
         computeShader.SetTexture(kernelIndex, "Source", renderTextures[1 - writeBufferIndex]);
         computeShader.SetTexture(kernelIndex, "Destination", renderTextures[writeBufferIndex]);
-        uint sizeX, sizeY, sizeZ;
+        uint sizeX, sizeY, sizeZUnused;
         computeShader.GetKernelThreadGroupSizes(
             kernelIndex,
             out sizeX,
             out sizeY,
-            out sizeZ
-        );
+            out sizeZUnused);
+        Debug.Assert(sizeZUnused == 1); // 1である前提
         if (SystemInfo.supportsComputeShaders)
         {
             computeShader.Dispatch(
                 kernelIndex,
-                (size + (int)sizeX - 1) / (int)sizeX,
-                (size + (int)sizeY - 1) / (int)sizeY,
-                (1 + (int)sizeZ - 1) / (int)sizeZ);
+                size / (int)sizeX,
+                size / (int)sizeY,
+                1);
         }
         image.texture = renderTextures[writeBufferIndex]; // これ同期待たないとダメでしょ感
         writeBufferIndex = 1 - writeBufferIndex;
@@ -168,6 +188,7 @@ public class Main : MonoBehaviour
         CreateSeedTexture(size);
         if (mode == Mode.Cpu)
         {
+            // 特にやることない
         }
         else if (mode == Mode.Gpu)
         {
