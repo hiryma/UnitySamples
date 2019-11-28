@@ -1,21 +1,28 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using System;
+using Unity.Collections;
+using Unity.Jobs;
 
 public class Main : MonoBehaviour
 {
     [SerializeField] RawImage image;
-    [SerializeField] Slider slider;
+    [SerializeField] Slider sizeSlider;
     [SerializeField] Text sizeText;
     [SerializeField] Text fpsText;
-    [SerializeField] Text coresText;
     [SerializeField] Toggle gpuToggle;
     [SerializeField] ComputeShader computeShader;
 
-    RenderTexture[] renderTextures;
     int writeBufferIndex;
-    Texture2D texture2d;
-    Color32[] cpuData;
+
+    // GPU用
+    RenderTexture[] renderTextures;
+
+    // CPU用
+    Texture2D texture2d; 
+    NativeArray<Color32>[] cpuData;
+    Color32[] cpuDataCopy;
+
     float avgDeltaTime;
     DateTime prevFrameTime;
     Kayac.SimpleThreadPool threadPool;
@@ -29,8 +36,6 @@ public class Main : MonoBehaviour
 
     void Start()
     {
-        threadPool = new Kayac.SimpleThreadPool();
-        coresText.text = "Core:" + threadPool.threadCount.ToString();
         mode = Mode.Gpu;
         Reset();
         prevFrameTime = DateTime.Now;
@@ -56,7 +61,7 @@ public class Main : MonoBehaviour
             changed = true;
             mode = Mode.Cpu;
         }
-        var newSizeLog = Mathf.RoundToInt(slider.value);
+        var newSizeLog = Mathf.RoundToInt(sizeSlider.value);
         if (newSizeLog != sizeLog)
         {
             sizeLog = newSizeLog;
@@ -66,108 +71,133 @@ public class Main : MonoBehaviour
         {
             Reset();
         }
-        UpdateTexture();
-    }
 
-    void UpdateTexture()
-    {
         if (mode == Mode.Cpu)
         {
-            UpdateTextureCpu();
+            UpdateCpu();
         }
         else if (mode == Mode.Gpu)
         {
-            UpdateTextureGpu();
+            UpdateGpu();
         }
+        writeBufferIndex = 1 - writeBufferIndex;
     }
 
-    static void XorShift32(ref Color32 c)
+    struct Job : IJobParallelFor
     {
-        uint x = ((uint)c.a << 24) | ((uint)c.r << 16) | ((uint)c.g << 8) | c.r;
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        c.a = (byte)(x >> 24);
-        c.r = (byte)((x >> 16) & 0xff);
-        c.g = (byte)((x >> 8) & 0xff);
-        c.b = (byte)(x & 0xff);
-    }
+        [ReadOnly] public NativeArray<Color32> inArray;
+        public NativeArray<Color32> outArray;
 
-    static void Job(Color32[] data, int begin, int count)
-    {
-        for (int i = 0; i < count; i++)
+        public void Execute(int i)
         {
-            XorShift32(ref data[begin + i]);
+            outArray[i] = XorShift32(inArray[i]);
+        }
+
+        public static Color32 XorShift32(Color32 c)
+        {
+            uint x = (uint)c.r | ((uint)c.g << 8) | ((uint)c.b << 16) | ((uint)c.r << 24);
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            c.r = (byte)(x & 0xff);
+            c.g = (byte)((x >> 8) & 0xff);
+            c.b = (byte)((x >> 16) & 0xff);
+            c.a = (byte)((x >> 24) & 0xff);
+            return c;
         }
     }
 
-    void UpdateTextureCpu()
+    void UpdateCpu()
     {
-        const int jobCount = 64;
-        int begin = 0;
-        int rest = cpuData.Length;
-        int unit = (cpuData.Length + jobCount - 1) / jobCount;
-        for (int i = 0; i < jobCount; i++)
-        {
-            int beginCaptured = begin;
-            int countCaptured = (unit <= rest) ? unit : rest;
-            threadPool.AddJob(() => Job(cpuData, beginCaptured, countCaptured));
-            begin += countCaptured;
-        }
-        threadPool.Wait();
-        texture2d.SetPixels32(cpuData);
-        texture2d.Apply();
+        Job job;
+        job.inArray = cpuData[1 - writeBufferIndex];
+        job.outArray = cpuData[writeBufferIndex];
+        var handle = job.Schedule(cpuDataCopy.Length, 1);
+        handle.Complete();
+        UpdateCpuTexture();
         image.texture = texture2d;
     }
 
-    void UpdateTextureGpu()
+    void UpdateGpu()
     {
         var size = 1 << sizeLog;
         var kernelIndex = computeShader.FindKernel("CSMain");
         computeShader.SetTexture(kernelIndex, "Source", renderTextures[1 - writeBufferIndex]);
         computeShader.SetTexture(kernelIndex, "Destination", renderTextures[writeBufferIndex]);
-        uint sizeX, sizeY, sizeZ;
+        uint sizeX, sizeY, sizeZUnused;
         computeShader.GetKernelThreadGroupSizes(
             kernelIndex,
             out sizeX,
             out sizeY,
-            out sizeZ
-        );
+            out sizeZUnused);
+        Debug.Assert(sizeZUnused == 1); // 1である前提
         if (SystemInfo.supportsComputeShaders)
         {
             computeShader.Dispatch(
                 kernelIndex,
-                (size + (int)sizeX - 1) / (int)sizeX,
-                (size + (int)sizeY - 1) / (int)sizeY,
-                (1 + (int)sizeZ - 1) / (int)sizeZ);
+                size / (int)sizeX,
+                size / (int)sizeY,
+                1);
         }
         image.texture = renderTextures[writeBufferIndex]; // これ同期待たないとダメでしょ感
-        writeBufferIndex = 1 - writeBufferIndex;
     }
 
     void CreateSeedTexture(int size)
     {
         texture2d = new Texture2D(size, size, TextureFormat.ARGB32, false);
         texture2d.name = "2D";
-        cpuData = new Color32[size * size];
-        sizeText.text = size.ToString();
-        for (int i = 0; i < cpuData.Length; i++)
+        if (cpuData != null)
         {
-            cpuData[i].r = (byte)UnityEngine.Random.Range(0, 256);
-            cpuData[i].g = (byte)UnityEngine.Random.Range(0, 256);
-            cpuData[i].b = (byte)UnityEngine.Random.Range(0, 256);
-            cpuData[i].a = (byte)UnityEngine.Random.Range(0, 256);
+            for (int i = 0; i < cpuData.Length; i++)
+            {
+                cpuData[i].Dispose();
+            }
         }
-        texture2d.SetPixels32(cpuData);
+        cpuData = new NativeArray<Color32>[2];
+        int texelCount = size * size;
+        for (int i = 0; i < 2; i++)
+        {
+            cpuData[i] = new NativeArray<Color32>(
+                texelCount,
+                Allocator.Persistent,
+                NativeArrayOptions.UninitializedMemory);
+        }
+        sizeText.text = size.ToString();
+        var dst = cpuData[writeBufferIndex];
+        for (int i = 0; i < texelCount; i++)
+        {
+            var c = new Color32(
+                (byte)UnityEngine.Random.Range(0, 256),
+                (byte)UnityEngine.Random.Range(0, 256),
+                (byte)UnityEngine.Random.Range(0, 256),
+                (byte)UnityEngine.Random.Range(0, 256));
+            dst[i] = c;
+        }
+        //通常配列にコピーして
+        cpuDataCopy = new Color32[size * size];
+        UpdateCpuTexture();
+        writeBufferIndex = 1 - writeBufferIndex;
+    }
+
+    void UpdateCpuTexture()
+    {
+        var src = cpuData[writeBufferIndex];
+        for (int i = 0; i < src.Length; i++)
+        {
+            cpuDataCopy[i] = src[i];
+        }
+        texture2d.SetPixels32(cpuDataCopy);
         texture2d.Apply();
     }
 
     void Reset()
     {
         var size = 1 << sizeLog;
+        writeBufferIndex = 0;
         CreateSeedTexture(size);
         if (mode == Mode.Cpu)
         {
+            // 特にやることない
         }
         else if (mode == Mode.Gpu)
         {
@@ -180,6 +210,14 @@ public class Main : MonoBehaviour
                 renderTextures[i].Create();
             }
             Graphics.Blit(texture2d, renderTextures[1]);
+        }
+    }
+
+    void OnDestroy()
+    {
+        for (int i = 0; i < cpuData.Length; i++)
+        {
+            cpuData[i].Dispose();
         }
     }
 }
