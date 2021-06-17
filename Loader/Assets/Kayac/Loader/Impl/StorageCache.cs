@@ -37,7 +37,25 @@ namespace Kayac.LoaderImpl
 		}
 
 		/// 初期化処理、クリア、等が走っておらずブロックせずに利用可能な状態かを返す。
-		public bool ready { get { return (_database != null) && (_entries != null) && (_thread == null); } }
+		public bool ready
+		{
+			get
+			{
+				if ((_database == null) || (_entries == null))
+				{
+					return false;
+				}
+
+				if (_thread == null)
+				{
+					return true;
+				}
+				else
+				{
+					return _thread.Join(millisecondsTimeout: 0);
+				}
+			}
+		}
 
 		void StartScan()
 		{
