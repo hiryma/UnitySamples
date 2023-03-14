@@ -9,7 +9,15 @@ namespace Kayac.DebugUi
         public Color32 PointerDownTextColor { get; set; }
         public Color32 Color { get; set; }
         public Color32 PointerDownColor { get; set; }
-        public string Text { get; set; }
+        public string Text 
+        { 
+            get => text;
+            set
+            {
+                text = value;
+                meshCache.Invalidate();
+            }
+        }
         public Action OnClick { private get; set; }
         public Texture Texture { get; set; }
         public Sprite Sprite { get; set; }
@@ -32,7 +40,7 @@ namespace Kayac.DebugUi
             float height = 50f) : base(string.IsNullOrEmpty(text) ? "Button" : text)
         {
             SetSize(width, height);
-            Text = text;
+            this.text = text;
             // イベント取ります
             EventEnabled = true;
             BackgroundEnabled = false;
@@ -42,6 +50,8 @@ namespace Kayac.DebugUi
             PointerDownColor = new Color32(192, 192, 96, 192);
             TextColor = new Color32(255, 255, 255, 255);
             PointerDownTextColor = new Color32(0, 0, 0, 255);
+
+            meshCache = new TextMeshCache();
         }
 
         public override void Update(float deltaTime)
@@ -90,15 +100,33 @@ namespace Kayac.DebugUi
             }
 
             Color32 tmpTextColor = (IsPointerDown) ? PointerDownTextColor : TextColor;
-            renderer.Color = tmpTextColor;
-            renderer.AddText(
-                Text,
-                offsetX + LocalLeftX + (Width * 0.5f),
-                offsetY + LocalTopY + (Height * 0.5f),
-                Width - (BorderWidth * 4f),
-                Height - (BorderWidth * 4f),
-                AlignX.Center,
-                AlignY.Center);
+            var leftX = offsetX + LocalLeftX + (Width * 0.5f);
+            var topY = offsetY + LocalTopY + (Height * 0.5f);
+
+            if ((cachedTextColor != tmpTextColor) || (meshCache.FontTextureVersion != renderer.FontTextureVersion))
+            {
+                renderer.Color = tmpTextColor;
+                cachedTextColor = tmpTextColor;
+                meshCache.BeginSave(renderer, leftX, topY);
+                renderer.AddText(
+                    text,
+                    leftX,
+                    topY,
+                    Width - (BorderWidth * 4f),
+                    Height - (BorderWidth * 4f),
+                    AlignX.Center,
+                    AlignY.Center);
+                meshCache.EndSave(renderer);
+            }
+            else
+            {
+                meshCache.Draw(renderer, text, leftX, topY);
+            }
         }
+
+        // non public ----
+        TextMeshCache meshCache;
+        string text;
+        Color cachedTextColor;
     }
 }

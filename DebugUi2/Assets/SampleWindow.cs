@@ -41,7 +41,7 @@ public class SampleWindow : Window
         };
         AddAuto(toggles[1]);
 
-        var text = new Text("テキスト", fontSize: 20f, width: 80f, height: 25f);
+        var text = new Text("テキスト", fontSize: 16f, width: 80f, height: 25f);
         AddAuto(text);
 
         BreakLine();

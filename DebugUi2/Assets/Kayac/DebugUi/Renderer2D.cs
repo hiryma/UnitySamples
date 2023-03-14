@@ -73,12 +73,12 @@ namespace Kayac.DebugUi
                 // 2点を生成
                 int i0 = vertexCount + (i * 2) + 0;
                 int i1 = vertexCount + (i * 2) + 1;
-                vertices[i0] = new Vector3(x + nx, y + ny, 0f);
-                vertices[i1] = new Vector3(x - nx, y - ny, 0f);
-                colors[i0] = Color;
-                colors[i1] = Color;
-                uv[i0] = whiteUv;
-                uv[i1] = whiteUv;
+                vertices[i0].position = new Vector2(x + nx, y + ny);
+                vertices[i1].position = new Vector2(x - nx, y - ny);
+                vertices[i0].color = Color;
+                vertices[i1].color = Color;
+                vertices[i0].uv = whiteUv;
+                vertices[i1].uv = whiteUv;
             }
             // インデクス生成
             for (int i = 0; i < division; i++)
@@ -119,19 +119,19 @@ namespace Kayac.DebugUi
             float y1i = y1o - lineWidth;
 
             // 頂点は外側の左上から時計回り、内側の左上から時計回り
-            vertices[vertexCount + 0] = new Vector3(x0o, y0o, 0f);
-            vertices[vertexCount + 1] = new Vector3(x1o, y0o, 0f);
-            vertices[vertexCount + 2] = new Vector3(x1o, y1o, 0f);
-            vertices[vertexCount + 3] = new Vector3(x0o, y1o, 0f);
-            vertices[vertexCount + 4] = new Vector3(x0i, y0i, 0f);
-            vertices[vertexCount + 5] = new Vector3(x1i, y0i, 0f);
-            vertices[vertexCount + 6] = new Vector3(x1i, y1i, 0f);
-            vertices[vertexCount + 7] = new Vector3(x0i, y1i, 0f);
+            vertices[vertexCount + 0].position = new Vector2(x0o, y0o);
+            vertices[vertexCount + 1].position = new Vector2(x1o, y0o);
+            vertices[vertexCount + 2].position = new Vector2(x1o, y1o);
+            vertices[vertexCount + 3].position = new Vector2(x0o, y1o);
+            vertices[vertexCount + 4].position = new Vector2(x0i, y0i);
+            vertices[vertexCount + 5].position = new Vector2(x1i, y0i);
+            vertices[vertexCount + 6].position = new Vector2(x1i, y1i);
+            vertices[vertexCount + 7].position = new Vector2(x0i, y1i);
 
             for (int i = 0; i < 8; i++)
             {
-                uv[vertexCount + i] = whiteUv;
-                colors[vertexCount + i] = Color;
+                vertices[vertexCount + i].uv = whiteUv;
+                vertices[vertexCount + i].color = Color;
             }
 
             AddQuadIndices(0, 1, 5, 4);
@@ -201,8 +201,8 @@ namespace Kayac.DebugUi
                 return false;
             }
 
-            var prev0 = vertices[vertexCount - 2];
-            var prev1 = vertices[vertexCount - 1];
+            var prev0 = vertices[vertexCount - 2].position;
+            var prev1 = vertices[vertexCount - 1].position;
             Vector2 prev;
             prev.x = (prev0.x + prev1.x) * 0.5f;
             prev.y = (prev0.y + prev1.y) * 0.5f;
@@ -214,12 +214,12 @@ namespace Kayac.DebugUi
             nx *= lineWidth * 0.5f / l;
             ny *= lineWidth * 0.5f / l;
 
-            vertices[vertexCount + 0] = new Vector3(x - nx, y - ny, 0f);
-            vertices[vertexCount + 1] = new Vector3(x + nx, y + ny, 0f);
+            vertices[vertexCount + 0].position = new Vector2(x - nx, y - ny);
+            vertices[vertexCount + 1].position = new Vector2(x + nx, y + ny);
             for (int i = 0; i < 2; i++)
             {
-                uv[vertexCount + i] = whiteUv;
-                colors[vertexCount + i] = Color;
+                vertices[vertexCount + i].uv = whiteUv;
+                vertices[vertexCount + i].color = Color;
             }
             AddQuadIndices(-2, 0, 1, -1);
             vertexCount += 2;
@@ -249,15 +249,15 @@ namespace Kayac.DebugUi
             nx *= lineWidth * 0.5f / l;
             ny *= lineWidth * 0.5f / l;
 
-            vertices[vertexCount + 0] = new Vector3(x0 - nx, y0 - ny, 0f);
-            vertices[vertexCount + 1] = new Vector3(x0 + nx, y0 + ny, 0f);
-            vertices[vertexCount + 2] = new Vector3(x1 - nx, y1 - ny, 0f);
-            vertices[vertexCount + 3] = new Vector3(x1 + nx, y1 + ny, 0f);
+            vertices[vertexCount + 0].position = new Vector2(x0 - nx, y0 - ny);
+            vertices[vertexCount + 1].position = new Vector2(x0 + nx, y0 + ny);
+            vertices[vertexCount + 2].position = new Vector2(x1 - nx, y1 - ny);
+            vertices[vertexCount + 3].position = new Vector2(x1 + nx, y1 + ny);
 
             for (int i = 0; i < 4; i++)
             {
-                uv[vertexCount + i] = whiteUv;
-                colors[vertexCount + i] = Color;
+                vertices[vertexCount + i].uv = whiteUv;
+                vertices[vertexCount + i].color = Color;
             }
             AddQuadIndices(0, 2, 3, 1);
             vertexCount += 4;
@@ -280,14 +280,14 @@ namespace Kayac.DebugUi
             }
             SetTexture(FontTexture);
 
-            vertices[vertexCount + 0] = new Vector3(x0, y0, 0f);
-            vertices[vertexCount + 1] = new Vector3(x1, y1, 0f);
-            vertices[vertexCount + 2] = new Vector3(x2, y2, 0f);
+            vertices[vertexCount + 0].position = new Vector3(x0, y0);
+            vertices[vertexCount + 1].position = new Vector3(x1, y1);
+            vertices[vertexCount + 2].position = new Vector3(x2, y2);
 
             for (int i = 0; i < 3; i++)
             {
-                uv[vertexCount + i] = whiteUv;
-                colors[vertexCount + i] = Color;
+                vertices[vertexCount + i].uv = whiteUv;
+                vertices[vertexCount + i].color = Color;
             }
             AddTriangleIndices(0, 1, 2);
             vertexCount += 3;
@@ -343,16 +343,16 @@ namespace Kayac.DebugUi
             float y2i = y2 + g2y;
 
             // 充填
-            vertices[vertexCount + 0] = new Vector3(x0, y0, 0f);
-            vertices[vertexCount + 1] = new Vector3(x1, y1, 0f);
-            vertices[vertexCount + 2] = new Vector3(x2, y2, 0f);
-            vertices[vertexCount + 3] = new Vector3(x0i, y0i, 0f);
-            vertices[vertexCount + 4] = new Vector3(x1i, y1i, 0f);
-            vertices[vertexCount + 5] = new Vector3(x2i, y2i, 0f);
+            vertices[vertexCount + 0].position = new Vector2(x0, y0);
+            vertices[vertexCount + 1].position = new Vector2(x1, y1);
+            vertices[vertexCount + 2].position = new Vector2(x2, y2);
+            vertices[vertexCount + 3].position = new Vector2(x0i, y0i);
+            vertices[vertexCount + 4].position = new Vector2(x1i, y1i);
+            vertices[vertexCount + 5].position = new Vector2(x2i, y2i);
             for (int i = 0; i < 6; i++)
             {
-                uv[vertexCount + i] = whiteUv;
-                colors[vertexCount + i] = Color;
+                vertices[vertexCount + i].uv = whiteUv;
+                vertices[vertexCount + i].color = Color;
             }
             AddQuadIndices(0, 1, 4, 3);
             AddQuadIndices(1, 2, 5, 4);
@@ -414,9 +414,9 @@ namespace Kayac.DebugUi
                 y = pivot.y - y;
                 x += leftX;
                 y += topY;
-                vertices[vertexCount + i] = new Vector3(x, y, 0f);
-                uv[vertexCount + i] = uv[i];
-                colors[vertexCount + i] = Color;
+                this.vertices[vertexCount + i].position = new Vector2(x, y);
+                this.vertices[vertexCount + i].uv = uv[i];
+                this.vertices[vertexCount + i].color = Color;
             }
             AddIndices(indices);
             vertexCount += vCount;
@@ -441,19 +441,19 @@ namespace Kayac.DebugUi
             // 頂点は左上から時計回り
             var right = leftX + width;
             var bottom = topY + height;
-            vertices[vertexCount + 0] = new Vector3(leftX, topY, 0f);
-            vertices[vertexCount + 1] = new Vector3(right, topY, 0f);
-            vertices[vertexCount + 2] = new Vector3(right, bottom, 0f);
-            vertices[vertexCount + 3] = new Vector3(leftX, bottom, 0f);
+            vertices[vertexCount + 0].position = new Vector2(leftX, topY);
+            vertices[vertexCount + 1].position = new Vector2(right, topY);
+            vertices[vertexCount + 2].position = new Vector2(right, bottom);
+            vertices[vertexCount + 3].position = new Vector2(leftX, bottom);
 
-            uv[vertexCount + 0] = new Vector2(0f, 1f);
-            uv[vertexCount + 1] = new Vector2(1f, 1f);
-            uv[vertexCount + 2] = new Vector2(1f, 0f);
-            uv[vertexCount + 3] = new Vector2(0f, 0f);
+            vertices[vertexCount + 0].uv = new Vector2(0f, 1f);
+            vertices[vertexCount + 1].uv = new Vector2(1f, 1f);
+            vertices[vertexCount + 2].uv = new Vector2(1f, 0f);
+            vertices[vertexCount + 3].uv = new Vector2(0f, 0f);
 
             for (int i = 0; i < 4; i++)
             {
-                colors[vertexCount + i] = Color;
+                vertices[vertexCount + i].color = Color;
             }
             AddQuadIndices(0, 1, 2, 3);
             vertexCount += 4;
@@ -486,18 +486,17 @@ namespace Kayac.DebugUi
                 float theta = thetaStep * (float)i;
                 float dx = Mathf.Sin(theta) * radius;
                 float dy = Mathf.Cos(theta) * radius;
-                vertices[vertexCount + i] = new Vector3(
+                vertices[vertexCount + i].position = new Vector2(
                     centerX + dx,
-                    centerY + dy,
-                    0f);
+                    centerY + dy);
             }
             // 中心頂点は最後
-            vertices[vertexCount + div] = new Vector3(centerX, centerY, 0f);
+            vertices[vertexCount + div].position = new Vector2(centerX, centerY);
 
             for (int i = 0; i < vCount; i++)
             {
-                uv[vertexCount + i] = whiteUv;
-                colors[vertexCount + i] = Color;
+                vertices[vertexCount + i].uv = whiteUv;
+                vertices[vertexCount + i].color = Color;
             }
 
             for (int i = 0; i < (div - 1); i++)
@@ -615,6 +614,20 @@ namespace Kayac.DebugUi
                 lineSpacingRatio);
         }
 
+        public void AddText(
+            string text,
+            float deltaX,
+            float deltaY,
+            Vertex[] verticesCached,
+            ushort[] indicesCached,
+            int indexOffset)
+        {
+            font.RequestCharactersInTexture(text);
+            SetTexture(FontTexture);
+
+            AddCached(deltaX, deltaY, verticesCached, indicesCached, indexOffset);
+        }
+
         public int AddText(
             string text,
             float leftX,
@@ -646,6 +659,7 @@ namespace Kayac.DebugUi
                 normalizedBoxWidth = normalizedBoxHeight = float.MaxValue;
                 wrap = false;
             }
+
             var drawnLines = AddTextNormalized(out width, out height, text, normalizedBoxWidth, normalizedBoxHeight, lineSpacingRatio, wrap);
             if (drawnLines <= 0) // 何も書いてないなら抜ける
             {
@@ -694,14 +708,14 @@ namespace Kayac.DebugUi
             float bottom)
         {
             // 頂点は左上から時計回り
-            vertices[vertexCount + 0] = new Vector3(left, top, 0f);
-            vertices[vertexCount + 1] = new Vector3(right, top, 0f);
-            vertices[vertexCount + 2] = new Vector3(right, bottom, 0f);
-            vertices[vertexCount + 3] = new Vector3(left, bottom, 0f);
+            vertices[vertexCount + 0].position = new Vector2(left, top);
+            vertices[vertexCount + 1].position = new Vector2(right, top);
+            vertices[vertexCount + 2].position = new Vector2(right, bottom);
+            vertices[vertexCount + 3].position = new Vector2(left, bottom);
             for (int i = 0; i < 4; i++)
             {
-                uv[vertexCount + i] = whiteUv;
-                colors[vertexCount + i] = Color;
+                vertices[vertexCount + i].uv = whiteUv;
+                vertices[vertexCount + i].color = Color;
             }
             AddQuadIndices(0, 1, 2, 3);
             vertexCount += 4;

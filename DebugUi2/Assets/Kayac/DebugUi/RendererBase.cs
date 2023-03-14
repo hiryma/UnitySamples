@@ -1,96 +1,39 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
+using System.Runtime.InteropServices;
 
 namespace Kayac.DebugUi
 {
     public abstract class RendererBase : System.IDisposable
     {
+        [StructLayout(LayoutKind.Explicit)] // これ機種依存しない?大丈夫?
+        public struct Vertex
+        {
+            [FieldOffset(0)] public Vector2 position;
+            [FieldOffset(8)] public Color32 color;
+            [FieldOffset(12)] public Vector2 uv;
+        }
+
         public enum TextOverflow
         {
             Scale, // 箱に収めるようスケール
             Wrap,
         }
         public const float DefaultLineSpacingRatio = 0f;
-        protected const int DefaultTriangleCapacity = 1024;
-        const int InitialSubMeshCapacity = 16;
-        readonly Shader textShader;
-        readonly Shader texturedShader;
-        readonly Mesh mesh;
-        readonly MaterialPropertyBlock materialPropertyBlock;
-        readonly Material textMaterial;
-        readonly Material texturedMaterial;
-        readonly int textureShaderPropertyId;
-        protected Font font;
-        protected int vertexCount;
-        protected int capacity;
-        protected Vector2 whiteUv;
-        protected Vector3[] vertices;
-        protected int indexCount;
-        protected Vector2[] uv;
-        protected Color32[] colors;
-        protected int[] indices;
-        protected List<Vector2> temporaryUv; // SetTriangles寸前に使う
-        protected List<Vector3> temporaryVertices; // SetTriangles寸前に使う
-        protected List<Color32> temporaryColors; // SetTriangles寸前に使う
-        protected List<int> temporaryIndices; // SetTriangles寸前に使う
-#if UNITY_WEBGL
-        const char whiteChar = '.';
-#else
-		const char whiteChar = '■';
-#endif
-        readonly string whiteString = new string(whiteChar, 1);
-        class SubMesh
-        {
-            public void FixIndexCount(int indexPosition)
-            {
-                indexCount = indexPosition - indexStart;
-            }
-
-            public Material material;
-            public Texture texture;
-            public int indexStart;
-            public int indexCount;
-        }
-        List<SubMesh> subMeshes;
-        // 毎フレーム0にリセットする。
-        int subMeshCount;
-        Texture texture;
-        readonly MeshFilter meshFilter;
-        readonly MeshRenderer meshRenderer;
-
         public Color32 Color { get; set; }
-        protected Texture FontTexture { get; private set; }
+        public int VertexCount { get => vertexCount; }
+        public int IndexCount { get => indexCount; }
+        public int FontTextureVersion { get; private set; }
 
-        protected RendererBase(
-            RendererAsset asset,
-            MeshRenderer meshRenderer,
-            MeshFilter meshFilter,
-            int capacity = DefaultTriangleCapacity)
+        public void GetVertices(Vertex[] dst, int startIndex, int count)
         {
-            textShader = asset.TextShader;
-            texturedShader = asset.TexturedShader;
-            font = asset.Font;
-            this.meshRenderer = meshRenderer;
-            this.meshFilter = meshFilter;
-            Color = new Color32(255, 255, 255, 255);
+            System.Array.Copy(vertices, startIndex, dst, 0, count);
+        }
 
-            mesh = new Mesh();
-            mesh.MarkDynamic();
-            this.meshFilter.mesh = mesh;
-
-            textMaterial = new Material(textShader);
-            texturedMaterial = new Material(texturedShader);
-            materialPropertyBlock = new MaterialPropertyBlock();
-
-            textureShaderPropertyId = Shader.PropertyToID("_MainTex");
-
-            Font.textureRebuilt += OnFontTextureRebuilt;
-            font.RequestCharactersInTexture(whiteString);
-
-            SetCapacity(capacity);
-
-            // 初回は手動
-            OnFontTextureRebuilt(font);
+        public void GetIndices(ushort[] dst, int startIndex, int count)
+        {
+            System.Array.Copy(indices, startIndex, dst, 0, count);
         }
 
         public void SetCapacity(int triangleCapacity)
@@ -101,14 +44,8 @@ namespace Kayac.DebugUi
                 UnityEngine.Debug.LogWarning("triangleCapacity must be < 0xffff/3. clamped.");
                 capacity = 0xffff;
             }
-            vertices = new Vector3[capacity];
-            uv = new Vector2[capacity];
-            colors = new Color32[capacity];
-            indices = new int[capacity];
-            temporaryVertices = new List<Vector3>(capacity); // SetTriangles寸前に使う
-            temporaryColors = new List<Color32>(capacity); // SetTriangles寸前に使う
-            temporaryUv = new List<Vector2>(capacity); // SetTriangles寸前に使う
-            temporaryIndices = new List<int>(capacity); // SetTriangles寸前に使う
+            vertices = new Vertex[capacity];
+            indices = new ushort[capacity];
             vertexCount = 0;
             indexCount = 0; // すぐ足すことになる
             subMeshes = new List<SubMesh>
@@ -129,64 +66,61 @@ namespace Kayac.DebugUi
             font.RequestCharactersInTexture(whiteString);
             // 描画キック
             mesh.Clear();
+
             if (subMeshCount > 0)
             {
                 subMeshes[subMeshCount - 1].FixIndexCount(indexCount);
-                // 使用量が半分以下の場合、テンポラリにコピーしてから渡す
-                if (vertexCount < (capacity / 2)) // 閾値は研究が必要だが、とりあえず。
-                {
-                    UnityEngine.Profiling.Profiler.BeginSample("DebugPrimitiveRenderer.UpdateMesh.FillTemporary");
 
-                    temporaryVertices.Clear();
-                    temporaryUv.Clear();
-                    temporaryColors.Clear();
-
-                    var tmpV = new System.ArraySegment<Vector3>(vertices, 0, vertexCount);
-                    var tmpUv = new System.ArraySegment<Vector2>(uv, 0, vertexCount);
-                    var tmpC = new System.ArraySegment<Color32>(colors, 0, vertexCount);
-
-                    temporaryVertices.AddRange(tmpV);
-                    temporaryUv.AddRange(tmpUv);
-                    temporaryColors.AddRange(tmpC);
-
-                    mesh.SetVertices(temporaryVertices);
-                    mesh.SetUVs(0, temporaryUv);
-                    mesh.SetColors(temporaryColors);
-
-                    UnityEngine.Profiling.Profiler.EndSample();
-                }
-                else // 半分以上使っている場合、そのまま渡す。
-                {
-                    UnityEngine.Profiling.Profiler.BeginSample("DebugPrimitiveRenderer.UpdateMesh.CopyAll");
-                    mesh.vertices = vertices;
-                    mesh.uv = uv;
-                    mesh.colors32 = colors;
-                    UnityEngine.Profiling.Profiler.EndSample();
-                }
+                mesh.SetVertexBufferParams(vertexCount, vertexDescriptors);
+                mesh.SetVertexBufferData<Vertex>(
+                    vertices,
+                    0,
+                    0,
+                    vertexCount, 
+                    0,
+                    MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontNotifyMeshUsers);
                 mesh.subMeshCount = subMeshCount;
 
-                Material[] materials = new Material[subMeshCount];
+                if ((materials == null) || (materials.Length != subMeshCount))
+                {
+                    materials = new Material[subMeshCount];
+                }
+
                 for (int i = 0; i < subMeshCount; i++)
                 {
                     materials[i] = subMeshes[i].material;
                 }
                 meshRenderer.sharedMaterials = materials;
-
+                mesh.SetIndexBufferParams(indexCount, IndexFormat.UInt16);
+    			mesh.SetIndexBufferData(
+                    indices,
+                    0, 
+                    0, 
+                    indexCount,
+                    MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontNotifyMeshUsers);
+                
+                var subMeshDesc = new SubMeshDescriptor();
+                subMeshDesc.baseVertex = 0;
+                subMeshDesc.bounds = new Bounds(Vector3.zero, Vector3.one * 1e10f);
+                subMeshDesc.firstVertex = 0;
+                subMeshDesc.topology = MeshTopology.Triangles;
+                subMeshDesc.vertexCount = vertexCount;
                 for (int i = 0; i < subMeshCount; i++)
                 {
-                    UnityEngine.Profiling.Profiler.BeginSample("DebugPrimitiveRenderer.UpdateMesh.FillIndices");
                     var subMesh = subMeshes[i];
-                    temporaryIndices.Clear();
-                    var tmpI = new System.ArraySegment<int>(indices, subMesh.indexStart, subMesh.indexCount);
-                    temporaryIndices.AddRange(tmpI);
-                    mesh.SetTriangles(temporaryIndices, i, true);
+                    subMeshDesc.indexStart = subMesh.indexStart;
+                    subMeshDesc.indexCount = subMesh.indexCount;
+                    mesh.SetSubMesh(
+                        i, 
+                        subMeshDesc,
+                    MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontNotifyMeshUsers);
                     materialPropertyBlock.SetTexture(
                         textureShaderPropertyId,
                         subMesh.texture);
                     meshRenderer.SetPropertyBlock(materialPropertyBlock, i);
-                    UnityEngine.Profiling.Profiler.EndSample();
                 }
             }
+
             meshFilter.sharedMesh = mesh;
             vertexCount = 0;
             indexCount = 0;
@@ -205,6 +139,94 @@ namespace Kayac.DebugUi
             whiteUv *= 0.25f;
         }
 
+        // protected ----
+        protected Font font;
+        protected int vertexCount;
+        protected int capacity;
+        protected Vector2 whiteUv;
+    	protected Vertex[] vertices;
+        protected ushort[] indices;
+		protected int indexCount;
+        protected const int DefaultTriangleCapacity = 1024;
+        public Texture FontTexture { get; private set; }
+
+        protected RendererBase(
+            RendererAsset asset,
+            MeshRenderer meshRenderer,
+            MeshFilter meshFilter,
+            int capacity = DefaultTriangleCapacity)
+        {
+            textShader = asset.TextShader;
+            texturedShader = asset.TexturedShader;
+            font = asset.Font;
+            this.meshRenderer = meshRenderer;
+            this.meshFilter = meshFilter;
+            Color = new Color32(255, 255, 255, 255);
+
+            mesh = new Mesh();
+            mesh.MarkDynamic();
+
+            this.meshFilter.mesh = mesh;
+
+            textMaterial = new Material(textShader);
+            texturedMaterial = new Material(texturedShader);
+            materialPropertyBlock = new MaterialPropertyBlock();
+
+            textureShaderPropertyId = Shader.PropertyToID("_MainTex");
+
+            Font.textureRebuilt += OnFontTextureRebuilt;
+            font.RequestCharactersInTexture(whiteString);
+
+            SetCapacity(capacity);
+
+            // 初回は手動
+            OnFontTextureRebuilt(font);
+
+            vertexDescriptors = new VertexAttributeDescriptor[3];
+            vertexDescriptors[0] = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 2);
+            vertexDescriptors[1] = new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.UNorm8, 4);
+            vertexDescriptors[2] = new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2);
+        }
+
+        // private ----
+        const int InitialSubMeshCapacity = 16;
+        readonly Shader textShader;
+        readonly Shader texturedShader;
+        readonly Mesh mesh;
+        readonly MaterialPropertyBlock materialPropertyBlock;
+        readonly Material textMaterial;
+        readonly Material texturedMaterial;
+        readonly int textureShaderPropertyId;
+
+#if UNITY_WEBGL
+        const char whiteChar = '.';
+#else
+		const char whiteChar = '■';
+#endif
+        readonly string whiteString = new string(whiteChar, 1);
+
+        class SubMesh
+        {
+            public void FixIndexCount(int indexPosition)
+            {
+                indexCount = indexPosition - indexStart;
+            }
+
+            public Material material;
+            public Texture texture;
+            public int indexStart;
+            public int indexCount;
+        }
+
+        List<SubMesh> subMeshes;
+        // 毎フレーム0にリセットする。
+        int subMeshCount;
+        Texture texture;
+        readonly MeshFilter meshFilter;
+        readonly MeshRenderer meshRenderer;
+        VertexAttributeDescriptor[] vertexDescriptors;
+        Material[] materials; // サイズ変わる度に作り直す
+
         // ■の中心のUVを取り直す
         void OnFontTextureRebuilt(Font font)
         {
@@ -218,6 +240,7 @@ namespace Kayac.DebugUi
                 whiteUv += ch.uvBottomLeft;
                 whiteUv += ch.uvBottomRight;
                 whiteUv *= 0.25f;
+                FontTextureVersion++;
             }
         }
 
@@ -272,22 +295,22 @@ namespace Kayac.DebugUi
         // 時計回りの相対頂点番号を3つ設定して三角形を生成
         protected void AddTriangleIndices(int i0, int i1, int i2)
         {
-            indices[indexCount + 0] = vertexCount + i0;
-            indices[indexCount + 1] = vertexCount + i1;
-            indices[indexCount + 2] = vertexCount + i2;
+            indices[indexCount + 0] = (ushort)(vertexCount + i0);
+            indices[indexCount + 1] = (ushort)(vertexCount + i1);
+            indices[indexCount + 2] = (ushort)(vertexCount + i2);
             indexCount += 3;
         }
 
         // 時計回り4頂点で三角形を2個生成
         protected void AddQuadIndices(int i0, int i1, int i2, int i3)
         {
-            indices[indexCount + 0] = vertexCount + i0;
-            indices[indexCount + 1] = vertexCount + i1;
-            indices[indexCount + 2] = vertexCount + i2;
+            indices[indexCount + 0] = (ushort)(vertexCount + i0);
+            indices[indexCount + 1] = (ushort)(vertexCount + i1);
+            indices[indexCount + 2] = (ushort)(vertexCount + i2);
 
-            indices[indexCount + 3] = vertexCount + i2;
-            indices[indexCount + 4] = vertexCount + i3;
-            indices[indexCount + 5] = vertexCount + i0;
+            indices[indexCount + 3] = indices[indexCount + 2];
+            indices[indexCount + 4] = (ushort)(vertexCount + i3);
+            indices[indexCount + 5] = indices[indexCount + 0];
             indexCount += 6;
         }
 
@@ -296,7 +319,7 @@ namespace Kayac.DebugUi
             var count = src.Count;
             for (int i = 0; i < count; i++)
             {
-                indices[indexCount + i] = vertexCount + src[i];
+                indices[indexCount + i] = (ushort)(vertexCount + src[i]);
             }
             indexCount += count;
         }
@@ -306,7 +329,7 @@ namespace Kayac.DebugUi
             var count = src.Count;
             for (int i = 0; i < count; i++)
             {
-                indices[indexCount + i] = vertexCount + src[i];
+                indices[indexCount + i] = (ushort)(vertexCount + src[i]);
             }
             indexCount += count;
         }
@@ -321,16 +344,12 @@ namespace Kayac.DebugUi
             float lineSpacingRatio,
             bool wrap)
         {
-            widthOut = heightOut = 0f;
-            if (string.IsNullOrEmpty(text))
-            {
-                return 0;
-            }
-            UnityEngine.Profiling.Profiler.BeginSample("DebugPrimitiveRenderer.AddTextNormalized");
+            UnityEngine.Profiling.Profiler.BeginSample("Kayac.DebugUi.RendererBase.AddTextNormalized");
             int letterCount = text.Length;
             font.RequestCharactersInTexture(text);
             SetTexture(FontTexture);
 
+            widthOut = heightOut = 0f;
             // 高さが不足して一行も入らないケースに対処
             var lineHeight = (float)font.lineHeight;
             if (lineHeight > boxHeight)
@@ -386,6 +405,7 @@ namespace Kayac.DebugUi
                         }
                     }
 
+//Debug.Log(c + " " + ch.uvTopLeft.ToString("F3") + " " + ch.uvBottomRight.ToString("F3"));
                     if (!AddCharNormalized(ref p, ref ch))
                     {
                         break;
@@ -412,25 +432,24 @@ namespace Kayac.DebugUi
             float w = (float)(ch.maxX - ch.minX);
             float h = (float)(ch.maxY - ch.minY);
 
-            var p0 = new Vector3(p.x + x, p.y + y, 0f); // 左上
-            var p1 = new Vector3(p0.x + w, p0.y, 0f); // 右上
-            var p2 = new Vector3(p1.x, p0.y + h, 0f); // 右下
-            var p3 = new Vector3(p0.x, p2.y, 0f); // 左下
+            var p0 = new Vector2(p.x + x, p.y + y); // 左上
+            var p1 = new Vector2(p0.x + w, p0.y); // 右上
+            var p2 = new Vector2(p1.x, p0.y + h); // 右下
+            var p3 = new Vector2(p0.x, p2.y); // 左下
 
             // 頂点は左上から時計回り
-            vertices[vertexCount + 0] = p0;
-            vertices[vertexCount + 1] = p1;
-            vertices[vertexCount + 2] = p2;
-            vertices[vertexCount + 3] = p3;
+            vertices[vertexCount + 0].position = p0;
+            vertices[vertexCount + 1].position = p1;
+            vertices[vertexCount + 2].position = p2;
+            vertices[vertexCount + 3].position = p3;
 
-            uv[vertexCount + 0] = ch.uvTopLeft;
-            uv[vertexCount + 1] = ch.uvTopRight;
-            uv[vertexCount + 2] = ch.uvBottomRight;
-            uv[vertexCount + 3] = ch.uvBottomLeft;
-
+            vertices[vertexCount + 0].uv = ch.uvTopLeft;
+            vertices[vertexCount + 1].uv = ch.uvTopRight;
+            vertices[vertexCount + 2].uv = ch.uvBottomRight;
+            vertices[vertexCount + 3].uv = ch.uvBottomLeft;
             for (int j = 0; j < 4; j++)
             {
-                colors[vertexCount + j] = Color;
+                vertices[vertexCount + j].color = Color;
             }
 
             AddQuadIndices(0, 1, 2, 3);
@@ -438,15 +457,33 @@ namespace Kayac.DebugUi
             return true;
         }
 
-        protected void TransformVertices(int verticesBegin, ref Matrix4x4 matrix)
+        protected void AddCached(
+            float deltaX,
+            float deltaY,
+            Vertex[] verticesCached,
+            ushort[] indicesCached,
+            int indexOffset)
         {
-            int vCount = vertexCount - verticesBegin;
-            for (int i = 0; i < vCount; i++)
+            UnityEngine.Profiling.Profiler.BeginSample("Kayac.DebugUi.RendererBase.AddCached");
+            if ((vertexCount + verticesCached.Length) < vertices.Length)
             {
-                var v = vertices[verticesBegin + i];
-                v = matrix.MultiplyPoint(v);
-                vertices[verticesBegin + i] = v;
+                if ((indexCount + indicesCached.Length) < indices.Length)
+                {
+                    var verticesBegin = vertexCount;
+                    System.Array.Copy(verticesCached, 0, vertices, vertexCount, verticesCached.Length);
+                    vertexCount += verticesCached.Length;
+
+                    for (var i = 0; i < indicesCached.Length; i++)
+                    {
+                        indices[indexCount + i] = (ushort)(indicesCached[i] + indexOffset);
+                    }
+                    indexCount += indicesCached.Length;
+
+                    var offset = new Vector2(deltaX, deltaY);
+                    OffsetVertices(verticesBegin, ref offset);
+                }
             }
+            UnityEngine.Profiling.Profiler.EndSample();
         }
 
         protected void TransformVertices(int verticesBegin, float scale, ref Vector2 translation)
@@ -454,12 +491,24 @@ namespace Kayac.DebugUi
             int vCount = vertexCount - verticesBegin;
             for (int i = 0; i < vCount; i++)
             {
-                var v = vertices[verticesBegin + i];
+                var v = vertices[verticesBegin + i].position;
                 v.x *= scale;
                 v.y *= scale;
                 v.x += translation.x;
                 v.y += translation.y;
-                vertices[verticesBegin + i] = v;
+                vertices[verticesBegin + i].position = v;
+            }
+        }
+
+        protected void OffsetVertices(int verticesBegin, ref Vector2 translation)
+        {
+            int vCount = vertexCount - verticesBegin;
+            for (int i = 0; i < vCount; i++)
+            {
+                var v = vertices[verticesBegin + i].position;
+                v.x += translation.x;
+                v.y += translation.y;
+                vertices[verticesBegin + i].position = v;
             }
         }
     }

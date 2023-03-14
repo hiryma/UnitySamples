@@ -143,144 +143,144 @@ namespace Kayac.DebugUi
         }
     }
 
-        public class Cells
+    public class Cells
+    {
+        public Cells(int rowCount, int colCount)
         {
-            public Cells(int rowCount, int colCount)
+            cells = new Cell[rowCount, colCount];
+        }
+        public Cell this[int row, int col]
+        {
+            get
             {
-                cells = new Cell[rowCount, colCount];
+                return cells[row, col];
             }
-            public Cell this[int row, int col]
+            set
             {
-                get
-                {
-                    return cells[row, col];
-                }
-                set
-                {
-                    cells[row, col].Asign(ref value);
-                }
+                cells[row, col].Asign(ref value);
             }
-            readonly Cell[,] cells;
+        }
+        readonly Cell[,] cells;
+    }
+
+    public struct Cell
+    {
+        enum Type
+        {
+            Int,
+            Float,
+            Bool,
+            String,
+        }
+        public Cell(int intValue)
+        {
+            type = Type.Int;
+            floatValue = 0f;
+            boolValue = false;
+            this.intValue = intValue;
+            Text = null;
         }
 
-        public struct Cell
+        public Cell(float floatValue)
         {
-            enum Type
-            {
-                Int,
-                Float,
-                Bool,
-                String,
-            }
-            public Cell(int intValue)
-            {
-                type = Type.Int;
-                floatValue = 0f;
-                boolValue = false;
-                this.intValue = intValue;
-                Text = null;
-            }
-
-            public Cell(float floatValue)
-            {
-                type = Type.Float;
-                this.floatValue = floatValue;
-                boolValue = false;
-                intValue = 0;
-                Text = null;
-            }
-
-            public Cell(string stringValue)
-            {
-                type = Type.String;
-                floatValue = 0f;
-                boolValue = false;
-                intValue = 0;
-                Text = stringValue;
-            }
-
-            public Cell(bool boolValue)
-            {
-                type = Type.Bool;
-                floatValue = 0f;
-                this.boolValue = boolValue;
-                intValue = 0;
-                Text = null;
-            }
-
-            public static implicit operator Cell(int intValue)
-            {
-                return new Cell(intValue);
-            }
-
-            public static implicit operator Cell(float floatValue)
-            {
-                return new Cell(floatValue);
-            }
-
-            public static implicit operator Cell(bool boolValue)
-            {
-                return new Cell(boolValue);
-            }
-
-            public static implicit operator Cell(string stringValue)
-            {
-                return new Cell(stringValue);
-            }
-
-            public void Asign(ref Cell cell)
-            {
-                // 型が異なる場合、文字列化
-                if (type != cell.type)
-                {
-                    switch (cell.type)
-                    {
-                        case Type.Int: Text = cell.intValue.ToString(); break;
-                        case Type.Float: Text = cell.floatValue.ToString("N2"); break;
-                        case Type.Bool: Text = cell.boolValue.ToString(); break;
-                        case Type.String: Text = cell.Text; break;
-                        default: UnityEngine.Debug.Assert(false); break;
-                    }
-                    type = cell.type;
-                }
-                // 型が等しい場合、値が等しい時のみ文字列化
-                else
-                {
-                    switch (cell.type)
-                    {
-                        case Type.Int:
-                            if (intValue != cell.intValue)
-                            {
-                                Text = cell.intValue.ToString();
-                                intValue = cell.intValue;
-                            }
-                            break;
-                        case Type.Float:
-                            if (floatValue != cell.floatValue)
-                            {
-                                Text = cell.floatValue.ToString("N2");
-                                floatValue = cell.floatValue;
-                            }
-                            break;
-                        case Type.Bool:
-                            if (boolValue != cell.boolValue)
-                            {
-                                Text = cell.boolValue.ToString();
-                                boolValue = cell.boolValue;
-                            }
-                            break;
-                        case Type.String:
-                            Text = cell.Text;
-                            break;
-                        default: UnityEngine.Debug.Assert(false); break;
-                    }
-                }
-            }
-
-            public string Text { get; private set; }
-            Type type;
-            float floatValue;
-            int intValue;
-            bool boolValue;
+            type = Type.Float;
+            this.floatValue = floatValue;
+            boolValue = false;
+            intValue = 0;
+            Text = null;
         }
+
+        public Cell(string stringValue)
+        {
+            type = Type.String;
+            floatValue = 0f;
+            boolValue = false;
+            intValue = 0;
+            Text = stringValue;
+        }
+
+        public Cell(bool boolValue)
+        {
+            type = Type.Bool;
+            floatValue = 0f;
+            this.boolValue = boolValue;
+            intValue = 0;
+            Text = null;
+        }
+
+        public static implicit operator Cell(int intValue)
+        {
+            return new Cell(intValue);
+        }
+
+        public static implicit operator Cell(float floatValue)
+        {
+            return new Cell(floatValue);
+        }
+
+        public static implicit operator Cell(bool boolValue)
+        {
+            return new Cell(boolValue);
+        }
+
+        public static implicit operator Cell(string stringValue)
+        {
+            return new Cell(stringValue);
+        }
+
+        public void Asign(ref Cell cell)
+        {
+            // 型が異なる場合、文字列化
+            if (type != cell.type)
+            {
+                switch (cell.type)
+                {
+                    case Type.Int: Text = cell.intValue.ToString(); break;
+                    case Type.Float: Text = cell.floatValue.ToString("N2"); break;
+                    case Type.Bool: Text = cell.boolValue.ToString(); break;
+                    case Type.String: Text = cell.Text; break;
+                    default: UnityEngine.Debug.Assert(false); break;
+                }
+                type = cell.type;
+            }
+            // 型が等しい場合、値が等しい時のみ文字列化
+            else
+            {
+                switch (cell.type)
+                {
+                    case Type.Int:
+                        if (intValue != cell.intValue)
+                        {
+                            Text = cell.intValue.ToString();
+                            intValue = cell.intValue;
+                        }
+                        break;
+                    case Type.Float:
+                        if (floatValue != cell.floatValue)
+                        {
+                            Text = cell.floatValue.ToString("N2");
+                            floatValue = cell.floatValue;
+                        }
+                        break;
+                    case Type.Bool:
+                        if (boolValue != cell.boolValue)
+                        {
+                            Text = cell.boolValue.ToString();
+                            boolValue = cell.boolValue;
+                        }
+                        break;
+                    case Type.String:
+                        Text = cell.Text;
+                        break;
+                    default: UnityEngine.Debug.Assert(false); break;
+                }
+            }
+        }
+
+        public string Text { get; private set; }
+        Type type;
+        float floatValue;
+        int intValue;
+        bool boolValue;
+    }
 }

@@ -6,10 +6,17 @@ namespace Kayac.DebugUi
     {
         public Color32 Color { get; set; }
         public float LineSpacing { get; set; }
-        public string Value { get; set; }
+        public string Value 
+        { 
+            get => value;
+            set
+            {
+                this.value = value;
+                meshCache.Invalidate();
+            }
+        }
         public AlignX AlignX { get; set; }
         public AlignY AlignY { get; set; }
-        readonly float fontSize;
 
         public Text(
             string text,
@@ -20,7 +27,7 @@ namespace Kayac.DebugUi
         {
             UnityEngine.Debug.Assert(height > (fontSize * 1.1f), "fontSize might be too large relative to height.");
             SetSize(width, height);
-            Value = text;
+            value = text;
             this.fontSize = fontSize;
             Initialize(backgroundEnabled);
         }
@@ -32,7 +39,7 @@ namespace Kayac.DebugUi
             float fontSize,
             bool backgroundEnabled = false) : base(string.IsNullOrEmpty(text) ? "Text" : text)
         {
-            Value = text;
+            value = text;
             this.fontSize = fontSize;
             var size = manager.Renderer.MeasureText(text, fontSize, LineSpacing);
             // ギリギリだと自動改行が不規則に走り得るので少し余裕をもたせる TODO: ちゃんと計算しろ
@@ -40,16 +47,6 @@ namespace Kayac.DebugUi
             size.y += fontSize * 0.1f;
             SetSize(size.x, size.y);
             Initialize(backgroundEnabled);
-        }
-
-        void Initialize(bool backgroundEnabled)
-        {
-            LineSpacing = RendererBase.DefaultLineSpacingRatio;
-            BackgroundEnabled = backgroundEnabled;
-            BorderEnabled = false;
-            Color = new Color32(255, 255, 255, 255);
-            AlignX = AlignX.Left;
-            AlignY = AlignY.Top;
         }
 
         public override void Draw(
@@ -72,6 +69,7 @@ namespace Kayac.DebugUi
                     primAlignX = AlignX.Right;
                     break;
             }
+
             switch (AlignY)
             {
                 case AlignY.Center:
@@ -84,16 +82,43 @@ namespace Kayac.DebugUi
                     break;
             }
             renderer.Color = Color;
-            renderer.AddText(
-                 Value,
-                 x,
-                 y,
-                 fontSize,
-                 Width,
-                 Height,
-                 primAlignX,
-                 primAlignY,
-                 LineSpacing);
+
+            if (meshCache.FontTextureVersion != renderer.FontTextureVersion)
+            {
+                meshCache.BeginSave(renderer, x, y);
+                renderer.AddText(
+                    value,
+                    x,
+                    y,
+                    fontSize,
+                    Width,
+                    Height,
+                    primAlignX,
+                    primAlignY,
+                    LineSpacing);
+                meshCache.EndSave(renderer);
+            }
+            else
+            {
+                meshCache.Draw(renderer, value, x, y);
+            }
         }
+
+        // non public ----
+        readonly float fontSize;
+        TextMeshCache meshCache;
+        string value;
+
+        void Initialize(bool backgroundEnabled)
+        {
+            LineSpacing = RendererBase.DefaultLineSpacingRatio;
+            BackgroundEnabled = backgroundEnabled;
+            BorderEnabled = false;
+            Color = new Color32(255, 255, 255, 255);
+            AlignX = AlignX.Left;
+            AlignY = AlignY.Top;
+            meshCache = new TextMeshCache();
+        }
+
     }
 }

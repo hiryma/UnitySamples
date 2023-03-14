@@ -192,10 +192,6 @@ namespace Kayac
             UpdateTransform();
 
             // チェック
-            if (myCamera.GetComponent<PhysicsRaycaster>() == null)
-            {
-                UnityEngine.Debug.LogError("Attached Camera doesn't have PhysicsRaycaster.");
-            }
             if (EventSystem.current == null)
             {
                 UnityEngine.Debug.LogError("any EventSystem doesn't exists.");
@@ -285,7 +281,7 @@ namespace Kayac
                 DrawSafeArea();
             }
             // 描画本体
-            UnityEngine.Profiling.Profiler.BeginSample("DebugPrimitiveRenderer2D.LateUpdate");
+            UnityEngine.Profiling.Profiler.BeginSample("RendererBase.UpdateMesh");
             Renderer.UpdateMesh();
             UnityEngine.Profiling.Profiler.EndSample();
 

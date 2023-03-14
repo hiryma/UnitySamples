@@ -103,6 +103,7 @@ namespace Kayac.DebugUi
                 {
                     index -= lineCount;
                 }
+                
                 if (lines[index] != null)
                 {
                     renderer.Color = colors[index];
