@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-using Kayac.Debug;
-using Kayac.Debug.Ui;
+using Kayac.DebugUi;
 
 public class SampleWindow : Window
 {
@@ -9,7 +8,7 @@ public class SampleWindow : Window
     readonly Graph graph;
     readonly FrameTimeWatcher frameTimeWatcher;
 
-    public SampleWindow(DebugUiManager manager) : base(manager, "SampleWindow")
+    public SampleWindow(Kayac.DebugUiManager manager) : base(manager, "SampleWindow")
     {
         frameTimeWatcher = new FrameTimeWatcher();
 

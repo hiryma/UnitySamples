@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae9a4b356ad06456ab67a4872b3cc5e1, type: 3}
+  m_Name: RendererAsset
+  m_EditorClassIdentifier: 
+  textShader: {fileID: 4800000, guid: 15099d0ee3e654044a13b6e622358ad3, type: 3}
+  texturedShader: {fileID: 4800000, guid: 3046225851e0445af99282813ee9a954, type: 3}
+  font: {fileID: 12800000, guid: 150c066498b2e4c10b48d194eb39328c, type: 3}

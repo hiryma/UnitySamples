@@ -1,11 +1,10 @@
 ﻿using UnityEngine;
-using Kayac.Debug;
-using Kayac.Debug.Ui;
+using Kayac.DebugUi;
 
 public class Main : MonoBehaviour
 {
     [SerializeField] Camera mainCamera;
-    [SerializeField] DebugUiManager debugUiManagerPrefab;
+    [SerializeField] Kayac.DebugUiManager debugUiManagerPrefab;
     SampleWindow sampleWindow;
     Menu menu;
 
