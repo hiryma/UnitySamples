@@ -43,3 +43,7 @@ build/
 #Kayac.SecretData
 secretData_MUST_BE_GITIGNORED.json
 secretData_MUST_BE_GITIGNORED.json.meta
+
+.DS_Store
+Logs
+Temp

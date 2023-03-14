@@ -1,20 +1,13 @@
-﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class Main : MonoBehaviour
 {
-	[SerializeField]
-	AudioSource audioSource;
-	[SerializeField]
-	Slider dampingSliderOn;
-	[SerializeField]
-	Slider dampingSliderOff;
-	[SerializeField]
-	Slider noteOffsetSlider;
-	[SerializeField]
-	Text onKeysText;
+	[SerializeField] AudioSource audioSource;
+	[SerializeField] Slider dampingSliderOn;
+	[SerializeField] Slider dampingSliderOff;
+	[SerializeField] Slider noteOffsetSlider;
+	[SerializeField] Text onKeysText;
 
 	float deltaTime;
 	bool running;
@@ -45,6 +38,11 @@ public class Main : MonoBehaviour
 		deltaTime = 1f / (float)AudioSettings.outputSampleRate;
 		running = true;
 		oscillators = new Oscillator[88];
+		TuneEqually();
+	}
+
+	void TuneEqually()
+	{
 		var step = Mathf.Pow(2f, 1f / 12f);
 		var f = 440f / 16f;
 		for (int i = 0; i < oscillators.Length; i++)
@@ -54,6 +52,50 @@ public class Main : MonoBehaviour
 			oscillators[i].Stiffness = stiffness;
 			oscillators[i].Damping = 1f;
 			f *= step;
+		}
+	}
+
+	void Tune(int baseNote)
+	{
+		var baseF = (440f / 16f) * Mathf.Pow(2f, baseNote / 12f);
+		Debug.Log("Tune: " + baseNote + "F=" + baseF);
+		var mul = new float[12]
+		{
+			1f, // base
+			15f / 14f, //0.988832221402009
+//			16f / 15f, // 0.993246650961839
+//			17f / 16f, // 0.997141735867572
+//			18f / 17f, // 1.000604033561557
+			9f / 8f,
+			7f / 6f,
+			5f / 4f,
+			4f / 3f,
+			7f / 5f,
+			3f / 2f,
+			8f / 5f,
+			5f / 3f,
+			7f / 4f,
+			15f / 8f,
+		};
+
+		for (int i = 0; i < oscillators.Length; i++)
+		{
+			var d = i - baseNote;
+			var octave = 0;
+			while (d < 0)
+			{
+				d += 12;
+				octave--;
+			}
+			octave += d / 12;
+			d = d % 12;
+
+			var f = baseF * Mathf.Pow(2f, octave);
+			f *= mul[d];
+			var w = f * 2f * Mathf.PI;
+			var stiffness = w * w;
+			oscillators[i].Stiffness = stiffness;
+			oscillators[i].Damping = 1f;
 		}
 	}
 
@@ -99,9 +141,19 @@ public class Main : MonoBehaviour
 		};
 		var onKeys = "";
 		var on = new bool[oscillators.Length];
+		var shift = 0;
+		var tuned = false;
+		if (Input.GetKey(KeyCode.LeftShift))
+		{
+			shift = -12;
+		}
+		if (Input.GetKey(KeyCode.RightShift))
+		{
+			shift = 12;
+		}
 		for (int i = 0; i < keys.Length; i++)
 		{
-			var note = startNote + i;
+			var note = startNote + i + shift;
 			if (Input.GetKeyDown(keys[i]))
 			{
 				Attack(note, strength);
@@ -109,11 +161,21 @@ public class Main : MonoBehaviour
 			if (Input.GetKey(keys[i]))
 			{
 				on[note] = true;
+				if (Input.GetKeyDown(KeyCode.Return))
+				{
+					Tune(note);
+					tuned = true;
+				}
 			}
 			onKeys += "<color=" + (on[note] ? "#ff0000" : "ffffff") + ">";
 			onKeys += noteNames[(startNote + i) % 12] + "</color> ";
 		}
 		onKeysText.text = onKeys;
+
+		if (!tuned && Input.GetKeyDown(KeyCode.Return))
+		{
+			TuneEqually();
+		}
 
 		for (int i = 0; i < oscillators.Length; i++)
 		{
