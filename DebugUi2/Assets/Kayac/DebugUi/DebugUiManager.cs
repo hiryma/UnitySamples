@@ -24,6 +24,11 @@ namespace Kayac
         [SerializeField] int triangleCapacity = 8192;
         [SerializeField] bool autoStart = true;
         [SerializeField] bool autoUpdate = true;
+        [SerializeField] float leftMargin;
+        [SerializeField] float rightMargin;
+        [SerializeField] float topMargin;
+        [SerializeField] float bottomMargin;
+        [SerializeField] bool safeAreaVisualizationEnabled;
 
         public class Input
         {
@@ -156,6 +161,7 @@ namespace Kayac
             Camera cameraOverride = null,
             Renderer2D rendererOverride = null)
         {
+            SafeAreaVisualizationEnabled = this.safeAreaVisualizationEnabled; // 初期値
             if (cameraOverride != null)
             {
                 myCamera = cameraOverride;
@@ -196,6 +202,14 @@ namespace Kayac
             {
                 UnityEngine.Debug.LogError("any EventSystem doesn't exists.");
             }
+        }
+
+        public void SetMargin(float left, float right, float top, float bottom)
+        {
+            this.leftMargin = left;
+            this.rightMargin = right;
+            this.topMargin = top;
+            this.bottomMargin = bottom;
         }
 
         public void Dispose()
@@ -360,8 +374,7 @@ namespace Kayac
 
         static Rect GetSafeArea() // 上書き
         {
-            var ret = Screen.safeArea;
-            return ret;
+            return Screen.safeArea;
         }
 
         void DrawSafeArea()
@@ -383,8 +396,13 @@ namespace Kayac
 
         void UpdateTransform()
         {
-            // カメラ追随処理
             var safeArea = GetSafeArea();
+            // safeAreaからさらにmarginを引く
+            safeArea.x += leftMargin;
+            safeArea.width -= (leftMargin + rightMargin);
+            safeArea.y += topMargin;
+            safeArea.height -= (topMargin + bottomMargin);
+
             var aspect = safeArea.width / safeArea.height;
             var screenWidth = (float)Screen.width;
             var screenHeight = (float)Screen.height;
