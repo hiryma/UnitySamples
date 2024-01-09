@@ -6,6 +6,8 @@ public class ステージ : MonoBehaviour
 {
 	public 自分 自分 { get => 自分_; }
 	public 敵[] 敵リスト { get => 敵リスト_; }
+	public bool クリアしてる { get => false; }
+	public bool 死んだ { get => 自分_.死んだ; }
 
 	public void 初期化(設定 設定)
 	{
@@ -26,16 +28,6 @@ public class ステージ : MonoBehaviour
 		{
 			敵.更新(時間ステップ);
 		}
-	}
-
-	public bool クリアしてる()
-	{
-		return false;
-	}
-
-	public bool 死んだ()
-	{
-		return false;
 	}
 
 	// ---- ここから下は外からは見えないよ ----
