@@ -86,6 +86,7 @@ public class 自分 : MonoBehaviour
 		死んだ = true;
 		renderer.color = Color.red;
 		物理.AddForce(new Vector2(Random.Range(-1.5f, 0.5f), Random.Range(0.5f, 1.5f)) * 5f, ForceMode2D.Impulse);
+		物理.constraints = RigidbodyConstraints2D.None;
 		物理.AddTorque(1.5f, ForceMode2D.Impulse);
 	}
 }
