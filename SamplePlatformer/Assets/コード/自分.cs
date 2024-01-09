@@ -32,9 +32,13 @@ public class 自分 : MonoBehaviour
 		}
 		物理.AddForce(力);
 
-		if (接地中 && ジャンプ)
+		if (接地中 && ジャンプ && !前のジャンプ入力)
 		{
-			物理.AddForce(Vector2.up * 設定.ジャンプ力, ForceMode2D.Impulse);
+			物理.AddForce(Vector2.up * 設定.初期ジャンプ力, ForceMode2D.Impulse);
+		}
+		else if (!接地中 && ジャンプ)
+		{
+			物理.AddForce(Vector2.up * 設定.追加ジャンプ力);
 		}
 
 		接地中 = false;
@@ -44,6 +48,8 @@ public class 自分 : MonoBehaviour
 		{
 			落ちた = true;
 		}
+
+		前のジャンプ入力 = ジャンプ;
 	}
 
 	void OnCollisionEnter2D(Collision2D collision)
@@ -73,6 +79,7 @@ public class 自分 : MonoBehaviour
 	// ---- 以下外から見えないよ ----
 	設定 設定;
 	bool 接地中;
+	bool 前のジャンプ入力;
 
 	void 死ぬ()
 	{

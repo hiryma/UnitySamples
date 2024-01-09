@@ -15,10 +15,7 @@ public class 世界 : MonoBehaviour
 		左 = Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A);
 		右 = Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.S);
 
-		if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
-		{
-			ジャンプ = true;
-		}
+		ジャンプ = Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0);
 
 		if (今のステージ == null) // タイトル画面
 		{
@@ -81,7 +78,6 @@ public class 世界 : MonoBehaviour
 			// 仮にカメラを自キャラ位置に固定
 			カメラ更新();
 		}
-		ジャンプ = false;
 	}
 	
 	ステージ 今のステージ;
