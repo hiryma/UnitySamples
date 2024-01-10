@@ -7,8 +7,15 @@ public class 世界 : MonoBehaviour
 {
 	[SerializeField] 設定 設定;
 	[SerializeField] Camera カメラ;
-	[SerializeField] SpriteRenderer タイトル画面;
-	[SerializeField] ステージ[] ステージリスト;
+	[SerializeField] ステージ ステージ;
+
+	void Start()
+	{
+		ステージ.初期化(設定);
+		死後タイマー = 0f;
+
+		カメラ更新();
+	}
 
 	void Update()
 	{
@@ -17,51 +24,39 @@ public class 世界 : MonoBehaviour
 
 		ジャンプ = Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0);
 
-		if (今のステージ == null) // タイトル画面
+		var 時間ステップ  = Time.deltaTime;
+
+		if (ステージ.クリアしてる)
 		{
-			if (ジャンプ || 左 || 右)
+			リセット();
+		}
+		else if (ステージ.死んだ)
+		{
+			if (死後タイマー <= 0f)
 			{
-				タイトル画面.gameObject.SetActive(false);
-				ステージを初期化();
+				死後タイマー = 設定.死後待ち時間;
+			}
+			else if (死後タイマー > 0f)
+			{
+				死後タイマー -= 時間ステップ;
+				if (死後タイマー <= 0f)
+				{
+					リセット();
+				}
 			}
 		}
-		else
+		else if (ステージ.自分.落ちた)
 		{
-			var 時間ステップ  = Time.deltaTime;
-
-			if (今のステージ.クリアしてる)
+			if (死後タイマー <= 0f)
 			{
-				今のステージ番号++;
-				ステージを初期化();
+				死後タイマー = 設定.落下後待ち時間;
 			}
-			else if (今のステージ.死んだ)
+			else if (死後タイマー > 0f)
 			{
+				死後タイマー -= 時間ステップ;
 				if (死後タイマー <= 0f)
 				{
-					死後タイマー = 設定.死後待ち時間;
-				}
-				else if (死後タイマー > 0f)
-				{
-					死後タイマー -= 時間ステップ;
-					if (死後タイマー <= 0f)
-					{
-						ステージを初期化();
-					}
-				}
-			}
-			else if (今のステージ.自分.落ちた)
-			{
-				if (死後タイマー <= 0f)
-				{
-					死後タイマー = 設定.落下後待ち時間;
-				}
-				else if (死後タイマー > 0f)
-				{
-					死後タイマー -= 時間ステップ;
-					if (死後タイマー <= 0f)
-					{
-						ステージを初期化();
-					}
+					リセット();
 				}
 			}
 		}
@@ -69,42 +64,30 @@ public class 世界 : MonoBehaviour
 
 	void FixedUpdate()
 	{
-		if (今のステージ != null) // タイトル画面
+		if (ステージ != null) // タイトル画面
 		{
 			var 時間ステップ  = Time.fixedDeltaTime;
 
-			今のステージ.更新(時間ステップ, 左, 右, ジャンプ);
+			ステージ.更新(時間ステップ, 左, 右, ジャンプ);
 
 			// 仮にカメラを自キャラ位置に固定
 			カメラ更新();
 		}
 	}
 	
-	ステージ 今のステージ;
-	int 今のステージ番号 = 0;
 	bool 左;
 	bool 右;
 	bool ジャンプ;
 	float 死後タイマー = 0f;
 
-	void ステージを初期化()
+	void リセット()
 	{
-		if (今のステージ != null)
-		{
-			Destroy(今のステージ.gameObject);
-		}
-
-		var ステージのプレハブ = ステージリスト[今のステージ番号];
-		今のステージ = Instantiate(ステージのプレハブ, transform, false);
-		今のステージ.初期化(設定);
-		死後タイマー = 0f;
-
-		カメラ更新();
+		UnityEngine.SceneManagement.SceneManager.LoadScene(0);
 	}
 
 	void カメラ更新()
 	{
-		var 自分x = 今のステージ.自分.transform.position.x;
+		var 自分x = ステージ.自分.transform.position.x;
 		カメラ.transform.position = new Vector3(自分x, 5f, -10f);
 	}
 }
