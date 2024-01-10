@@ -49,7 +49,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   "\u91CD\u529B": 1
   "\u79FB\u52D5\u529B": 2
+  "\u3064\u3076\u308C\u30A2\u30CB\u30E1\u901F\u3055": 4
+  "\u8E0F\u307F\u30D0\u30A6\u30F3\u30C9\u529B": 4
   "\u7269\u7406": {fileID: 8031873445181838804}
+  "\u30B3\u30E9\u30A4\u30C0": {fileID: 3141479302338690935}
 --- !u!212 &6340395841178407946
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -128,7 +131,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!61 &3141479302338690935
 BoxCollider2D:
   m_ObjectHideFlags: 0

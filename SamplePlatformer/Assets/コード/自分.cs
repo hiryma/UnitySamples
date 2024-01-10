@@ -66,7 +66,17 @@ public class 自分 : MonoBehaviour
 		}
 		else if (相手.GetComponent<敵>() != null)
 		{
-			死ぬ();
+			if (collision.contacts[0].normal.y > 0.5f)
+			{
+				// 踏み殺す
+				var 敵 = 相手.GetComponent<敵>();
+				敵.踏まれて死ぬ();
+				物理.AddForce(Vector2.up * 敵.Get踏みバウンド力(), ForceMode2D.Impulse);
+			}
+			else
+			{
+				死ぬ();
+			}
 		}
 	}
 
