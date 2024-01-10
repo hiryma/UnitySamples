@@ -7,7 +7,7 @@ public class 世界 : MonoBehaviour
 {
 	[SerializeField] 設定 設定;
 	[SerializeField] Camera カメラ;
-	[SerializeField] UnityEngine.UI.Image タイトル画面;
+	[SerializeField] SpriteRenderer タイトル画面;
 	[SerializeField] ステージ[] ステージリスト;
 
 	void Update()
