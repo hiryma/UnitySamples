@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Kayac;
 using UnityEngine;
 
@@ -60,9 +59,10 @@ public class Cannon : MonoBehaviour
 		fireTimer -= deltaTime;
 		if (fireTimer <= 0f)
 		{
+//ProjectileMath.D = 1;
 			var error = CalcCurrentError(target);
-Debug.Log(error);
-			if (error < 2f)
+ProjectileMath.D = 0;
+//			if (error < 2f)
 			{
 				Fire(target, projectilesParent);
 				fireTimer = fireInterval;
@@ -141,7 +141,7 @@ Debug.Log(error);
 
 		float timeToClosest;
 		var minEv = CalculateError(
-			(goalDirection.normalized * speed) + body.velocity,
+			goalDirection,
 			target,
 			out timeToClosest);
 		var minError = minEv.magnitude;
@@ -151,7 +151,7 @@ Debug.Log(error);
 			{
 				float timeToClosest;
 				var ev = CalculateError(
-					(vDir.normalized * speed) + body.velocity,
+					vDir,
 					target,
 					out timeToClosest);
 				return ev.magnitude;
@@ -242,12 +242,12 @@ Debug.Log(error);
 		return forwardGoal;
 	}
 
-	Vector3 CalculateError(Vector3 vDir, Target target, out float timeToClosest)
+	Vector3 CalculateError(Vector3 direction, Target target, out float timeToClosest)
 	{
 		bool converged;
 		var ev = ProjectileMath.CalculateError(
 			muzzlePoint.position,
-			(vDir.normalized * speed) + body.velocity,
+			(direction.normalized * speed) + body.velocity,
 			target.Position,
 			smoothedTargetVelocity,
 			target.AccelAverage,

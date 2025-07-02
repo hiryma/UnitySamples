@@ -24,6 +24,27 @@ public class Main : MonoBehaviour
 	// monoBehaviour Events ----
 	void Start()
 	{
+#if UNITY_EDITOR
+var gen = new StandardNormalDistributionGenerator(0);
+
+var s1 = 0f;
+var s2 = 0f;
+var min = float.MaxValue;
+var max = float.MinValue;
+for (var i = 0; i < 10000; i++)
+{
+	var v = gen.Sample();
+	s1 += v;
+	s2 += v * v;
+	if (v < min) min = v;
+	if (v > max) max = v;
+}
+var mean = s1 / 10000f;
+var variance = s2 / 10000f - mean * mean;
+Debug.LogFormat("mean = {0}, variance = {1}", mean, variance);
+Debug.LogFormat("min = {0}, max = {1}", min, max);
+
+#endif
 		cannon.ManualStart(this);
 		target.ManualStart(this);
 	}

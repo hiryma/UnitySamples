@@ -156,6 +156,7 @@ MonoBehaviour:
   inertiaResistance: 0.005
   guideCalculationTimeStepFactor: 1
   guide: 1
+  calcErrorMaxIterations: 128
 --- !u!54 &7033779447122262109
 Rigidbody:
   m_ObjectHideFlags: 0

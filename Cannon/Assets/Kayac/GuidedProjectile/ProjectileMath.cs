@@ -4,6 +4,7 @@ namespace Kayac
 {
 	public static class ProjectileMath
 	{
+public static int D = 0;
 		// ある角度で撃った時の最近接距離を返す。
 		// 慣性抵抗によって減速することを鑑み、加速度が大きい時ほどtimeStepを小さくする。
 		public static Vector3 CalculateError(
@@ -70,11 +71,15 @@ namespace Kayac
 					in targetAccelAverage,
 					in targetAccelCovarianceCholesky,
 					ref rand);
-ta = Vector3.zero;
-				var midTv = v + (a * halfDt);
-				var newTv = tv + (ta * dt); // ターゲットの速度を更新。オイラー。
-				// ターゲットの位置は台形積分
+//ta = Vector3.zero;
+//Debug.Assert(!float.IsNaN(ta.x) && !float.IsNaN(ta.y) && !float.IsNaN(ta.z), "Sampled acceleration contains NaN : " + ta + " " + targetAccelAverage + " " + targetAccelCovarianceCholesky);
+				var midTv = tv + (ta * halfDt);
+				var newTv = tv + (ta * dt);
 				var newTp = tp + (midTv * dt);
+if (D > 0)
+{
+//	Debug.Log(timeToClosestOut + "\t" + tv + " + " + ta + " -> " + newTv + " dt=" + dt);
+}
 
 				// 距離
 				var newE = newTp - newP;
@@ -120,8 +125,11 @@ ta = Vector3.zero;
 				tp = newTp; 
 				tv = newTv; // ターゲット位置と速度を更新
 			}
-
-//Debug.Log("END: " + targetPosition + " -> " + tp + " " + targetAccelAverage + " e=" + minError.magnitude);
+if (D > 0)
+{
+//Debug.Log("END: " + targetPosition + " -> " + tp + " " + targetAccelAverage + " e=" + minError.magnitude + " v=" + targetVelocity + " -> " + tv + " t=" + timeToClosestOut);
+Debug.Log("V : " + targetVelocity + " -> " + tv);
+}
 			return minError;
 		}
 
@@ -132,7 +140,12 @@ ta = Vector3.zero;
 		{
 			var ret = accelAverage;
 			var n = rand.Sample3();
-			ret += accelCovarianceCholesky.MultiplyVector(n);
+			var delta = accelCovarianceCholesky.MultiplyVector(n);
+			ret += delta;
+if (D > 0)
+{
+	Debug.Log("\tdelta " + delta + " a=" + ret + " mu=" + accelAverage + " n=" + n + " Cov(xx)=" + accelCovarianceCholesky.m00);
+}			
 			return ret;
 		}
 
