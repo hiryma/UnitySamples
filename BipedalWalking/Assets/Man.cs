@@ -10,6 +10,8 @@ public class Man : MonoBehaviour
 	{
 		[SerializeField] public float hipsAngle;
 		[SerializeField] public float defaultHeightRatio = 0.9f;
+		[SerializeField] public float upFootHeight = 0.3f;
+		[SerializeField] public float upFootForward = 0.3f;
 		[SerializeField] public float footPidLerp = 0.5f;
 		[SerializeField] public PidSettings hipsPid;
 		[SerializeField] public PidSettings upperLegPid;
