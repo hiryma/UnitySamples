@@ -11,9 +11,9 @@ public class Cannon : MonoBehaviour
 	[SerializeField] float fireInterval = 1f;
 	[SerializeField] float speed = 10f;
 	[SerializeField] float timeStepFactor = 1f;
-	[SerializeField] float targetVelocitySmoothing = 1f;
 	[SerializeField] float xSpeed = 1f;
 	[SerializeField] float xRange = 20f;
+	[SerializeField] float errorTorrelance = 2f;
 	[SerializeField] int calcErrorMaxIterations = 128;
 	[SerializeField] Transform muzzlePoint;
 	[SerializeField] Projectile projectilePrefab;
@@ -47,13 +47,6 @@ public class Cannon : MonoBehaviour
 		var f = movePid.Update(p, goal, deltaTime);
 		body.AddForce(f, ForceMode.Acceleration);
 
-		var tv = target.Velocity; // ターゲットの速度
-		// 目標の速度を平滑化
-		smoothedTargetVelocity = Vector3.Lerp(
-			smoothedTargetVelocity,
-			tv,
-			Mathf.Clamp01(deltaTime * targetVelocitySmoothing));
-
 		UpdateBarrel(deltaTime, target);
 
 		fireTimer -= deltaTime;
@@ -62,7 +55,7 @@ public class Cannon : MonoBehaviour
 //ProjectileMath.D = 1;
 			var error = CalcCurrentError(target);
 ProjectileMath.D = 0;
-//			if (error < 2f)
+			if (error < errorTorrelance)
 			{
 				Fire(target, projectilesParent);
 				fireTimer = fireInterval;
@@ -101,7 +94,6 @@ ProjectileMath.D = 0;
 	PidController3 movePid;
 	PidControllerRotation rotationPid;
 	Vector3 currentDirectionGoal;
-	Vector3 smoothedTargetVelocity;
 	int targetAccelRandSeed;
 
 	void UpdateBarrel(float deltaTime, Target target)
@@ -135,10 +127,6 @@ ProjectileMath.D = 0;
 		Target target,
 		Vector3 goalDirection)
 	{
-		var p = muzzlePoint.position;
-		var tp = target.Position; // ターゲット位置
-		var tv = smoothedTargetVelocity; // 平滑化したターゲットの速度
-
 		float timeToClosest;
 		var minEv = CalculateError(
 			goalDirection,
@@ -249,9 +237,8 @@ ProjectileMath.D = 0;
 			muzzlePoint.position,
 			(direction.normalized * speed) + body.velocity,
 			target.Position,
-			smoothedTargetVelocity,
-			target.AccelAverage,
-			target.AccelCovarianceCholesky,
+			target.VelocityAverage,
+			target.VelocityCovarianceCholesky,
 			targetAccelRandSeed,
 			Physics.gravity, // 重力は下向きなので正の値
 			projectilePrefab.Mass,
@@ -260,7 +247,7 @@ ProjectileMath.D = 0;
 			calcErrorMaxIterations,
 			out timeToClosest,
 			out converged);
-		Debug.Assert(converged, "Projectile: Error did not converge within max iterations.");
+		Debug.Assert(converged, "Projectile: Error did not converge within max iterations. max="  + calcErrorMaxIterations);
 		return ev;
 	}
 

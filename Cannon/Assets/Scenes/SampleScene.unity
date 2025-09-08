@@ -890,15 +890,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: xSpeed
-      value: 0
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: fireInterval
-      value: 0.2
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: timeStepFactor
-      value: 8
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: iterationCountHint
@@ -906,31 +906,35 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: movePidSettings.kd
-      value: 100
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: movePidSettings.ki
-      value: 100
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: movePidSettings.kp
-      value: 1000
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: gridSearchIteration
       value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
+      propertyPath: calcErrorMaxIterations
+      value: 128
+      objectReference: {fileID: 0}
+    - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: rotationPidSettings.kd
-      value: 400
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: rotationPidSettings.ki
-      value: 400
+      value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: rotationPidSettings.kp
-      value: 4000
+      value: 500
       objectReference: {fileID: 0}
     - target: {fileID: 7937830153394109448, guid: ee10dcc508cc74fcaae30ee6a540bff4, type: 3}
       propertyPath: targetVelocitySmoothing
@@ -958,28 +962,36 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 13400000, guid: 2364b7b3562504c5897b36d4b3869992, type: 2}
     - target: {fileID: 6980576326165226532, guid: fa9a202ac50d441eeaa01b567ebb9795, type: 3}
+      propertyPath: accel
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 6980576326165226532, guid: fa9a202ac50d441eeaa01b567ebb9795, type: 3}
       propertyPath: xRange
-      value: 5
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 6980576326165226532, guid: fa9a202ac50d441eeaa01b567ebb9795, type: 3}
       propertyPath: xSpeed
-      value: 1
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 6980576326165226532, guid: fa9a202ac50d441eeaa01b567ebb9795, type: 3}
       propertyPath: accelSmoothing
       value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 6980576326165226532, guid: fa9a202ac50d441eeaa01b567ebb9795, type: 3}
+      propertyPath: velocitySmoothing
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 6980576326165226532, guid: fa9a202ac50d441eeaa01b567ebb9795, type: 3}
       propertyPath: movePidSettings.kd
-      value: 1
+      value: 0.02
       objectReference: {fileID: 0}
     - target: {fileID: 6980576326165226532, guid: fa9a202ac50d441eeaa01b567ebb9795, type: 3}
       propertyPath: movePidSettings.ki
-      value: 1
+      value: 0.04
       objectReference: {fileID: 0}
     - target: {fileID: 6980576326165226532, guid: fa9a202ac50d441eeaa01b567ebb9795, type: 3}
       propertyPath: movePidSettings.kp
-      value: 10
+      value: 0.4
       objectReference: {fileID: 0}
     - target: {fileID: 7430971727710495217, guid: fa9a202ac50d441eeaa01b567ebb9795, type: 3}
       propertyPath: m_LocalScale.x

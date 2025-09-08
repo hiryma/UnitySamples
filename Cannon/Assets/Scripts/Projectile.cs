@@ -45,9 +45,8 @@ public class Projectile : MonoBehaviour
 			body.position,
 			v,
 			target.transform.TransformPoint(targetOffset),
-			target.Velocity,
-			target.AccelAverage,
-			target.AccelCovarianceCholesky,
+			target.VelocityAverage,
+			target.VelocityCovarianceCholesky,
 			targetAccelRandSeed,
 			Physics.gravity,
 			body.mass,
@@ -56,7 +55,7 @@ public class Projectile : MonoBehaviour
 			calcErrorMaxIterations,
 			out timeToClosest,
 			out converged);
-		Debug.Assert(converged, "Projectile: Error did not converge within max iterations.");
+		Debug.Assert(converged, "Projectile: Error did not converge within max iterations. max=" +  calcErrorMaxIterations);
 		// e = 0.5 * f/m * t^2 を解いてfを求める
 		// f = 2 * e * m / t^2
 		var guideF = 2f * e * body.mass / (timeToClosest * timeToClosest);

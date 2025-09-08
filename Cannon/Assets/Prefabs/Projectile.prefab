@@ -153,7 +153,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   body: {fileID: 7033779447122262109}
   lifeTime: 30
-  inertiaResistance: 0.005
+  inertiaResistance: 0.0005
   guideCalculationTimeStepFactor: 1
   guide: 1
   calcErrorMaxIterations: 128

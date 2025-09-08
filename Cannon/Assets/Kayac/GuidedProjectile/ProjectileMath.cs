@@ -11,9 +11,8 @@ public static int D = 0;
 			Vector3 projectilePosition,
 			Vector3 projectileVelocity,
 			Vector3 targetPosition,
-			Vector3 targetVelocity,
-			Vector3 targetAccelAverage,
-			Matrix3x3 targetAccelCovarianceCholesky,
+			Vector3 targetVelocityAverage,
+			Matrix3x3 targetVelocityCovarianceCholesky,
 			int targetAccelRandSeed,
 			Vector3 gravity,
 			float mass,
@@ -32,7 +31,10 @@ public static int D = 0;
 			var p = projectilePosition;
 			var v = projectileVelocity;
 			var tp = targetPosition;
-			var tv = targetVelocity;
+			var rand = new StandardNormalDistributionGenerator(targetAccelRandSeed);
+			var tv = Sample3d(in targetVelocityAverage,
+				in targetVelocityCovarianceCholesky,
+				ref rand); // ターゲットの初期速度
 
 			var e = tp - p;
 			var error = e;
@@ -40,7 +42,6 @@ public static int D = 0;
 			var dot = Vector3.Dot(e, v);
 
 			var absG = gravity.magnitude;
-			var rand = new StandardNormalDistributionGenerator(targetAccelRandSeed);
 
 			float dt;
 			for (var iterationIndex = 0; iterationIndex < maxIterations; iterationIndex++)
@@ -67,15 +68,13 @@ public static int D = 0;
 				var newP = p + dp;
 
 				// ターゲット
-				var ta = SampleAcceleration(
-					in targetAccelAverage,
-					in targetAccelCovarianceCholesky,
+				var newTv = Sample3d(
+					in targetVelocityAverage,
+					in targetVelocityCovarianceCholesky,
 					ref rand);
 //ta = Vector3.zero;
 //Debug.Assert(!float.IsNaN(ta.x) && !float.IsNaN(ta.y) && !float.IsNaN(ta.z), "Sampled acceleration contains NaN : " + ta + " " + targetAccelAverage + " " + targetAccelCovarianceCholesky);
-				var midTv = tv + (ta * halfDt);
-				var newTv = tv + (ta * dt);
-				var newTp = tp + (midTv * dt);
+				var newTp = tp + (tv + newTv) *halfDt;
 if (D > 0)
 {
 //	Debug.Log(timeToClosestOut + "\t" + tv + " + " + ta + " -> " + newTv + " dt=" + dt);
@@ -125,26 +124,21 @@ if (D > 0)
 				tp = newTp; 
 				tv = newTv; // ターゲット位置と速度を更新
 			}
-if (D > 0)
-{
-//Debug.Log("END: " + targetPosition + " -> " + tp + " " + targetAccelAverage + " e=" + minError.magnitude + " v=" + targetVelocity + " -> " + tv + " t=" + timeToClosestOut);
-Debug.Log("V : " + targetVelocity + " -> " + tv);
-}
 			return minError;
 		}
 
-		public static Vector3 SampleAcceleration(
-			in Vector3 accelAverage,
-			in Matrix3x3 accelCovarianceCholesky,
+		public static Vector3 Sample3d(
+			in Vector3 average,
+			in Matrix3x3 covarianceCholesky,
 			ref StandardNormalDistributionGenerator rand)
 		{
-			var ret = accelAverage;
+			var ret = average;
 			var n = rand.Sample3();
-			var delta = accelCovarianceCholesky.MultiplyVector(n);
+			var delta = covarianceCholesky.MultiplyVector(n);
 			ret += delta;
 if (D > 0)
 {
-	Debug.Log("\tdelta " + delta + " a=" + ret + " mu=" + accelAverage + " n=" + n + " Cov(xx)=" + accelCovarianceCholesky.m00);
+	Debug.Log("\tdelta " + delta + " a=" + ret + " mu=" + average + " n=" + n + " Cov(xx)=" + covarianceCholesky.m00);
 }			
 			return ret;
 		}
