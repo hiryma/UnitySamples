@@ -11,19 +11,19 @@ public class Man : MonoBehaviour
 	[System.Serializable]
 	class Settings
 	{
-		[SerializeField] public float hipsAngle;
-		[SerializeField] public float defaultHeightRatio = 0.9f;
+		[SerializeField] public float hipsAngle = 32f;
+		[SerializeField] public float defaultHeightRatio = 0.98f;
 		[SerializeField] public float footPidLerp = 0.5f;
 		[SerializeField] public float landOffsetFactor = 1f;
-		[SerializeField] public float landOffsetMin = 0f;
-		[SerializeField] public float pivotScoreThreshold = 0f;
-		[SerializeField] public float pivotScoreThresholdMin = 0f;
-		[SerializeField] public float kdScaleFactor = 0f;
-		[SerializeField] public float kdScaleUpperLegMin = 1f;
-		[SerializeField] public float kdScaleLowerLegMin = 1f;
+		[SerializeField] public float landOffsetMin = 2f;
+		[SerializeField] public float pivotScoreThreshold = 500f;
+		[SerializeField] public float pivotScoreThresholdMin = 500f;
+		[SerializeField] public float kdScaleFactor = -0.2f;
+		[SerializeField] public float kdScaleUpperLegMin = 0.25f;
+		[SerializeField] public float kdScaleLowerLegMin = 0f;
 		[SerializeField] public float speedSmoothing = 1f;
-		[SerializeField] public float resetPivotOnPivotSwitchSpeedThreshold = 1f;
-		[SerializeField] public float resetNonPivotOnPivotSwitchSpeedThreshold = 2f;
+		[SerializeField] public float resetPivotOnPivotSwitchSpeedThreshold = 2f;
+		[SerializeField] public float resetNonPivotOnPivotSwitchSpeedThreshold = 1.5f;
 		[SerializeField] public PidSettings hipsPid;
 		[SerializeField] public PidSettings upperLegPid;
 		[SerializeField] public PidSettings lowerLegPid;
@@ -68,18 +68,22 @@ public class Man : MonoBehaviour
 
 	public void OnLandDetectorCollisionStay(bool isEnter, Collision collision, Rigidbody body)
 	{
-		if (body == lowerLegL)
+		var owner = collision.gameObject.GetComponentInParent<Man>();
+
+		if (owner != this)
 		{
-			landL = true;
+			var normal = collision.contacts[0].normal;
+			if (body == lowerLegL)
+			{
+				landNormalL += normal;
+//Debug.Log("LandL " + normal + " -> " + landNormalL);
+			}
+			else if (body == lowerLegR)
+			{
+				landNormalR += normal;
+//Debug.Log("LandR " + normal + " -> " + landNormalR);	
+			}
 		}
-		else if (body == lowerLegR)
-		{
-			landR = true;
-		}
-//if (isEnter)
-{
-//Debug.Log("LAND " + isEnter + " " + collision.gameObject.name + " " + body.velocity + " " + collision.contacts[0].point.ToString("F3"));
-}
 	}
 
 	public void ManualFixedUpdate(float deltaTime)
@@ -103,22 +107,19 @@ public class Man : MonoBehaviour
 		var hipsRight = hips.rotation * Vector3.right;
 		var hipsForward = hips.rotation * Vector3.forward;
 
-		var groundNormal = Vector3.Cross(smoothedVelocity, hipsRight);
-Debug.Log("Normal : " + groundNormal.ToString("F3"));
+		landNormalL = Vector3.Lerp(landNormalL, Vector3.up, settings.speedSmoothing * deltaTime);
+		landNormalR = Vector3.Lerp(landNormalR, Vector3.up, settings.speedSmoothing * deltaTime);
 
-
-		var forward = hipsForward;
-		forward.y = 0f;
-		forward.Normalize();
+		var groundNormal = (landNormalL + landNormalR).normalized;
+		var groundForward = Vector3.Cross(groundNormal, hipsRight);
+		var worldForward = Vector3.Cross(Vector3.up, hipsRight).normalized;
 
 		var legLength = upperLegLength + lowerLegLength;
 		// hipsを地面に射影した位置
-//		var pivotL = (ol + hipsDp) - (Vector3.up * legLength * settings.defaultHeightRatio);
-//		var pivotR = (or + hipsDp) - (Vector3.up * legLength * settings.defaultHeightRatio);
-		var pivotL = (ol + hipsDp) - (Vector3.up * legLength * settings.defaultHeightRatio) + hipsForward * Vector3.Dot(hips.position - ol, hipsForward);
-		var pivotR = (or + hipsDp) - (Vector3.up * legLength * settings.defaultHeightRatio) + hipsForward * Vector3.Dot(hips.position - or, hipsForward);
-//		var pivotL = (ol + hipsDp) - (Vector3.up * legLength * settings.defaultHeightRatio) + forward * Vector3.Dot(hips.position - ol, forward);
-//		var pivotR = (or + hipsDp) - (Vector3.up * legLength * settings.defaultHeightRatio) + forward * Vector3.Dot(hips.position - or, forward);
+//		var pivotL = (ol + hipsDp) - (up * legLength * settings.defaultHeightRatio) + hipsForward * Vector3.Dot(hips.position - ol, hipsForward);
+//		var pivotR = (or + hipsDp) - (up * legLength * settings.defaultHeightRatio) + hipsForward * Vector3.Dot(hips.position - or, hipsForward);
+		var pivotL = (ol + hipsDp) - (groundNormal * legLength * settings.defaultHeightRatio) + hipsForward * Vector3.Dot(hips.position - ol, hipsForward);
+		var pivotR = (or + hipsDp) - (groundNormal * legLength * settings.defaultHeightRatio) + hipsForward * Vector3.Dot(hips.position - or, hipsForward);
 		lastPivotL = pivotL;
 		lastPivotR = pivotR;
 		/* 軸足スコアを算出する
@@ -191,7 +192,7 @@ if (Mathf.Min(scoreL, scoreR) > 18000f)
 					lowerLegRPid.Reset();
 				}
 			}
-Debug.LogError("Switch pivot land=" + landL + "/" + landR + " S: " + scoreL + " " + scoreR + " " + pivotIsLeft);
+//Debug.LogError("Switch pivot land=" + landNormalL + " / " + landNormalR + " S: " + scoreL + " " + scoreR + " " + pivotIsLeft);
 		}
 
 		var downVector = (hipsUp * legLength * settings.defaultHeightRatio);
@@ -199,30 +200,28 @@ Debug.LogError("Switch pivot land=" + landL + "/" + landR + " S: " + scoreL + " 
 		var basePosR = or - downVector;
 
 		var footUpBlend = Mathf.Sin(settings.hipsAngle * Mathf.Deg2Rad);
-		Vector3 footGl, footGr;
+		Vector3 gfl, gfr;
 		if (pivotIsLeft)
 		{
-			footGl = basePosL + landDelta;
-			var mirrored = basePosR - (2f * forward * Vector3.Dot(forward, basePosR - or));
-			footGr = Vector3.Lerp(mirrored, or, footUpBlend);
+			gfl = basePosL + landDelta;
+			var mirrored = basePosR - (2f * groundForward * Vector3.Dot(groundForward, basePosR - or));
+//			var mirrored = basePosR - (2f * worldForward * Vector3.Dot(worldForward, basePosR - or));
+			gfr = Vector3.Lerp(mirrored, or, footUpBlend);
 //footGr = mirrored + (Vector3.up * legLength * footUpBlend);
 		}
 		else // 右軸足
 		{
-			footGr = basePosR + landDelta;
-			var mirrored = basePosL - (2f * forward * Vector3.Dot(forward, basePosL - ol));
-			footGl = Vector3.Lerp(mirrored, ol, footUpBlend);
+			gfr = basePosR + landDelta;
+			var mirrored = basePosL - (2f * groundForward * Vector3.Dot(groundForward, basePosL - ol));
+//			var mirrored = basePosL - (2f * worldForward * Vector3.Dot(worldForward, basePosL - ol));
+			gfl = Vector3.Lerp(mirrored, ol, footUpBlend);
 //footGl = mirrored + (Vector3.up * legLength * footUpBlend);
 		}
-
 		landDelta -= hipsForward * (Mathf.Max(settings.landOffsetMin, forwardSpeed) * deltaTime * settings.landOffsetFactor);
-//landDelta -= hipsForward * (Mathf.Max(settings.landOffsetMin, smoothedSpeed) * deltaTime * settings.landOffsetFactor);
 		prevPivotIsLeft = pivotIsLeft;
-//Debug.Log(footGl + " " + footGr + " blend:" + footUpBlend + " pivot=" + pivotIsLeft + " ld=" + landDelta);
 
 		// Kdの速度減衰
 		var lerpT = Mathf.Clamp01(settings.speedSmoothing * deltaTime);
-		smoothedVelocity = Vector3.Lerp(smoothedVelocity, hipsV, lerpT);
 		smoothedSpeed = Mathf.Lerp(smoothedSpeed, forwardSpeed, lerpT);
 		var kdScale = Mathf.Clamp01(1f + (smoothedSpeed * settings.kdScaleFactor));
 		var upperLegKdScale = Mathf.Max(settings.kdScaleUpperLegMin, kdScale);
@@ -249,7 +248,6 @@ var kneeAnglePositiveR = true; // 一旦固定
 	 	
 
 //Debug.Log("P: " + fl + " -> " + footGl + " " + fr + " -> " + footGr);
-//Debug.LogWarning("BEGIN FOOT CALC");
 //Debug.Log("KneeAngleSign " + kneeAnglePositiveL + " " + kneeAnglePositiveR + " dot " + dotL + " " + dotR);
 		// 現在角算出
 		float upperLegLAngle, lowerLegLAngle, upperLegRAngle, lowerLegRAngle;
@@ -257,26 +255,39 @@ var kneeAnglePositiveR = true; // 一旦固定
 		CalcLegAngles(hips.rotation, or, kneeAnglePositiveR, fr, upperLegLength, lowerLegLength, out upperLegRAngle, out lowerLegRAngle);
 
 		// 目標角算出
-		var foL = upperLegL.position; // 股関節位置は予測位置で計算
-		var foR = upperLegR.position;
+		var futureOl = ol;//+ hipsDp; // 股関節位置は予測位置で計算
+		var futureOr = or;// + hipsDp;
 		float upperLegLAngleG, lowerLegLAngleG, upperLegRAngleG, lowerLegRAngleG;
 
-//		var footPidLerp = Mathf.Max(settings.footPidLerpScaleMin, 1f - (smoothedSpeed * settings.footPidLerpScaleFactor));
-		var footPidLerp = 1f - Mathf.Sin(settings.hipsAngle * Mathf.Deg2Rad);
-footPidLerp = settings.footPidLerp;
-		var midGl = Vector3.Lerp(fl, footGl, footPidLerp);
-		var midGr = Vector3.Lerp(fr, footGr, footPidLerp);
-		CalcLegAngles(hips.rotation, foL, kneeAnglePositiveL, midGl, upperLegLength, lowerLegLength, out upperLegLAngleG, out lowerLegLAngleG);
-		CalcLegAngles(hips.rotation, foR, kneeAnglePositiveR, midGr, upperLegLength, lowerLegLength, out upperLegRAngleG, out lowerLegRAngleG);
+//		var footPidLerp = 1f - Mathf.Sin(settings.hipsAngle * Mathf.Deg2Rad);
+		var footPidLerp = settings.footPidLerp;
+		var midGl = Vector3.Lerp(fl, gfl, footPidLerp);
+		var midGr = Vector3.Lerp(fr, gfr, footPidLerp);
+		// 緊急回避: 目標を股関節より上に置かない
+		var dotL = Vector3.Dot(midGl - futureOl, groundNormal);
+		if (dotL > 0f)
+		{
+			midGl -= groundNormal * dotL;
+		}
+		var dotR = Vector3.Dot(midGr - futureOr, groundNormal);
+		if (dotR > 0f)
+		{
+			midGr -= groundNormal * dotR;
+		}
 
-goalSphereL.position = footGl;
-goalSphereR.position = footGr;
+
+//Debug.LogWarning("BEGIN GoalFoot CALC midGl=" + midGl + " midGr=" + midGr + " fol=" + futureOl + " for=" + futureOr + " dl=" + (futureOl - midGl).magnitude + " dr=" + (futureOr - midGr).magnitude);
+		CalcLegAngles(hips.rotation, futureOl, kneeAnglePositiveL, midGl, upperLegLength, lowerLegLength, out upperLegLAngleG, out lowerLegLAngleG);
+		CalcLegAngles(hips.rotation, futureOr, kneeAnglePositiveR, midGr, upperLegLength, lowerLegLength, out upperLegRAngleG, out lowerLegRAngleG);
+
+goalSphereL.position = gfl;
+goalSphereR.position = gfr;
 tmpGoalSphereL.position = midGl;
 tmpGoalSphereR.position = midGr;
 //tmpGoalSphereL.position = pivotL;
 //tmpGoalSphereR.position = pivotR;
-tmpGoalSphereL.position = basePosL;
-tmpGoalSphereR.position = basePosR;
+//tmpGoalSphereL.position = basePosL;
+//tmpGoalSphereR.position = basePosR;
 
 //Debug.Log(lowerLegLAngle + " " + lowerLegRAngle + "\t " + upperLegLAngle + " " + upperLegRAngle + " score=" + scoreL + " " + scoreR);
 
@@ -290,11 +301,9 @@ tmpGoalSphereR.position = basePosR;
 		lowerLegL.AddTorque(lowerLegL.transform.right * torqueLL, ForceMode.Acceleration);
 		upperLegR.AddTorque(upperLegR.transform.right * torqueUR, ForceMode.Acceleration);
 		lowerLegR.AddTorque(lowerLegR.transform.right * torqueLR, ForceMode.Acceleration);
-Debug.Log("KdScale: " + kdScale + " " + upperLegKdScale + " spd=" + smoothedSpeed + " resetNP=" + resetNonPivotOnPivotSwitch + " resetP=" + resetPivotOnPivotSwitch + " pidLerp=" + footPidLerp +" footUpBlend=" + footUpBlend);
+//Debug.Log("KdScale: " + kdScale + " " + upperLegKdScale + " spd=" + smoothedSpeed + " resetNP=" + resetNonPivotOnPivotSwitch + " resetP=" + resetPivotOnPivotSwitch + " pidLerp=" + footPidLerp +" footUpBlend=" + footUpBlend);
 
-		landL = landR = false;
-
-#if true
+#if false
 upperLegLAngle *= Mathf.Rad2Deg;
 lowerLegLAngle *= Mathf.Rad2Deg;
 upperLegRAngle *= Mathf.Rad2Deg;
@@ -320,11 +329,9 @@ Debug.Log(
 	PidController1 lowerLegRPid;
 	bool prevPivotIsLeft = false;
 	Vector3 landDelta;
-	bool landL;
-	bool landR;
-	// 挙動変更用平滑化速度
-	float smoothedSpeed;
-	Vector3 smoothedVelocity;
+	Vector3 landNormalL;
+	Vector3 landNormalR;
+	float smoothedSpeed; // 挙動変更用平滑化速度
 	// Kd調整
 	float upperLegBaseKd;
 	float lowerLegBaseKd;
@@ -334,6 +341,26 @@ Debug.Log(
 	// デバ用
 	Vector3 lastPivotL;
 	Vector3 lastPivotR;
+
+	float NormalizeGoalAngle(float goal, float current)
+	{
+		const float PI2 = Mathf.PI * 2f;
+		var d = goal - current;
+		// 差を2piで割る
+		var q = (int)(d / PI2);
+		d -= PI2 * q;
+		// [-PI,PI]に正規化
+		if (d < -Mathf.PI)
+		{
+			d += PI2;
+		}
+		else if (d > Mathf.PI)
+		{
+			d -= PI2;
+		}
+
+		return current + d;
+	}
 
 	void CalcLegAngles(
 		Quaternion hipsRotation,
@@ -366,7 +393,7 @@ Debug.Log(
 		var o2cLen = (chest - upperLegOrigin).magnitude;
 		var f2cLen = (chest - footGoalPos).magnitude;
 		var angleFOC = CalcCenterAngle(o2fLen, o2cLen, f2cLen);
-//Debug.Log("\tFOC:" + o2fLen + " " + o2cLen + " " + f2cLen + " -> " + (angleFOC * Mathf.Rad2Deg));
+//Debug.Log("\tFOC:" + o2fLen + "\t " + o2cLen + "\t " + f2cLen + " -> " + (angleFOC * Mathf.Rad2Deg) + " chest=" + chest + " footGoalPos=" + footGoalPos);
 		// 足が、体幹前面より前にあれば角は+、後ろにあれば-とする
 		var hipsForward = hipsRotation * Vector3.forward;
 		var dot = Vector3.Dot(o2f, hipsForward);
@@ -398,10 +425,9 @@ if (cos < -1f || cos > 1f)
 			EditorGUILayout.LabelField("PivotL", self.lastPivotL.ToString("F3"));
 			EditorGUILayout.LabelField("PivotR", self.lastPivotR.ToString("F3"));
 			EditorGUILayout.LabelField("HipsZ+", (self.hips.rotation * Vector3.forward).ToString("F3"));
-			EditorGUILayout.LabelField("LandL", self.landL.ToString());
-			EditorGUILayout.LabelField("LandR", self.landR.ToString());
 			EditorGUILayout.LabelField("SmoothedSpeed", self.smoothedSpeed.ToString("F3"));
-			EditorGUILayout.LabelField("SmoothedVelocity", self.smoothedVelocity.ToString("F3"));
+			EditorGUILayout.LabelField("landNormalL", self.landNormalL.ToString("F3"));
+			EditorGUILayout.LabelField("landNormalR", self.landNormalR.ToString("F3"));
 		}
 	}
 #endif
