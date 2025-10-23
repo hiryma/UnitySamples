@@ -2,9 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class LandDetector : MonoBehaviour
+public class WalkerLandDetector : MonoBehaviour
 {
-	[SerializeField] Man owner;
+	[SerializeField] Walker owner;
 	[SerializeField] Rigidbody body;
 
 	void OnCollisionStay(Collision collision)

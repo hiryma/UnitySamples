@@ -7,15 +7,25 @@ namespace Kayac
 	[System.Serializable]
 	public class PidSettings
 	{
-		public PidSettings(float kp, float ki, float kd)
+		public PidSettings(float kp, float ki, float kd, float eSumDecay = 0f)
 		{
 			this.kp = kp;
 			this.ki = ki;
 			this.kd = kd;
+			this.eSumDecay = eSumDecay;
+		}
+
+		public void CopyFrom(PidSettings src)
+		{
+			this.kp = src.kp;
+			this.ki = src.ki;
+			this.kd = src.kd;
+			this.eSumDecay = src.eSumDecay;
 		}
 		public float kp;
 		public float ki;
 		public float kd;
+		public float eSumDecay;
 	}
 
 	public struct PidState<T>
@@ -66,6 +76,7 @@ namespace Kayac
 			// i
 			var fi = settings.ki * state.eSum;
 			f += fi;
+			state.eSum *= 1f - Mathf.Clamp01(settings.eSumDecay * deltaTime);
 			state.eSum += (e + state.prevE) * 0.5f * deltaTime;
 			// d
 			var fd = 0f;
@@ -130,6 +141,7 @@ namespace Kayac
 			f += settings.kp * e;
 			// i
 			f += settings.ki * state.eSum;
+			state.eSum *= 1f - Mathf.Clamp01(settings.eSumDecay * deltaTime);
 			state.eSum += (e + state.prevE) * 0.5f * deltaTime;
 			// d
 			if (started)
@@ -218,6 +230,7 @@ namespace Kayac
 			var t = settings.kp * e;
 			// i
 			t += settings.ki * state.eSum;
+			state.eSum *= 1f - Mathf.Clamp01(settings.eSumDecay * deltaTime);
 			state.eSum += (e + state.prevE) * 0.5f * deltaTime;
 			// d
 			if (started)
