@@ -744,7 +744,7 @@ ConfigurableJoint:
   m_Anchor: {x: 0, y: 0, z: 0}
   m_Axis: {x: 1, y: 0, z: 0}
   m_AutoConfigureConnectedAnchor: 1
-  m_ConnectedAnchor: {x: -0.1, y: -0.5, z: 0}
+  m_ConnectedAnchor: {x: -0.1, y: -0.25, z: 0}
   serializedVersion: 3
   m_SecondaryAxis: {x: 0, y: 1, z: 0}
   m_XMotion: 0
@@ -1282,37 +1282,164 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0242a4d9ce4264c5e9a197020978dcaa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  maxAngularVelocity: 100
   settingsList:
-  - hipsAngle: 15
-    defaultHeightRatio: 1
-    footPidLerp: 0.5
-    landOffsetFactor: 1
-    landOffsetMin: 2
-    pivotScoreThreshold: 0
-    pivotScoreThresholdMin: 0
+  - hipsAngle: 0
+    defaultHeightRatio: 0.99
+    footPidLerp: 0.125
+    nonPivotLandOffsetFactor: 0.3
+    nonPivotUpBlend: 0.2
+    landOffsetFactor: 0.5
+    landOffsetMin: 1
     kdScaleFactorUpper: -0.2
     kdScaleFactorLower: -0.2
-    kdScaleUpperLegMin: 0.25
-    kdScaleLowerLegMin: 0
     speedSmoothing: 1
-    legOriginHeightSmoothing: 1
-    resetPivotOnPivotSwitchSpeedThreshold: 0
-    resetNonPivotOnPivotSwitchSpeedThreshold: 0
+    legOriginHeightSmoothing: 16
     hipsPid:
       kp: 100
       ki: 10
       kd: 10
-      eSumDecay: 0
+      eSumDecay: 0.01
     upperLegPid:
       kp: 10
-      ki: 1
+      ki: 0.5
       kd: 1
-      eSumDecay: 0
+      eSumDecay: 0.1
     lowerLegPid:
       kp: 10
-      ki: 1
+      ki: 0.5
       kd: 1
-      eSumDecay: 0
+      eSumDecay: 0.1
+  - hipsAngle: 7
+    defaultHeightRatio: 0.99
+    footPidLerp: 0.2
+    nonPivotLandOffsetFactor: 0.4
+    nonPivotUpBlend: 0.2
+    landOffsetFactor: 1
+    landOffsetMin: 0.5
+    kdScaleFactorUpper: -0.2
+    kdScaleFactorLower: -0.2
+    speedSmoothing: 1
+    legOriginHeightSmoothing: 16
+    hipsPid:
+      kp: 100
+      ki: 10
+      kd: 10
+      eSumDecay: 0.01
+    upperLegPid:
+      kp: 10
+      ki: 0.5
+      kd: 1
+      eSumDecay: 0.1
+    lowerLegPid:
+      kp: 10
+      ki: 0.5
+      kd: 1
+      eSumDecay: 0.1
+  - hipsAngle: 14
+    defaultHeightRatio: 0.99
+    footPidLerp: 0.25
+    nonPivotLandOffsetFactor: 0.3
+    nonPivotUpBlend: 0.3
+    landOffsetFactor: 1
+    landOffsetMin: 1
+    kdScaleFactorUpper: -0.2
+    kdScaleFactorLower: -0.2
+    speedSmoothing: 1
+    legOriginHeightSmoothing: 16
+    hipsPid:
+      kp: 100
+      ki: 10
+      kd: 10
+      eSumDecay: 0.01
+    upperLegPid:
+      kp: 12.5
+      ki: 0.5
+      kd: 1
+      eSumDecay: 0.1
+    lowerLegPid:
+      kp: 12.5
+      ki: 0.5
+      kd: 1
+      eSumDecay: 0.1
+  - hipsAngle: 21
+    defaultHeightRatio: 0.99
+    footPidLerp: 0.35
+    nonPivotLandOffsetFactor: 0.25
+    nonPivotUpBlend: 0.35
+    landOffsetFactor: 1
+    landOffsetMin: 1
+    kdScaleFactorUpper: -0.2
+    kdScaleFactorLower: -0.2
+    speedSmoothing: 1
+    legOriginHeightSmoothing: 16
+    hipsPid:
+      kp: 100
+      ki: 10
+      kd: 10
+      eSumDecay: 0.01
+    upperLegPid:
+      kp: 15
+      ki: 0.5
+      kd: 1
+      eSumDecay: 0.1
+    lowerLegPid:
+      kp: 15
+      ki: 0.5
+      kd: 1
+      eSumDecay: 0.1
+  - hipsAngle: 28
+    defaultHeightRatio: 0.99
+    footPidLerp: 0.4
+    nonPivotLandOffsetFactor: 0.2
+    nonPivotUpBlend: 0.4
+    landOffsetFactor: 1
+    landOffsetMin: 1
+    kdScaleFactorUpper: -0.2
+    kdScaleFactorLower: -0.2
+    speedSmoothing: 1
+    legOriginHeightSmoothing: 16
+    hipsPid:
+      kp: 100
+      ki: 10
+      kd: 10
+      eSumDecay: 0.01
+    upperLegPid:
+      kp: 17.5
+      ki: 0.5
+      kd: 1
+      eSumDecay: 0.1
+    lowerLegPid:
+      kp: 17.5
+      ki: 0.5
+      kd: 1
+      eSumDecay: 0.1
+  - hipsAngle: 35
+    defaultHeightRatio: 0.99
+    footPidLerp: 0.5
+    nonPivotLandOffsetFactor: 0
+    nonPivotUpBlend: 0.5
+    landOffsetFactor: 1
+    landOffsetMin: 1
+    kdScaleFactorUpper: -0.2
+    kdScaleFactorLower: -0.2
+    speedSmoothing: 1
+    legOriginHeightSmoothing: 16
+    hipsPid:
+      kp: 100
+      ki: 10
+      kd: 10
+      eSumDecay: 0.01
+    upperLegPid:
+      kp: 20
+      ki: 0.5
+      kd: 1
+      eSumDecay: 0.1
+    lowerLegPid:
+      kp: 20
+      ki: 0.5
+      kd: 1
+      eSumDecay: 0.1
   hips: {fileID: 6751647543275033868}
   upperLegL: {fileID: 7424213002398703407}
   upperLegR: {fileID: 182283815911894048}
@@ -1586,7 +1713,7 @@ ConfigurableJoint:
   m_Anchor: {x: 0, y: 0, z: 0}
   m_Axis: {x: 1, y: 0, z: 0}
   m_AutoConfigureConnectedAnchor: 1
-  m_ConnectedAnchor: {x: 0.1, y: -0.5, z: 0}
+  m_ConnectedAnchor: {x: 0.1, y: -0.25, z: 0}
   serializedVersion: 3
   m_SecondaryAxis: {x: 0, y: 1, z: 0}
   m_XMotion: 0

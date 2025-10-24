@@ -15,18 +15,14 @@ public class Walker : MonoBehaviour
 		[SerializeField] float hipsAngle = 32f;
 		[SerializeField] float defaultHeightRatio = 0.98f;
 		[SerializeField] float footPidLerp = 0.5f;
+		[SerializeField] float nonPivotLandOffsetFactor = 0.25f;
+		[SerializeField] float nonPivotUpBlend = 0.5f;
 		[SerializeField] float landOffsetFactor = 1f;
 		[SerializeField] float landOffsetMin = 2f;
-		[SerializeField] float pivotScoreThreshold = 500f;
-		[SerializeField] float pivotScoreThresholdMin = 500f;
 		[SerializeField] float kdScaleFactorUpper = -0.2f;
 		[SerializeField] float kdScaleFactorLower = -0.2f;
-		[SerializeField] float kdScaleUpperLegMin = 0.25f;
-		[SerializeField] float kdScaleLowerLegMin = 0f;
 		[SerializeField] float speedSmoothing = 1f;
 		[SerializeField] float legOriginHeightSmoothing = 1f;
-		[SerializeField] float resetPivotOnPivotSwitchSpeedThreshold = 2f;
-		[SerializeField] float resetNonPivotOnPivotSwitchSpeedThreshold = 1.5f;
 		[SerializeField] PidSettings hipsPid;
 		[SerializeField] PidSettings upperLegPid;
 		[SerializeField] PidSettings lowerLegPid;
@@ -34,17 +30,13 @@ public class Walker : MonoBehaviour
 		public float HipsAngle => hipsAngle;
 		public float DefaultHeightRatio => defaultHeightRatio;
 		public float FootPidLerp => footPidLerp;
+		public float NonPivotLandOffsetFactor => nonPivotLandOffsetFactor;
+		public float NonPivotUpBlend => nonPivotUpBlend;
 		public float LandOffsetFactor => landOffsetFactor;
 		public float LandOffsetMin => landOffsetMin;
-		public float PivotScoreThreshold => pivotScoreThreshold;
-		public float PivotScoreThresholdMin => pivotScoreThresholdMin;
 		public float KdScaleFactorUpper => kdScaleFactorUpper;
 		public float KdScaleFactorLower => kdScaleFactorLower;
-		public float KdScaleUpperLegMin => kdScaleUpperLegMin;
-		public float KdScaleLowerLegMin => kdScaleLowerLegMin;
 		public float SpeedSmoothing => speedSmoothing;
-		public float ResetPivotOnPivotSwitchSpeedThreshold => resetPivotOnPivotSwitchSpeedThreshold;
-		public float ResetNonPivotOnPivotSwitchSpeedThreshold => resetNonPivotOnPivotSwitchSpeedThreshold;
 		public float LegOriginHeightSmoothing => legOriginHeightSmoothing;
 		public PidSettings HipsPid => hipsPid;
 		public PidSettings UpperLegPid => upperLegPid;
@@ -91,8 +83,6 @@ public class Walker : MonoBehaviour
 
 		upperLegLength = (upperLegL.position - lowerLegL.position).magnitude;
 		lowerLegLength = (lowerLegL.position - footL.position).magnitude;
-prevFootGoalL = footL.position;
-prevFootGoalR = footR.position;
 		smoothedLegOriginHeight = upperLegLength + lowerLegLength; // 仮初期値
 		lowerLegToFootL = lowerLegL.transform.InverseTransformPoint(footL.position);
 		lowerLegToFootR = lowerLegR.transform.InverseTransformPoint(footR.position);
@@ -202,11 +192,10 @@ prevFootGoalR = footR.position;
 			pivotIsLeft = true;
 		}
 
-		TryResetPids(settings, pivotIsLeft);
-
 		if (pivotIsLeft != prevPivotIsLeft)
 		{
-Debug.LogError("Switch pivot land=" + landNormalL + " / " + landNormalR + " S: " + scoreL + " " + scoreR + " " + pivotIsLeft);
+			landDelta = Vector3.zero;
+//Debug.LogError("Switch pivot land=" + landNormalL + " / " + landNormalR + " S: " + scoreL + " " + scoreR + " " + pivotIsLeft);
 		}
 
 		Vector3 gfl, gfr;
@@ -229,7 +218,7 @@ Debug.LogError("Switch pivot land=" + landNormalL + " / " + landNormalR + " S: "
 
 
 		var footPidLerp = settings.FootPidLerp;
-#if false
+#if true
 		var idealLegOriginHeight = Mathf.Cos(settings.HipsAngle * Mathf.Deg2Rad) * (upperLegLength + lowerLegLength) * settings.DefaultHeightRatio;
 		var ratio = Mathf.Clamp01(smoothedLegOriginHeight / idealLegOriginHeight);
 		var lerp = Mathf.Clamp01(128f * Mathf.Pow(1f - ratio, 2f));
@@ -259,9 +248,6 @@ Debug.LogError("Switch pivot land=" + landNormalL + " / " + landNormalR + " S: "
 		}
 
 		UpdateDebugGoals(gfl, gfr, midGl, midGr);
-
-//prevFootGoalL = midGl;
-//prevFootGoalR = midGr;
 
 //Debug.LogWarning("BEGIN GoalFoot CALC midGl=" + midGl + " midGr=" + midGr + " fol=" + futureOl + " for=" + futureOr + " dl=" + (futureOl - midGl).magnitude + " dr=" + (futureOr - midGr).magnitude);
 		// 目標角算出
@@ -303,8 +289,6 @@ Debug.LogError("Switch pivot land=" + landNormalL + " / " + landNormalR + " S: "
 	Vector3 landDelta;
 	Vector3 landNormalL;
 	Vector3 landNormalR;
-	Vector3 prevFootGoalL;
-	Vector3 prevFootGoalR;
 	float smoothedSpeed; // 挙動変更用平滑化速度
 	float smoothedLegOriginHeight;
 	Settings currentSettings;
@@ -377,18 +361,20 @@ Debug.LogError("Switch pivot land=" + landNormalL + " / " + landNormalR + " S: "
 		var basePosL = ol - downVector;
 		var basePosR = or - downVector;
 
-		var footUpBlend = Mathf.Sin(settings.HipsAngle * Mathf.Deg2Rad);
+		var footUpBlend = settings.NonPivotUpBlend;
 		if (pivotIsLeft)
 		{
 			gfl = basePosL + landDelta;
 			var mirrored = basePosR - (2f * moveForward * Vector3.Dot(moveForward, basePosR - or));
 			gfr = Vector3.Lerp(mirrored, or, footUpBlend);
+			gfr -= landDelta * settings.NonPivotLandOffsetFactor;
 		}
 		else // 右軸足
 		{
 			gfr = basePosR + landDelta;
 			var mirrored = basePosL - (2f * moveForward * Vector3.Dot(moveForward, basePosL - ol));
 			gfl = Vector3.Lerp(mirrored, ol, footUpBlend);
+			gfl -= landDelta * settings.NonPivotLandOffsetFactor;
 		}
 	}
 
@@ -584,20 +570,6 @@ if (cos < -1f || cos > 1f)
 
 //		Debug.Log("\t" + fvl + " " + fvr + " " + al + " " + ar);
 #endif
-
-
-#if true // 速度スコアバイアス
-		var forwardSpeed = Vector3.Dot(hips.velocity, moveForward);
-		var scoreBias = Mathf.Max(settings.PivotScoreThresholdMin, settings.PivotScoreThreshold * Mathf.Max(0f, forwardSpeed));
-		if (prevPivotIsLeft) // 現在軸足である方を有利にする
-		{
-			scoreL -= scoreBias;
-		}
-		else
-		{
-			scoreR -= scoreBias;
-		}
-#endif
 	}
 
 
@@ -625,12 +597,11 @@ if (cos < -1f || cos > 1f)
 		var settings = settingsList[settingsIndex];
 		var lerpT = Mathf.Clamp01(settings.SpeedSmoothing * deltaTime);
 		smoothedSpeed = Mathf.Lerp(smoothedSpeed, forwardSpeed, lerpT);
-		var kdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorUpper);
-		kdScale = Mathf.Clamp01(kdScale);
-		var upperLegKdScale = Mathf.Max(settings.KdScaleUpperLegMin, kdScale);
-		kdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorLower);
-		kdScale = Mathf.Clamp01(kdScale);
-		var lowerLegKdScale = Mathf.Max(settings.KdScaleLowerLegMin, kdScale);
+
+		var upperLegKdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorUpper);
+		var lowerLegKdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorLower);
+		upperLegKdScale = Mathf.Clamp01(upperLegKdScale);
+		lowerLegKdScale = Mathf.Clamp01(lowerLegKdScale);
 		upperLegPidSettings.kd = upperLegBaseKdList[settingsIndex] * upperLegKdScale;
 		lowerLegPidSettings.kd = lowerLegBaseKdList[settingsIndex] * lowerLegKdScale;
 	}
@@ -684,44 +655,6 @@ if (cos < -1f || cos > 1f)
 			legOriginR = hips.position;
 			footPosR = hips.position;
 			footVelocityR = hips.velocity;
-		}
-	}
-
-	void TryResetPids(Settings settings, bool pivotIsLeft)
-	{
-		var resetPivotOnPivotSwitch = (smoothedSpeed < settings.ResetPivotOnPivotSwitchSpeedThreshold);
-		var resetNonPivotOnPivotSwitch = (smoothedSpeed < settings.ResetNonPivotOnPivotSwitchSpeedThreshold);
-
-		if (pivotIsLeft != prevPivotIsLeft)
-		{
-			landDelta = Vector3.zero;
-			if (resetNonPivotOnPivotSwitch)
-			{
-				if (pivotIsLeft) // 非軸足をリセット
-				{
-					upperLegRPid.Reset();
-					lowerLegRPid.Reset();
-				}
-				else
-				{
-					upperLegLPid.Reset();
-					lowerLegLPid.Reset();
-				}
-			}
-
-			if (resetPivotOnPivotSwitch)
-			{
-				if (pivotIsLeft) // 非軸足をリセット
-				{
-					upperLegLPid.Reset();
-					lowerLegLPid.Reset();
-				}
-				else
-				{
-					upperLegRPid.Reset();
-					lowerLegRPid.Reset();
-				}
-			}
 		}
 	}
 

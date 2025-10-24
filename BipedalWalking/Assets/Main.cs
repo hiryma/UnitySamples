@@ -51,7 +51,7 @@ public class Main : MonoBehaviour
 		if (updateTimer <= 0f)
 		{
 //			text.text = (smoothedV.z * 3.6f).ToString("F2") + " km/h";// + "\t" + Time.realtimeSinceStartup.ToString("F2");
-			text.text = smoothedV.z.ToString("F2") + " m/s\n" + (cameraTargetPosition.z / Time.time).ToString("F2") + "\t" + Time.realtimeSinceStartup.ToString("F1");
+			text.text = smoothedV.z.ToString("F2") + " m/s\n" + (cameraTargetPosition.z / Time.time).ToString("F2") + "\t" + Time.time.ToString("F1");
 			updateTimer = 1f / smoothing;
 		}
 	}
