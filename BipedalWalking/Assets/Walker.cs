@@ -90,6 +90,8 @@ public class Walker : MonoBehaviour
 
 		upperLegLength = (upperLegL.position - lowerLegL.position).magnitude;
 		lowerLegLength = (lowerLegL.position - footL.position).magnitude;
+prevFootGoalL = footL.position;
+prevFootGoalR = footR.position;
 		smoothedLegOriginHeight = upperLegLength + lowerLegLength; // 仮初期値
 		lowerLegToFootL = lowerLegL.transform.InverseTransformPoint(footL.position);
 		lowerLegToFootR = lowerLegR.transform.InverseTransformPoint(footR.position);
@@ -224,25 +226,79 @@ public class Walker : MonoBehaviour
 		landNormalR = Vector3.Lerp(landNormalR, Vector3.up, settings.SpeedSmoothing * deltaTime);
 
 		var groundNormal = (landNormalL + landNormalR).normalized;
-		var groundForward = Vector3.Cross(groundNormal, hipsRight);
-		var worldForward = Vector3.Cross(Vector3.up, hipsRight).normalized;
+		// 移動前方ベクタ = hipsForwardからgroundNormal成分を除いたもの
+		var moveForward = hipsForward - (groundNormal * Vector3.Dot(hipsForward, groundNormal));
+		moveForward.Normalize();
 
 		var legLength = upperLegLength + lowerLegLength;
 		// hipsを地面に射影した位置
 		var effLegLength = legLength * settings.DefaultHeightRatio;
 		var effLegGroundVector = groundNormal * effLegLength;
+#if true
+		var pivotL = (ol + hipsDp) - effLegGroundVector;// + (moveForward * Vector3.Dot(hips.position - ol, moveForward));
+		var pivotR = (or + hipsDp) - effLegGroundVector;// + (moveForward * Vector3.Dot(hips.position - or, moveForward));
+#else
 		var pivotL = (ol + hipsDp) - effLegGroundVector + (hipsForward * Vector3.Dot(hips.position - ol, hipsForward));
 		var pivotR = (or + hipsDp) - effLegGroundVector + (hipsForward * Vector3.Dot(hips.position - or, hipsForward));
+#endif
 		lastPivotL = pivotL;
 		lastPivotR = pivotR;
-		/* 軸足スコアを算出する
+
+		// 軸足スコアを算出する
+#if true
+		/*
+		今、力を加えて軸足ポイント及び目標速度まで持っていくとする
+		p' = pivot + v'*t 
+
+		v0 = v + a0*t/2 ... f1
+		v' = v0 + a1*t/2 ... f2
+		p' = p + vt/2 + a0*(t/2)^2/2 + v0*t/2 + a1*(t/2)^2/2 ... f3
+
+		a0,a1を求め、この大きさの和を軸足スコアとする
+
+		f1をf2,f3に入れる
+
+		v' = v + (a0 + a1)*t/2 ... f4
+		p' = p + vt/2 + a0*(t/2)^2/2 + (v + a0*t/2)*t/2 + a1*(t/2)^2/2
+		   = p + vt/2 + a0*t^2/8 + vt/2 + a0*t^2/4 + a1*t^2/8
+		   = p + vt + 3a0*t^2/8 + a1*t^2/8 ... f5
+
+		f4をa1について解く
+		a1 = ((v' - v)*2 / t) - a0 ... f6
+		f6をf5に入れる
+		p' = p + vt + 3a0*t^2/8 + (((v' - v)*2 / t) - a0)*t^2/8
+		   = p + vt + 3a0*t^2/8 + (v' - v)*t/4 - a0*t^2/8
+		   = p + vt + (v' - v)*t/4 + a0*t^2/4
+		   = p + (3/4)vt + (1/4)v't + a0*t^2/4 ... f7
+
+		a0が求まる
+		p' - p - 3vt/4 - v't/4 = a0*t^2/4
+		4/(t^2)*(p' - p - 3vt/4 - v't/4) = a0
+
+		*/
+		var goalVelocity = moveForward * smoothedSpeed;
+		var dpL = pivotL - fl;
+		var dpR = pivotR - fr;
+		var t = deltaTime;
+		var a0l = (4f / (t * t) * dpL) - (((3f * fvl) + goalVelocity) / t);
+		var a0r = (4f / (t * t) * dpR) - (((3f * fvr) + goalVelocity) / t);
+		var v0l = fvl + (a0l * t / 2f);
+		var v0r = fvr + (a0r * t / 2f);
+		var al1 = (goalVelocity - v0l) * 2f / t;
+		var ar1 = (goalVelocity - v0r) * 2f / t;
+
+		var scoreL = a0l.magnitude + al1.magnitude;
+		var scoreR = a0r.magnitude + ar1.magnitude;
+
+//		Debug.Log("\t" + a0l + " " + a0r + " " + al1 + " " + ar1 + " \t " + scoreL + " " + scoreR);
+#else 
+		/*
 		今一定の力を加えて軸足ポイントまで持っていくとする
 		pg = foot + (footV * t) + 0.5 * (a + g) * t^2
 		今tを固定として、aを求め、aの大きさが軸足スコアである
 		pg - foot - (footV * t) = (a + g) * t^2 / 2
 		a = ((pg - foot - (footV * t)) * 2 / t^2) - g
 		*/
-
 		var t = deltaTime;
 		var dpL = pivotL - fl;
 		var dpR = pivotR - fr;
@@ -251,8 +307,12 @@ public class Walker : MonoBehaviour
 		var scoreL = al.magnitude;
 		var scoreR = ar.magnitude;
 
+//		Debug.Log("\t" + fvl + " " + fvr + " " + al + " " + ar);
+#endif
+
+
 #if true // 速度スコアバイアス
-		var forwardSpeed = Vector3.Dot(hipsV, hipsForward);
+		var forwardSpeed = Vector3.Dot(hipsV, moveForward);
 		var scoreBias = Mathf.Max(settings.PivotScoreThresholdMin, settings.PivotScoreThreshold * Mathf.Max(0f, forwardSpeed));
 		if (prevPivotIsLeft) // 現在軸足である方を有利にする
 		{
@@ -303,11 +363,10 @@ public class Walker : MonoBehaviour
 					lowerLegRPid.Reset();
 				}
 			}
-//Debug.LogError("Switch pivot land=" + landNormalL + " / " + landNormalR + " S: " + scoreL + " " + scoreR + " " + pivotIsLeft);
+Debug.LogError("Switch pivot land=" + landNormalL + " / " + landNormalR + " S: " + scoreL + " " + scoreR + " " + pivotIsLeft);
 		}
 
 		var downVector = hipsUp * (legLength * settings.DefaultHeightRatio);
-//downVector = Vector3.up * (legLength * settings.DefaultHeightRatio); // downVectorを真下にする実験
 		var basePosL = ol - downVector;
 		var basePosR = or - downVector;
 
@@ -316,40 +375,33 @@ public class Walker : MonoBehaviour
 		if (pivotIsLeft)
 		{
 			gfl = basePosL + landDelta;
-			var mirrored = basePosR - (2f * groundForward * Vector3.Dot(groundForward, basePosR - or));
-//			var mirrored = basePosR - (2f * worldForward * Vector3.Dot(worldForward, basePosR - or));
+			var mirrored = basePosR - (2f * moveForward * Vector3.Dot(moveForward, basePosR - or));
 			gfr = Vector3.Lerp(mirrored, or, footUpBlend);
-//footGr = mirrored + (Vector3.up * legLength * footUpBlend);
 		}
 		else // 右軸足
 		{
 			gfr = basePosR + landDelta;
-			var mirrored = basePosL - (2f * groundForward * Vector3.Dot(groundForward, basePosL - ol));
-//			var mirrored = basePosL - (2f * worldForward * Vector3.Dot(worldForward, basePosL - ol));
+			var mirrored = basePosL - (2f * moveForward * Vector3.Dot(moveForward, basePosL - ol));
 			gfl = Vector3.Lerp(mirrored, ol, footUpBlend);
-//footGl = mirrored + (Vector3.up * legLength * footUpBlend);
 		}
 		landDelta -= hipsForward * (Mathf.Max(settings.LandOffsetMin, forwardSpeed) * deltaTime * settings.LandOffsetFactor);
-//landDelta -= Vector3.forward * (Mathf.Max(settings.LandOffsetMin, forwardSpeed) * deltaTime * settings.LandOffsetFactor); // 真横にする実験
 		prevPivotIsLeft = pivotIsLeft;
 
 		// Kdの速度減衰
 		var lerpT = Mathf.Clamp01(settings.SpeedSmoothing * deltaTime);
 		smoothedSpeed = Mathf.Lerp(smoothedSpeed, forwardSpeed, lerpT);
-//		var kdScale = Mathf.Clamp01(1f + (smoothedSpeed * settings.KdScaleFactor));
-var kdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorUpper);
+		var kdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorUpper);
+		kdScale = Mathf.Clamp01(kdScale);
 		var upperLegKdScale = Mathf.Max(settings.KdScaleUpperLegMin, kdScale);
-kdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorLower);
+		kdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorLower);
+		kdScale = Mathf.Clamp01(kdScale);
 		var lowerLegKdScale = Mathf.Max(settings.KdScaleLowerLegMin, kdScale);
 		upperLegPidSettings.kd = upperLegBaseKdList[settingsIndex] * upperLegKdScale;
 		lowerLegPidSettings.kd = lowerLegBaseKdList[settingsIndex] * lowerLegKdScale;
 
 		var kneeAnglePositiveL = true;
 		var kneeAnglePositiveR = true; // 一旦固定
-	 	
 
-//Debug.Log("P: " + fl + " -> " + footGl + " " + fr + " -> " + footGr);
-//Debug.Log("KneeAngleSign " + kneeAnglePositiveL + " " + kneeAnglePositiveR + " dot " + dotL + " " + dotR);
 		// 現在角算出
 		float upperLegLAngle, lowerLegLAngle, upperLegRAngle, lowerLegRAngle;
 		CalcLegAngles(hips.rotation, ol, kneeAnglePositiveL, fl, upperLegLength, lowerLegLength, out upperLegLAngle, out lowerLegLAngle);
@@ -359,12 +411,11 @@ kdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorLower);
 		var futureOr = or;// + hipsDp;
 		float upperLegLAngleG, lowerLegLAngleG, upperLegRAngleG, lowerLegRAngleG;
 
-//		var footPidLerp = 1f - Mathf.Sin(settings.hipsAngle * Mathf.Deg2Rad);
 		var footPidLerp = settings.FootPidLerp;
 
 
 
-#if true
+#if false
 		var idealLegOriginHeight = Mathf.Cos(settings.HipsAngle * Mathf.Deg2Rad) * (upperLegLength + lowerLegLength) * settings.DefaultHeightRatio;
 		var ratio = Mathf.Clamp01(smoothedLegOriginHeight / idealLegOriginHeight);
 		var lerp = Mathf.Clamp01(128f * Mathf.Pow(1f - ratio, 2f));
@@ -375,10 +426,9 @@ kdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorLower);
 		}
 #endif
 
-
-
 		var midGl = Vector3.Lerp(fl, gfl, footPidLerp);
 		var midGr = Vector3.Lerp(fr, gfr, footPidLerp);
+
 		// 緊急回避: 目標を股関節より上に置かない
 		var dotL = Vector3.Dot(midGl - futureOl, groundNormal);
 		if (dotL > 0f)
@@ -391,6 +441,8 @@ kdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorLower);
 			midGr -= groundNormal * dotR;
 		}
 
+//prevFootGoalL = midGl;
+//prevFootGoalR = midGr;
 
 //Debug.LogWarning("BEGIN GoalFoot CALC midGl=" + midGl + " midGr=" + midGr + " fol=" + futureOl + " for=" + futureOr + " dl=" + (futureOl - midGl).magnitude + " dr=" + (futureOr - midGr).magnitude);
 		CalcLegAngles(hips.rotation, futureOl, kneeAnglePositiveL, midGl, upperLegLength, lowerLegLength, out upperLegLAngleG, out lowerLegLAngleG);
@@ -491,6 +543,8 @@ kdScale = Mathf.Exp(smoothedSpeed * settings.KdScaleFactorLower);
 	Vector3 landDelta;
 	Vector3 landNormalL;
 	Vector3 landNormalR;
+	Vector3 prevFootGoalL;
+	Vector3 prevFootGoalR;
 	float smoothedSpeed; // 挙動変更用平滑化速度
 	float smoothedLegOriginHeight;
 	Settings currentSettings;
